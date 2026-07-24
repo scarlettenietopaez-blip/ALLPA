@@ -32494,7 +32494,7 @@ window.addEventListener('load',()=>{
             <div class="noti-note-v119x">Puede seleccionar varios PDF en una sola carga. Se anexarán en el mismo orden en que aparecen seleccionados.</div>
             <div id="backupStatusV119X" class="file-status-v119x">${n.respaldoNombres.length?'El registro conserva los nombres de '+n.respaldoNombres.length+' archivo(s), pero debe seleccionarlos nuevamente para generar el documento.<ul class="selected-pdfs-v119x">'+n.respaldoNombres.map(nombre=>'<li>'+eV119X(nombre)+'</li>').join('')+'</ul>':'No se han seleccionado archivos PDF.'}</div>
           </div>
-          <div class="siento-preview-v119x"><strong id="sientoTitlePreviewV119X">${eV119X(siento.title)}</strong><br><br><span id="sientoTextPreviewV119X">${eV119X(siento.text)}</span><br><br><em>El documento añadirá un espacio para la firma física y, a continuación, todas las páginas de todos los PDF de respaldo seleccionados.</em></div>
+          <div class="siento-preview-v119x"><strong id="sientoTitlePreviewV119X">${eV119X(siento.title)}</strong><br><br><span id="sientoTextPreviewV119X">${eV119X(siento.text)}</span></div>
           <div class="noti-toolbar-v119x"><button id="generateSientoBtnV119X" type="button" class="noti-action-pdf-v119x" onclick="generateSientoRazonPdfV119X()">Generar PDF</button></div>
         </section>
       </div>`;
@@ -34935,5 +34935,7 @@ window.addEventListener('load',()=>{
 <!-- VERSIÓN 18: Sin filas vacías en Estudios/Factibilidades y parroquia del informe tomada de la Clave Catastral. -->
 
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
+<!-- VERSIÓN 21: eliminada la descripción obsoleta sobre el espacio de firma en Siento Razón. -->
+
 </body>
 </html>
