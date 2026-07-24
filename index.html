@@ -32225,8 +32225,10 @@ window.addEventListener('load',()=>{
       .extra-email-list-v119x{display:grid;gap:8px;margin:8px 0}
       .extra-email-row-v119x{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
       .extra-email-row-v119x button{padding:8px 10px;white-space:nowrap}
-      .selected-pdfs-v119x{margin:7px 0 0;padding-left:20px;color:#344054}
-      .selected-pdfs-v119x li{margin:3px 0}
+      .selected-pdfs-v119x{list-style:none;margin:8px 0 0;padding:0;color:#344054;display:grid;gap:7px}
+      .selected-pdfs-v119x li{margin:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid #d6e1ec;border-radius:9px;background:#fff}
+      .selected-pdfs-v119x .pdf-name-v119x{min-width:0;overflow-wrap:anywhere}
+      .selected-pdfs-v119x .remove-pdf-v119x{flex:0 0 auto;padding:6px 10px;background:#c91f3b!important;color:#fff!important;border-radius:8px;font-size:11px}
       @media(max-width:720px){.noti-toolbar-v119x{justify-content:stretch}.noti-toolbar-v119x button{flex:1}.extra-email-row-v119x{grid-template-columns:1fr}.extra-email-row-v119x button{width:100%}}
     `;
     document.head.appendChild(style);
@@ -32302,24 +32304,84 @@ window.addEventListener('load',()=>{
     autoCompleteEmailV119X(true);
     if(!n.correo && typeof msg==='function') msg('No se encontró un correo para el proyectista en el registro de profesionales. Puede escribirlo manualmente.');
   };
+  function backupFileKeyV119X(file){
+    return [String(file?.name||''),Number(file?.size||0),Number(file?.lastModified||0)].join('::');
+  }
+  function syncBackupNamesV119X(){
+    const n=ensureNotificationStateV119X();
+    n.respaldoNombres=respaldoPdfsV119X.map(file=>String(file?.name||'').trim()).filter(Boolean);
+    n.respaldoNombre=n.respaldoNombres[0]||'';
+    return n;
+  }
+  function backupStatusHtmlV119X(){
+    const n=ensureNotificationStateV119X();
+    if(respaldoPdfsV119X.length){
+      return `${respaldoPdfsV119X.length} PDF listo(s) para anexar:<ul class="selected-pdfs-v119x">${respaldoPdfsV119X.map((file,index)=>`<li><span class="pdf-name-v119x">${eV119X(file.name)}</span><button type="button" class="remove-pdf-v119x" onclick="removeNotificationBackupV119X(${index})">Quitar</button></li>`).join('')}</ul>`;
+    }
+    if(n.respaldoNombres.length){
+      return `El registro conserva los nombres de ${n.respaldoNombres.length} archivo(s), pero debe seleccionarlos nuevamente para generar el documento.<ul class="selected-pdfs-v119x">${n.respaldoNombres.map((nombre,index)=>`<li><span class="pdf-name-v119x">${eV119X(nombre)}</span><button type="button" class="remove-pdf-v119x" onclick="removeNotificationBackupV119X(${index})">Quitar</button></li>`).join('')}</ul>`;
+    }
+    return 'No se han seleccionado archivos PDF.';
+  }
+  function renderBackupStatusV119X(){
+    const status=document.getElementById('backupStatusV119X');
+    if(status) status.innerHTML=backupStatusHtmlV119X();
+  }
+  function syncBackupInputV119X(){
+    const input=document.getElementById('respaldoNotificacionV119X');
+    if(!input) return;
+    try{
+      if(typeof DataTransfer==='function'){
+        const transfer=new DataTransfer();
+        respaldoPdfsV119X.forEach(file=>transfer.items.add(file));
+        input.files=transfer.files;
+      }else if(!respaldoPdfsV119X.length){
+        input.value='';
+      }
+    }catch(_e){
+      if(!respaldoPdfsV119X.length) input.value='';
+    }
+  }
   window.selectNotificationBackupV119X=function(input){
-    const files=[...(input?.files||[])];
-    const invalid=files.find(file=>!(file.type==='application/pdf'||/\.pdf$/i.test(file.name)));
+    const nuevos=[...(input?.files||[])];
+    const invalid=nuevos.find(file=>!(file.type==='application/pdf'||/\.pdf$/i.test(file.name)));
     if(invalid){
-      input.value=''; respaldoPdfsV119X=[];
-      if(typeof msg==='function') msg('Seleccione únicamente archivos PDF como respaldo de la notificación.');
+      if(input) input.value='';
+      syncBackupInputV119X();
+      if(typeof msg==='function') msg(`El archivo "${invalid.name}" no es PDF. Los archivos seleccionados anteriormente se conservaron.`);
       return;
     }
-    respaldoPdfsV119X=files;
-    const n=ensureNotificationStateV119X();
-    n.respaldoNombres=files.map(file=>file.name);
-    n.respaldoNombre=n.respaldoNombres[0]||'';
-    const status=document.getElementById('backupStatusV119X');
-    if(status){
-      status.innerHTML=files.length
-        ? `${files.length} PDF seleccionado(s):<ul class="selected-pdfs-v119x">${files.map(file=>`<li>${eV119X(file.name)}</li>`).join('')}</ul>`
-        : 'No se han seleccionado archivos PDF.';
+    const existentes=new Set(respaldoPdfsV119X.map(backupFileKeyV119X));
+    let agregados=0, repetidos=0;
+    nuevos.forEach(file=>{
+      const key=backupFileKeyV119X(file);
+      if(existentes.has(key)){repetidos++;return;}
+      existentes.add(key);
+      respaldoPdfsV119X.push(file);
+      agregados++;
+    });
+    syncBackupNamesV119X();
+    syncBackupInputV119X();
+    renderBackupStatusV119X();
+    if(typeof msg==='function' && nuevos.length){
+      if(agregados && repetidos) msg(`${agregados} PDF agregado(s). ${repetidos} archivo(s) repetido(s) no se añadieron.`,true);
+      else if(agregados) msg(`${agregados} PDF agregado(s) correctamente.`,true);
+      else if(repetidos) msg('Los PDF seleccionados ya estaban en la lista.');
     }
+  };
+  window.removeNotificationBackupV119X=function(index){
+    const n=ensureNotificationStateV119X();
+    const i=Number(index);
+    if(!Number.isInteger(i)||i<0) return;
+    if(respaldoPdfsV119X.length){
+      respaldoPdfsV119X.splice(i,1);
+      syncBackupNamesV119X();
+    }else{
+      n.respaldoNombres.splice(i,1);
+      n.respaldoNombre=n.respaldoNombres[0]||'';
+    }
+    syncBackupInputV119X();
+    renderBackupStatusV119X();
   };
 
   async function copyTextV119X(text,success){
@@ -32491,14 +32553,15 @@ window.addEventListener('load',()=>{
           <div class="field">
             <label>Respaldos de Notificación por Correo (PDF) *</label>
             <input id="respaldoNotificacionV119X" type="file" accept="application/pdf,.pdf" multiple onchange="selectNotificationBackupV119X(this)">
-            <div class="noti-note-v119x">Puede seleccionar varios PDF en una sola carga. Se anexarán en el mismo orden en que aparecen seleccionados.</div>
-            <div id="backupStatusV119X" class="file-status-v119x">${n.respaldoNombres.length?'El registro conserva los nombres de '+n.respaldoNombres.length+' archivo(s), pero debe seleccionarlos nuevamente para generar el documento.<ul class="selected-pdfs-v119x">'+n.respaldoNombres.map(nombre=>'<li>'+eV119X(nombre)+'</li>').join('')+'</ul>':'No se han seleccionado archivos PDF.'}</div>
+            <div class="noti-note-v119x">Puede seleccionar uno o varios PDF. Cada nueva selección se agregará a la lista existente sin reemplazar los archivos anteriores. Use <strong>Quitar</strong> para eliminar un documento equivocado. Los PDF se anexarán en el orden mostrado.</div>
+            <div id="backupStatusV119X" class="file-status-v119x">${backupStatusHtmlV119X()}</div>
           </div>
           <div class="siento-preview-v119x"><strong id="sientoTitlePreviewV119X">${eV119X(siento.title)}</strong><br><br><span id="sientoTextPreviewV119X">${eV119X(siento.text)}</span></div>
           <div class="noti-toolbar-v119x"><button id="generateSientoBtnV119X" type="button" class="noti-action-pdf-v119x" onclick="generateSientoRazonPdfV119X()">Generar PDF</button></div>
         </section>
       </div>`;
     autoCompleteEmailV119X(false);
+    syncBackupInputV119X();
   };
 
   const tabsBaseV119X=typeof tabsForCurrentReport==='function'?tabsForCurrentReport:null;
@@ -34937,5 +35000,6 @@ window.addEventListener('load',()=>{
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
 <!-- VERSIÓN 21: eliminada la descripción obsoleta sobre el espacio de firma en Siento Razón. -->
 
+<!-- VERSIÓN 22: PDF de Siento Razón acumulables entre selecciones y eliminables individualmente. -->
 </body>
 </html>
