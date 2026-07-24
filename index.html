@@ -31940,7 +31940,7 @@ window.addEventListener('load',()=>{
     }
   ];
   const DEFAULT_SIENTO_TEMPLATES_V119X=[
-    {Tipo_Informe:'Informe con Observaciones',Titulo:'SIENTO RAZÓN',Texto_Base:'Siento razón que con fecha {{Fecha de hoy}} se notificó al correo electrónico registrado {{correo para notificar}}, el {{Tipo de Informe}}, para su correcta resolución en el término de 10 días.\n\nParticular que informo para los fines correspondientes',Activo:'Sí'},
+    {Tipo_Informe:'Informe con Observaciones',Titulo:'SIENTO RAZÓN',Texto_Base:'Siento por tal que, con fecha {{Fecha de hoy}}, a las {{Hora de notificación}}, se notificó al señor {{Proyectista}} con el {{Tipo de Informe}} – Trámite E-GOB N.° {{Número de EGOB}} – {{Tipo de Proyecto}}, a fin de que proceda con su correspondiente subsanación. Para el efecto, se le ha concedido el término de {{Cantidad de días}}, contados a partir de la presente notificación. La misma fue remitida al correo electrónico {{correo al que se envió}}, señalado para recibir notificaciones.',Activo:'Sí'},
     {Tipo_Informe:'Informe de Desistimiento',Titulo:'SIENTO RAZÓN',Texto_Base:'Siento razón que con fecha {{Fecha de hoy}} se notificó al correo electrónico registrado {{correo para notificar}}, el informe de desistimiento, para su conocimiento.\n\nParticular que informo para los fines correspondientes',Activo:'Sí'}
   ];
 
@@ -31962,9 +31962,9 @@ window.addEventListener('load',()=>{
     return typeof state!=='undefined' && state?.tipoInforme==='Informe con Observaciones';
   }
   function ensureNotificationStateV119X(){
-    if(typeof state==='undefined') return {correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],respaldoNombre:'',respaldoNombres:[]};
+    if(typeof state==='undefined') return {correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],respaldoNombre:'',respaldoNombres:[],fechaHoraNotificacion:''};
     if(!state.notificacionEgob || typeof state.notificacionEgob!=='object'){
-      state.notificacionEgob={correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],respaldoNombre:'',respaldoNombres:[]};
+      state.notificacionEgob={correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],respaldoNombre:'',respaldoNombres:[],fechaHoraNotificacion:''};
     }
     const n=state.notificacionEgob;
     n.correo=String(n.correo||'');
@@ -31978,6 +31978,7 @@ window.addEventListener('load',()=>{
     if(!Array.isArray(n.respaldoNombres)) n.respaldoNombres=n.respaldoNombre?[n.respaldoNombre]:[];
     n.respaldoNombres=n.respaldoNombres.map(v=>String(v||'').trim()).filter(Boolean);
     if(!n.respaldoNombre && n.respaldoNombres.length) n.respaldoNombre=n.respaldoNombres[0];
+    n.fechaHoraNotificacion=String(n.fechaHoraNotificacion||'').trim();
     return n;
   }
   function allNotificationEmailsV119X(){
@@ -32158,9 +32159,29 @@ window.addEventListener('load',()=>{
     let month=months[d.getMonth()]; if(uppercaseMonth) month=month.toUpperCase();
     return `${d.getDate()} de ${month} ${useDel?'del':'de'} ${d.getFullYear()}`;
   }
+  function notificationMomentV119X(){
+    const n=ensureNotificationStateV119X();
+    if(!n.fechaHoraNotificacion) return null;
+    const value=new Date(n.fechaHoraNotificacion);
+    return Number.isNaN(value.getTime())?null:value;
+  }
+  function notificationHourV119X(value){
+    if(!(value instanceof Date) || Number.isNaN(value.getTime())) return '--h--';
+    return `${String(value.getHours()).padStart(2,'0')}h${String(value.getMinutes()).padStart(2,'0')}`;
+  }
+  function notificationEmailsTextV119X(){
+    const emails=allNotificationEmailsV119X();
+    if(emails.length<=1) return emails[0]||'';
+    if(emails.length===2) return emails.join(' y ');
+    return emails.slice(0,-1).join(', ')+' y '+emails[emails.length-1];
+  }
+  function notificationTermV119X(){
+    return isSecondObservationV119X()?'cinco (5) días':'diez (10) días';
+  }
   function placeholderDataV119X(){
     const tech=technicianV119X();
     const n=ensureNotificationStateV119X();
+    const notificationMoment=notificationMomentV119X();
     const deadline=isSecondObservationV119X()
       ? syncSecondObservationDeadlineV119X()
       : String(state?.fechaSubsanacion||document.getElementById('fechaSubsanacion')?.value||'');
@@ -32172,7 +32193,11 @@ window.addEventListener('load',()=>{
       '{{Fecha Subsanación}}':longDateV119X(deadline,false,false),
       '{{Nombre del Técnico Revisor}}':String(tech?.nombre||state?.tecnico||''),
       '{{Cargo del Técnico Revisor}}':String(tech?.cargo||'TÉCNICO REVISOR'),
-      '{{Fecha de hoy}}':longDateV119X(new Date(),true,true),
+      '{{Fecha de hoy}}':longDateV119X(notificationMoment||new Date(),false,false),
+      '{{Hora de notificación}}':notificationHourV119X(notificationMoment),
+      '{{Proyectista}}':currentProyectistaV119X(),
+      '{{Cantidad de días}}':notificationTermV119X(),
+      '{{correo al que se envió}}':notificationEmailsTextV119X(),
       '{{correo para notificar}}':allNotificationEmailsV119X().join(', ')
     };
   }
@@ -32197,7 +32222,10 @@ window.addEventListener('load',()=>{
     const row=templateForV119X(sientoTemplatesV119X);
     let text=applySecondObservationTermV119X(replacePlaceholdersV119X(row.Texto_Base||row.Texto||row.texto||''));
     if(allNotificationEmailsV119X().length>1){
-      text=text.replace(/al correo electrónico registrado/gi,'a los correos electrónicos registrados');
+      text=text
+        .replace(/al correo electrónico registrado/gi,'a los correos electrónicos registrados')
+        .replace(/La misma fue remitida al correo electrónico/gi,'La misma fue remitida a los correos electrónicos')
+        .replace(/,\s*señalado para recibir notificaciones/gi,', señalados para recibir notificaciones');
     }
     return {
       title:replacePlaceholdersV119X(row.Titulo||row.titulo||'SIENTO RAZÓN'),
@@ -32464,6 +32492,9 @@ window.addEventListener('load',()=>{
     if(!emails.length || emails.some(email=>!validateEmailV119X(email))){
       if(typeof msg==='function') msg('Revise que el correo principal y todos los correos adicionales sean válidos para generar el Siento Razón.'); return;
     }
+    if(!n.fechaHoraNotificacion){
+      if(typeof msg==='function') msg('Presione NOTIFICAR antes de generar el Siento Razón para registrar la fecha y hora de la notificación.'); return;
+    }
     if(!respaldoPdfsV119X.length){
       if(typeof msg==='function') msg('Seleccione uno o varios PDF de respaldo de la notificación por correo.'); return;
     }
@@ -32553,7 +32584,7 @@ window.addEventListener('load',()=>{
           <div class="field">
             <label>Respaldos de Notificación por Correo (PDF) *</label>
             <input id="respaldoNotificacionV119X" type="file" accept="application/pdf,.pdf" multiple onchange="selectNotificationBackupV119X(this)">
-            <div class="noti-note-v119x">Puede seleccionar uno o varios PDF. Cada nueva selección se agregará a la lista existente sin reemplazar los archivos anteriores. Use <strong>Quitar</strong> para eliminar un documento equivocado. Los PDF se anexarán en el orden mostrado.</div>
+            <div class="noti-note-v119x">Puede seleccionar uno o varios PDF. Cada nueva selección se agregará a la lista existente sin reemplazar los archivos anteriores. Use <strong>Quitar</strong> para eliminar un documento equivocado. Los PDF se anexarán en el orden mostrado. La fecha y hora del Siento Razón se registran al presionar <strong>NOTIFICAR</strong>.</div>
             <div id="backupStatusV119X" class="file-status-v119x">${backupStatusHtmlV119X()}</div>
           </div>
           <div class="siento-preview-v119x"><strong id="sientoTitlePreviewV119X">${eV119X(siento.title)}</strong><br><br><span id="sientoTextPreviewV119X">${eV119X(siento.text)}</span></div>
@@ -34765,6 +34796,11 @@ window.addEventListener('load',()=>{
       document.getElementById('correoNotificacionV119X')?.focus();
       return;
     }
+    if(typeof state!=='undefined'){
+      if(!state.notificacionEgob||typeof state.notificacionEgob!=='object') state.notificacionEgob={};
+      state.notificacionEgob.fechaHoraNotificacion=new Date().toISOString();
+    }
+    if(typeof window.renderNotificationTabV119X==='function') window.renderNotificationTabV119X();
     const data=notificationContentV17();
     if(!data.body){
       if(typeof msg==='function')msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
@@ -35001,5 +35037,6 @@ window.addEventListener('load',()=>{
 <!-- VERSIÓN 21: eliminada la descripción obsoleta sobre el espacio de firma en Siento Razón. -->
 
 <!-- VERSIÓN 22: PDF de Siento Razón acumulables entre selecciones y eliminables individualmente. -->
+<!-- VERSIÓN 23: nuevo texto del Siento Razón con proyectista, hora registrada al notificar, tipo completo de informe, plazo y destinatarios. -->
 </body>
 </html>
