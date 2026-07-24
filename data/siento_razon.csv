@@ -1,7 +1,3 @@
-﻿Tipo_Informe;Titulo;Texto_Base;Activo
-Informe con Observaciones;SIENTO RAZÓN;"Siento razón que con fecha {{Fecha de hoy}} se notificó al correo electrónico registrado {{correo para notificar}}, el informe con observaciones, para su correcta resolución en el término de 10 días.
-
-Particular que informo para los fines correspondientes";Sí
-Informe de Desistimiento;SIENTO RAZÓN;"Siento razón que con fecha {{Fecha de hoy}} se notificó al correo electrónico registrado {{correo para notificar}}, el informe de desistimiento, para su conocimiento.
-
-Particular que informo para los fines correspondientes";Sí
+﻿Tipo_Informe,Titulo,Texto_Base,Activo
+Informe con Observaciones,SIENTO RAZÓN,"Siento por tal que, con fecha {{Fecha de hoy}}, a las {{Hora de notificación}}, se notificó al señor {{Proyectista}} con el {{Tipo de Informe}} – Trámite E-GOB N.° {{Número de EGOB}} – {{Tipo de Proyecto}}, a fin de que proceda con su correspondiente subsanación. Para el efecto, se le ha concedido el término de {{Cantidad de días}}, contados a partir de la presente notificación. La misma fue remitida al correo electrónico {{correo al que se envió}}, señalado para recibir notificaciones.",Sí
+Informe de Desistimiento,SIENTO RAZÓN,"Siento razón que con fecha {{Fecha de hoy}} se notificó al correo electrónico registrado {{correo para notificar}}, el informe de desistimiento, para su conocimiento.",Sí
