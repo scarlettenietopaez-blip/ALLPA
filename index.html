@@ -3599,7 +3599,7 @@ main{
       <div class="card search-card">
         <h2>2. Buscar informe registrado</h2>
         <div class="field"><label>Nro. eGOB guardado</label><input id="buscarEgobSide" inputmode="numeric" placeholder="Ej.: 1157249"></div>
-        <div class="search-actions"><button class="secondary" onclick="cargarPorBusqueda('side')">Buscar</button><button class="secondary" onclick="renderSavedList()">Actualizar</button></div>
+        <div class="search-actions"><button class="secondary" onclick="cargarPorBusqueda('side')">Buscar</button></div>
         <div class="mini">Los informes guardados aparecen abajo. Use respaldo JSON si cambia de equipo o navegador.</div>
         <div id="guardadosListaSide" class="saved-side"></div>
         <div class="backup-actions"><button class="secondary" onclick="exportarRespaldo()">Exportar</button><label class="button-label"><input type="file" id="importFileSide" accept=".json" style="display:none" onchange="importarRespaldo(event)"><button class="secondary" onclick="document.getElementById('importFileSide').click()">Importar</button></label></div>
@@ -21618,7 +21618,6 @@ function ensureProjectSearchToolbarV129(){
         <select id="savedReportsSelectV129"><option value="">Seleccione un informe registrado...</option></select>
       </div>
       <button type="button" onclick="openSavedDropdownV129()">Abrir</button>
-      <button type="button" class="secondary" onclick="refreshSavedDropdownV129()">Actualizar</button>
       <button type="button" class="secondary" onclick="exportarRespaldo()">Exportar</button>
       <button type="button" class="secondary" onclick="document.getElementById('importFileTopV129').click()">Importar</button>
       <input type="file" id="importFileTopV129" accept=".json" hidden onchange="importarRespaldo(event);setTimeout(refreshSavedDropdownV129,250)">
@@ -22028,7 +22027,6 @@ function ensureProjectSearchToolbarV130(){
         <select id="savedReportsSelectV129"><option value="">Seleccione un informe registrado...</option></select>
       </div>
       <button type="button" onclick="openSavedDropdownV130()">Abrir</button>
-      <button type="button" class="secondary" onclick="refreshSavedDropdownV129()">Actualizar</button>
       <button type="button" class="secondary" onclick="exportarRespaldo()">Exportar</button>
       <button type="button" class="secondary" onclick="document.getElementById('importFileTopV129').click()">Importar</button>
       <input type="file" id="importFileTopV129" accept=".json" hidden onchange="importarRespaldo(event);setTimeout(refreshSavedDropdownV129,250)">
@@ -22656,7 +22654,6 @@ function ensureProjectSearchToolbarV131(){
         </div>
         <div class="search-help-v131">La búsqueda revisa los informes guardados en este navegador.</div>
       </div>
-      <button type="button" class="secondary" onclick="refreshSavedSearchV131()">Actualizar</button>
       <button type="button" class="secondary" onclick="exportarRespaldo()">Exportar</button>
       <button type="button" class="secondary" onclick="document.getElementById('importFileTopV131').click()">Importar</button>
       <input type="file" id="importFileTopV131" accept=".json" hidden onchange="importarRespaldo(event);setTimeout(refreshSavedSearchV131,250)">
@@ -27076,6 +27073,8 @@ function buildClipboardPayloadV154(){
      ========================================================== -->
 
 <!-- VERSIÓN 16: Notificación mediante Outlook Web institucional de Exchange Server local. -->
+
+<!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
 </body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
@@ -27611,7 +27610,9 @@ if(typeof buildClipboardPayloadV154==='function'){
       th,td{border:1px solid #000;padding:4px 5px;font-family:Arial,Helvetica,sans-serif;font-size:8.5pt;line-height:1.2;vertical-align:top;}
       th,.apr-info-label,.apr-info-section,.label-cell,.study-cell{font-weight:bold!important;}
     `;
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}</body></html>`;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}
+<!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
+</body></html>`;
     const plain=(clone.innerText||clone.textContent||'').trim();
     return {html,plain};
   };
@@ -27778,7 +27779,9 @@ function buildClipboardPayloadV154(){
     th,.apr-info-label,.apr-info-section,.label-cell,.study-cell{font-weight:900!important;}
     span,b,strong,p,div,li{background:transparent!important;text-shadow:none!important;box-shadow:none!important;}
   `;
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}</body></html>`;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}
+<!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
+</body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
 }
@@ -34735,5 +34738,209 @@ window.addEventListener('load',()=>{
 })();
 </script>
 
+<script>
+/* ==========================================================
+   VERSIÓN 18 SOBRE VERSIÓN 17
+   1. Elimina filas vacías de Evidencia / Detalle en la tabla
+      de Factibilidades y Estudios Complementarios del informe.
+   2. En Informes de Observaciones, la parroquia se obtiene
+      prioritariamente de la Clave Catastral.
+   ========================================================== */
+(function(){
+  function textV18(value){
+    return String(value == null ? '' : value).trim();
+  }
+
+  function escV18(value){
+    return typeof esc === 'function'
+      ? esc(value)
+      : String(value == null ? '' : value)
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+          .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+          .replace(/'/g,'&#39;');
+  }
+
+  function serviceKeyLocalV18(name){
+    if(typeof serviceKeyV13 === 'function') return serviceKeyV13(name);
+    const n=String(name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+    if(n.includes('RIOBAMBA')||n.includes('EMAPAR')||n.includes('AGUA POTABLE')) return 'RIOBAMBA-EP';
+    if(n.includes('EERSA')||n.includes('ELECTRICA')) return 'EERSA';
+    if(n.includes('CNT')||n.includes('TELECOMUNIC')) return 'CNT';
+    if(n.includes('BOMBER')) return 'BOMBEROS';
+    return n.trim();
+  }
+
+  /* La fila inferior de Evidencia / Detalle solo se genera cuando
+     realmente existe contenido. El rowspan de ENTIDAD se calcula
+     según las filas efectivamente impresas. */
+  window.combinedServiceReportV13=function(facts,studies,includeStudies=true){
+    const entities=['RIOBAMBA-EP','EERSA','CNT',...(includeStudies?['BOMBEROS']:[])];
+    const groups=[];
+
+    entities.forEach(entity=>{
+      const entries=[];
+      const fact=(facts||[]).find(row=>serviceKeyLocalV18(row?.estudio||row?.empresa||row?.entidad||'')===entity);
+      if(fact && (typeof hasServiceDataV13==='function' ? hasServiceDataV13(fact) : ['documento','fecha','evidencia'].some(k=>textV18(fact?.[k])))){
+        entries.push({type:'Factibilidad',row:fact});
+      }
+      if(includeStudies){
+        const study=(studies||[]).find(row=>serviceKeyLocalV18(row?.estudio||row?.empresa||row?.entidad||'')===entity);
+        if(study && (typeof hasServiceDataV13==='function' ? hasServiceDataV13(study) : ['documento','fecha','evidencia'].some(k=>textV18(study?.[k])))){
+          entries.push({type:'Estudio',row:study});
+        }
+      }
+      if(entries.length) groups.push({entity,entries});
+    });
+
+    if(!groups.length) return '<p>No se registran estudios complementarios ni factibilidades.</p>';
+
+    const body=groups.map(group=>{
+      const totalRows=group.entries.reduce((sum,entry)=>sum+1+(textV18(entry.row?.evidencia)?1:0),0);
+      return group.entries.map((entry,index)=>{
+        const evidence=textV18(entry.row?.evidencia);
+        const entityCell=index===0
+          ? `<td class="entity-v13" rowspan="${totalRows}">${escV18(group.entity)}</td>`
+          : '';
+        const date=entry.row?.fecha
+          ? (typeof fmtDate==='function' ? fmtDate(entry.row.fecha) : entry.row.fecha)
+          : '';
+        const main=`<tr>${entityCell}<td class="type-v13">${escV18(entry.type)}</td><td>${escV18(entry.row?.documento||'')}</td><td>${escV18(date)}</td></tr>`;
+        const detail=evidence
+          ? `<tr><td colspan="3" class="detail-v13">${typeof nl2br==='function' ? nl2br(evidence) : escV18(evidence)}</td></tr>`
+          : '';
+        return main+detail;
+      }).join('');
+    }).join('');
+
+    return `<table class="informe-table estudios-table combined-studies-v13"><thead><tr><th style="width:23%">ENTIDAD</th><th style="width:18%">TIPO</th><th>DOCUMENTO / TRÁMITE</th><th style="width:18%">FECHA</th></tr></thead><tbody>${body}</tbody></table>`;
+  };
+
+  /* Reenlaza las funciones públicas que imprimen estas tablas para
+     asegurar que utilicen la versión corregida. */
+  if(typeof ensureFactibilidadesOMV145==='function' && typeof ensureEstudiosOMV145==='function'){
+    window.combinedStudiesReportV145=function(){
+      return window.combinedServiceReportV13(ensureFactibilidadesOMV145(),ensureEstudiosOMV145(),true);
+    };
+  }
+  window.estudiosReport=function(){
+    const ante=typeof isAnteproyectoV123==='function' && isAnteproyectoV123();
+    if(ante && typeof ensureAnteFactibilidadesV134==='function'){
+      return window.combinedServiceReportV13(ensureAnteFactibilidadesV134(),[],false);
+    }
+    return typeof window.combinedStudiesReportV145==='function'
+      ? window.combinedStudiesReportV145()
+      : '<p>No se registran estudios complementarios ni factibilidades.</p>';
+  };
+  window.factibilidadesReportV134=function(){
+    return typeof ensureAnteFactibilidadesV134==='function'
+      ? window.combinedServiceReportV13(ensureAnteFactibilidadesV134(),[],false)
+      : '<p>No se registran factibilidades.</p>';
+  };
+
+  function normalizeParroquiaV18(value){
+    const raw=textV18(value).replace(/^\s*\d+\s*[-–]\s*/,'').trim();
+    if(!raw) return '';
+    if(typeof normalizeParroquiaV99==='function') return normalizeParroquiaV99(raw);
+    if(typeof normalizeParroquiaValueV97==='function') return normalizeParroquiaValueV97(raw);
+    return raw.toUpperCase();
+  }
+
+  function parroquiaClaveCatastralV18(){
+    /* 1. Campo visible y de solo lectura dentro de Clave Catastral. */
+    const visible=document.getElementById('catParroquiaAutoV46');
+    const visibleValue=normalizeParroquiaV18(visible?.value||'');
+    if(visibleValue) return visibleValue;
+
+    /* 2. Base catastral usando los códigos PARR y ZONA guardados. */
+    try{
+      const c=state?.catastral||{};
+      if(typeof catLookupV46==='function' && c.parro){
+        const row=catLookupV46(c.parro,c.zona);
+        const value=normalizeParroquiaV18(row?.parroquia||'');
+        if(value) return value;
+      }
+    }catch(_e){}
+
+    /* 3. Campo de información guardado, únicamente como respaldo. */
+    try{
+      const field=(DATA?.infoFields||[]).find(f=>String(f?.label||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().includes('PARROQUIA'));
+      const value=normalizeParroquiaV18(field ? state?.info?.[field.key] : '');
+      if(value) return value;
+    }catch(_e){}
+    return '';
+  }
+
+  function syncParroquiaCatastralV18(){
+    const value=parroquiaClaveCatastralV18();
+    if(!value) return '';
+    try{
+      const field=(DATA?.infoFields||[]).find(f=>String(f?.label||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().includes('PARROQUIA'));
+      if(field){
+        if(!state.info) state.info={};
+        state.info[field.key]=value;
+        const hidden=document.getElementById('info_'+field.key);
+        if(hidden) hidden.value=value;
+      }
+    }catch(_e){}
+    return value;
+  }
+
+  /* Evita que la búsqueda genérica tome "Riobamba" desde el panel PIT
+     cuando la Clave Catastral ya determinó otra parroquia. */
+  if(typeof syncParroquiaV99==='function'){
+    const syncParroquiaV99BaseV18=syncParroquiaV99;
+    window.syncParroquiaV99=function(){
+      return syncParroquiaCatastralV18() || syncParroquiaV99BaseV18.apply(this,arguments);
+    };
+  }
+  if(typeof syncParroquiaToInfoStateV97==='function'){
+    const syncParroquiaV97BaseV18=syncParroquiaToInfoStateV97;
+    window.syncParroquiaToInfoStateV97=function(){
+      return syncParroquiaCatastralV18() || syncParroquiaV97BaseV18.apply(this,arguments);
+    };
+  }
+
+  /* El texto de Antecedentes usa directamente la parroquia catastral. */
+  if(typeof placeholderMap==='function'){
+    const placeholderMapBaseV18=placeholderMap;
+    window.placeholderMap=function(html=false){
+      const map=placeholderMapBaseV18.apply(this,arguments)||{};
+      const parroquia=syncParroquiaCatastralV18();
+      if(parroquia){
+        map['Parroquia']=html ? `<strong>${escV18(parroquia)}</strong>` : parroquia;
+      }
+      return map;
+    };
+  }
+
+  /* Sincroniza antes de generar o actualizar cualquier vista del informe. */
+  if(typeof renderReport==='function'){
+    const renderReportBaseV18=renderReport;
+    window.renderReport=function(){
+      syncParroquiaCatastralV18();
+      return renderReportBaseV18.apply(this,arguments);
+    };
+  }
+  if(typeof renderPreview==='function'){
+    const renderPreviewBaseV18=renderPreview;
+    window.renderPreview=function(){
+      syncParroquiaCatastralV18();
+      return renderPreviewBaseV18.apply(this,arguments);
+    };
+  }
+
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{
+      syncParroquiaCatastralV18();
+      if(typeof renderReport==='function') renderReport();
+      if(typeof renderPreview==='function') renderPreview();
+    },1200);
+  });
+})();
+</script>
+
+<!-- VERSIÓN 18: Sin filas vacías en Estudios/Factibilidades y parroquia del informe tomada de la Clave Catastral. -->
+
+<!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
 </body>
 </html>
