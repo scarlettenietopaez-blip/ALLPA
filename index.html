@@ -27075,6 +27075,8 @@ function buildClipboardPayloadV154(){
 <!-- VERSIÓN 16: Notificación mediante Outlook Web institucional de Exchange Server local. -->
 
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
+
+<!-- VERSIÓN 20: eliminado el espacio, línea, nombre y cargo de firma del PDF Siento Razón eGOB. -->
 </body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
@@ -32423,15 +32425,6 @@ window.addEventListener('load',()=>{
         if(!line){y-=10;return;}
         page.drawText(line,{x:75,y,size:11,font,color:rgb(0,0,0)}); y-=17;
       });
-      const tech=technicianV119X();
-      const signatureY=185;
-      page.drawLine({start:{x:175,y:signatureY},end:{x:420,y:signatureY},thickness:0.8,color:rgb(0,0,0)});
-      const techName=String(tech?.nombre||state?.tecnico||'').trim();
-      const techCargo=String(tech?.cargo||'TÉCNICO REVISOR').trim();
-      const nameW=bold.widthOfTextAtSize(techName,10);
-      const cargoW=font.widthOfTextAtSize(techCargo,9);
-      page.drawText(techName,{x:(width-nameW)/2,y:signatureY-17,size:10,font:bold,color:rgb(0,0,0)});
-      page.drawText(techCargo,{x:(width-cargoW)/2,y:signatureY-31,size:9,font,color:rgb(0,0,0)});
       for(const evidenceFile of respaldoPdfsV119X){
         const evidenceBytes=await evidenceFile.arrayBuffer();
         const evidence=await PDFDocument.load(evidenceBytes,{ignoreEncryption:false});
