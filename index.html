@@ -4717,7 +4717,7 @@ function renderInfoForm(){
     if(meta.isArea){type='text'; inputmode='decimal'; extra='pattern="[0-9]+([.][0-9]+)?"';}
     if(meta.isClave){inputmode='numeric'; max='maxlength="27"';}
     if(meta.isX||meta.isY){inputmode='decimal'; placeholder='';}
-    if(meta.isSenescyt){placeholder='0000-0000-0000000 o 0000-00-000000'; max='maxlength="17"';}
+    if(meta.isSenescyt){placeholder='0000-0000-0000000, 0000-00-00000 o 0000-00-000000'; max='maxlength="17"';}
     html+=`<div class="field"><label>${esc(label)}${req}</label><input id="info_${f.key}" type="${type}" inputmode="${inputmode}" ${max} ${extra} value="${esc(val)}" placeholder="${esc(placeholder)}" list="${meta.isPit?'listaPIT':''}"><div class="error-text" id="err_${f.key}"></div></div>`;
   }
  });
@@ -4778,7 +4778,7 @@ function validateInfoField(f,show=true){
   let ok=true, message='';
   if(meta.required && !value){ok=false; message='Campo obligatorio.';}
   if(value && meta.isCi && !(/^\d{10}$/.test(value)||/^\d{13}$/.test(value))){ok=false; message='Debe tener 10 dígitos para CI o 13 dígitos para RUC.';}
-  if(value && meta.isSenescyt && !(/^\d{4}-\d{4}-\d{7}$/.test(value) || /^\d{4}-\d{2}-\d{6}$/.test(value))){ok=false; message='Formato requerido: 0000-0000-0000000 o 0000-00-000000.';}
+  if(value && meta.isSenescyt && !(/^\d{4}-\d{4}-\d{7}$/.test(value) || /^\d{4}-\d{2}-\d{5}$/.test(value) || /^\d{4}-\d{2}-\d{6}$/.test(value))){ok=false; message='Formato requerido: 0000-0000-0000000, 0000-00-00000 o 0000-00-000000.';}
   if(value && meta.isRegMun && !(parseInt(value,10)>=1)){ok=false; message='Debe ser un número entero desde 1.';}
   if(value && meta.isAltura && !/^\d+$/.test(value)){ok=false; message='Debe ser un número entero de pisos.';}
   if(value && meta.isArea && !/^\d+(\.\d+)?$/.test(value)){ok=false; message='Debe ser un número decimal. Use punto como separador decimal, ej.: 450.75';}
@@ -5482,7 +5482,7 @@ renderInfoForm = function(){
     if(meta.isArea){type='text'; inputmode='decimal'; extra='pattern="[0-9]+([.][0-9]+)?"';}
     if(meta.isClave){inputmode='numeric'; max='maxlength="27"';}
     if(meta.isX||meta.isY){inputmode='decimal'; placeholder='';}
-    if(meta.isSenescyt){placeholder='0000-0000-0000000 o 0000-00-000000'; max='maxlength="17"';}
+    if(meta.isSenescyt){placeholder='0000-0000-0000000, 0000-00-00000 o 0000-00-000000'; max='maxlength="17"';}
     if(meta.isProyectista){list='listaProfesionales';}
     html+=`<div class="field"><label>${esc(label)}${req}</label><input id="info_${f.key}" type="${type}" inputmode="${inputmode}" ${max} ${extra} value="${esc(val)}" placeholder="${esc(placeholder)}" list="${list}"><div class="error-text" id="err_${f.key}"></div>${meta.isClave?catastralPanelHtmlV36(f,val):''}</div>`;
   }
@@ -5814,7 +5814,7 @@ renderInfoForm = function(){
     if(meta.isArea){type='text'; inputmode='decimal'; extra='pattern="[0-9]+([.][0-9]+)?"';}
     if(meta.isClave){inputmode='numeric'; max='maxlength="27"';}
     if(meta.isX||meta.isY){inputmode='decimal'; placeholder='';}
-    if(meta.isSenescyt){placeholder='0000-0000-0000000 o 0000-00-000000'; max='maxlength="17"';}
+    if(meta.isSenescyt){placeholder='0000-0000-0000000, 0000-00-00000 o 0000-00-000000'; max='maxlength="17"';}
     if(meta.isProyectista){list='listaProfesionales';}
     if(meta.isClave){
       html+=`<div class="field"><label>${esc(label)}</label><input class="catastral-main-hidden-v37" id="info_${f.key}" type="hidden" value="${esc(val)}"><div class="error-text" id="err_${f.key}"></div>${catastralPanelHtmlV36(f,val)}</div>`;
@@ -6102,7 +6102,7 @@ renderAprobatorioForm = function(){
  <tr><td class="label-cell">TÉCNICO REVISOR:</td><td colspan="4"><input id="estTecnico" list="listaTecnicosEstructurales"></td></tr>
  <tr><td class="label-cell">CRITERIO TÉCNICO:</td><td colspan="4"><select id="estCriterio"><option></option><option>FAVORABLE</option><option>NO FAVORABLE</option></select></td></tr>
  <tr><td class="label-cell">ING. CALCULISTA:</td><td colspan="4"><input id="estCalculista" list="listaCalculistasV39" placeholder="Buscar en profesionales no arquitectos"></td></tr>
- <tr><td class="label-cell">REG. SENESCYT:</td><td colspan="4"><input id="estSenescyt" placeholder="0000-0000-0000000 o 0000-00-000000"></td></tr>
+ <tr><td class="label-cell">REG. SENESCYT:</td><td colspan="4"><input id="estSenescyt" placeholder="0000-0000-0000000, 0000-00-00000 o 0000-00-000000"></td></tr>
  <tr><td class="label-cell">REG. MUNICIPAL:</td><td colspan="4"><input id="estMunicipal" placeholder="Registro municipal"></td></tr>
  </tbody></table>
  <div class="section-title">Estudios complementarios</div><div id="estudiosTabla"></div>
@@ -16045,9 +16045,9 @@ validateInfoField = function(f, show=true){
     message=`${name}: debe tener 10 dígitos para CI o 13 dígitos para RUC.`;
   }
 
-  if(value && meta.isSenescyt && !(/^\d{4}-\d{4}-\d{7}$/.test(value) || /^\d{4}-\d{2}-\d{6}$/.test(value))){
+  if(value && meta.isSenescyt && !(/^\d{4}-\d{4}-\d{7}$/.test(value) || /^\d{4}-\d{2}-\d{5}$/.test(value) || /^\d{4}-\d{2}-\d{6}$/.test(value))){
     ok=false;
-    message=`${name}: formato requerido 0000-0000-0000000 o 0000-00-000000.`;
+    message=`${name}: formato requerido 0000-0000-0000000, 0000-00-00000 o 0000-00-000000.`;
   }
 
   if(value && meta.isRegMun && !(parseInt(value,10)>=1)){
@@ -25969,6 +25969,7 @@ window.addEventListener('load',()=>{
 
    Formatos válidos:
    - 0000-0000-0000000
+   - 0000-00-00000
    - 0000-00-000000
    - 0000-00-0000000
    ========================================================== */
@@ -26005,6 +26006,7 @@ function formatSenescyt(v){
 function isValidSenescytV150(value){
   const v=String(value||'').trim();
   return /^\d{4}-\d{4}-\d{7}$/.test(v)
+      || /^\d{4}-\d{2}-\d{5}$/.test(v)
       || /^\d{4}-\d{2}-\d{6}$/.test(v)
       || /^\d{4}-\d{2}-\d{7}$/.test(v);
 }
@@ -26041,7 +26043,7 @@ validateInfoField=function(f,show=true){
     message=`${name}: campo obligatorio.`;
   }else if(value && !isValidSenescytV150(value)){
     ok=false;
-    message=`${name}: formato requerido 0000-0000-0000000, 0000-00-000000 o 0000-00-0000000.`;
+    message=`${name}: formato requerido 0000-0000-0000000, 0000-00-00000, 0000-00-000000 o 0000-00-0000000.`;
   }
 
   el.classList.toggle('invalid',!ok);
@@ -26059,7 +26061,7 @@ function patchSenescytInputsV150(){
     const txt=(id+' '+ph+' '+label).toUpperCase();
     if(!txt.includes('SENESCYT')) return;
 
-    el.placeholder='0000-0000-0000000, 0000-00-000000 o 0000-00-0000000';
+    el.placeholder='0000-0000-0000000, 0000-00-00000, 0000-00-000000 o 0000-00-0000000';
     el.maxLength=17;
 
     if(el.dataset.senescytV150==='1') return;
@@ -35038,5 +35040,6 @@ window.addEventListener('load',()=>{
 
 <!-- VERSIÓN 22: PDF de Siento Razón acumulables entre selecciones y eliminables individualmente. -->
 <!-- VERSIÓN 23: nuevo texto del Siento Razón con proyectista, hora registrada al notificar, tipo completo de informe, plazo y destinatarios. -->
+<!-- VERSIÓN 24: admite Registro SENESCYT con formato adicional 0000-00-00000. -->
 </body>
 </html>
