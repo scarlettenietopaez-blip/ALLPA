@@ -34099,10 +34099,14 @@ window.addEventListener('load',()=>{
     return (Math.round(value*100)/100).toFixed(2);
   }
   function canLevelsV13(raw,i){
-    if(roleV13(raw,i)!=='bruta') return false;
+    /* V25: el selector de intervención debe mostrarse en todas las filas
+       del bloque editable que permiten agregar niveles, incluidas las filas
+       nuevas del usuario. Antes se exigía que la descripción ya contuviera
+       la palabra "bruta", por eso el selector solo aparecía en la primera fila. */
+    if(roleV13(raw,i)==='areaAmpliacionTotal') return false;
     if(typeof canLevelConclV87==='function') return !!canLevelConclV87(i);
     const row=rowV13(raw);
-    return !!row.allowLevels || Array.isArray(row.levels);
+    return !!row.allowLevels;
   }
   function normalizeAreaTypeV13(value){
     const v=normV13(value);
@@ -35041,5 +35045,6 @@ window.addEventListener('load',()=>{
 <!-- VERSIÓN 22: PDF de Siento Razón acumulables entre selecciones y eliminables individualmente. -->
 <!-- VERSIÓN 23: nuevo texto del Siento Razón con proyectista, hora registrada al notificar, tipo completo de informe, plazo y destinatarios. -->
 <!-- VERSIÓN 24: admite Registro SENESCYT con formato adicional 0000-00-00000. -->
+<!-- VERSIÓN 25: corregido el selector de tipo de intervención en todas las filas editables con niveles de la Conclusión Técnica. -->
 </body>
 </html>
