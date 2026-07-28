@@ -35046,5 +35046,159 @@ window.addEventListener('load',()=>{
 <!-- VERSIÓN 23: nuevo texto del Siento Razón con proyectista, hora registrada al notificar, tipo completo de informe, plazo y destinatarios. -->
 <!-- VERSIÓN 24: admite Registro SENESCYT con formato adicional 0000-00-00000. -->
 <!-- VERSIÓN 25: corregido el selector de tipo de intervención en todas las filas editables con niveles de la Conclusión Técnica. -->
+
+<style id="patch-v26-nota-desistimiento-css">
+/* ==========================================================
+   V26 - Nota antes de conclusiones también en Desistimiento
+   ========================================================== */
+.report .nota-pre-conclusiones-v26,
+#report .nota-pre-conclusiones-v26{
+  margin-top:10px;
+  margin-bottom:10px;
+}
+.report .nota-pre-conclusiones-v26 p,
+#report .nota-pre-conclusiones-v26 p{
+  text-align:justify;
+  margin:4px 0 8px 0;
+}
+</style>
+
+
+<script id="patch-v26-nota-desistimiento-js">
+/* ==========================================================
+   V26 SOBRE ARCHIVO SUBIDO
+   Corrige: "Incluir nota antes de conclusiones" no aparecía
+   en Informe de Desistimiento.
+   ========================================================== */
+(function(){
+  function escNotaV26(value){
+    if(typeof escV57 === 'function') return escV57(value);
+    if(typeof esc === 'function') return esc(value);
+    return String(value ?? '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  function nl2brNotaV26(value){
+    if(typeof nl2br === 'function') return nl2br(value);
+    return escNotaV26(value).replace(/\n/g,'<br>');
+  }
+
+  function notaPreConclusionesActivaV26(){
+    try{
+      if(typeof ensureV36State === 'function') ensureV36State();
+      const nota = state?.notaPreConclusiones || {};
+      return !!(nota.activo && String(nota.texto || '').trim());
+    }catch(_e){
+      return false;
+    }
+  }
+
+  function notaPreConclusionesHtmlV26(){
+    if(!notaPreConclusionesActivaV26()) return '';
+    const texto = String(state.notaPreConclusiones.texto || '').trim();
+    return `<div class="nota-pre-conclusiones-v26" data-nota-pre-conclusiones-v26="1"><h2>Nota</h2><p>${nl2brNotaV26(texto)}</p></div>`;
+  }
+
+  function aplicarNotaDesistimientoV26(html){
+    let out = String(html || '');
+    try{
+      if(state?.tipoInforme !== 'Informe de Desistimiento') return out;
+      const nota = notaPreConclusionesHtmlV26();
+      if(!nota) return out;
+
+      /* Evita duplicados si una vista se renderiza varias veces. */
+      out = out.replace(/<div[^>]*data-nota-pre-conclusiones-v26="1"[\s\S]*?<\/div>\s*/gi,'');
+
+      const conclusionHeading = /<h2[^>]*>\s*Conclusiones\s*<\/h2>/i;
+      if(conclusionHeading.test(out)){
+        return out.replace(conclusionHeading, nota + '$&');
+      }
+
+      /* Respaldo: si por algún cambio no existe el título Conclusiones, se agrega antes de la firma. */
+      const firma = /(<div[^>]*class=["'][^"']*signature-block[^"']*["'][\s\S]*$)/i;
+      if(firma.test(out)) return out.replace(firma, nota + '$1');
+      return out + nota;
+    }catch(e){
+      console.warn('No se pudo aplicar la nota en desistimiento V26:', e);
+      return out;
+    }
+  }
+
+  if(typeof renderInformeDesistimientoV69 === 'function'){
+    const renderInformeDesistimientoV69BaseV26 = renderInformeDesistimientoV69;
+    window.renderInformeDesistimientoV69 = function(){
+      return aplicarNotaDesistimientoV26(renderInformeDesistimientoV69BaseV26.apply(this, arguments));
+    };
+  }
+
+  if(typeof renderInformeDesistimiento === 'function'){
+    const renderInformeDesistimientoBaseV26 = renderInformeDesistimiento;
+    window.renderInformeDesistimiento = function(){
+      return aplicarNotaDesistimientoV26(renderInformeDesistimientoBaseV26.apply(this, arguments));
+    };
+  }
+
+  if(typeof renderReport === 'function'){
+    const renderReportBaseV26 = renderReport;
+    window.renderReport = function(){
+      const out = renderReportBaseV26.apply(this, arguments);
+      const reportEl = document.getElementById('report');
+      if(reportEl && state?.tipoInforme === 'Informe de Desistimiento'){
+        reportEl.innerHTML = aplicarNotaDesistimientoV26(reportEl.innerHTML);
+      }
+      return state?.tipoInforme === 'Informe de Desistimiento'
+        ? aplicarNotaDesistimientoV26(out)
+        : out;
+    };
+  }
+
+  if(typeof renderPreview === 'function'){
+    const renderPreviewBaseV26 = renderPreview;
+    window.renderPreview = function(){
+      const out = renderPreviewBaseV26.apply(this, arguments);
+      const reportEl = document.getElementById('report');
+      if(reportEl && state?.tipoInforme === 'Informe de Desistimiento'){
+        reportEl.innerHTML = aplicarNotaDesistimientoV26(reportEl.innerHTML);
+      }
+      return out;
+    };
+  }
+
+  document.addEventListener('input', function(event){
+    if(event.target?.id === 'notaPreConclusionesText' && state?.tipoInforme === 'Informe de Desistimiento'){
+      setTimeout(()=>{
+        if(typeof renderReport === 'function') renderReport();
+        if(typeof renderPreview === 'function') renderPreview();
+      },0);
+    }
+  }, true);
+
+  document.addEventListener('change', function(event){
+    if(event.target?.id === 'toggleNotaPreConclusiones' && state?.tipoInforme === 'Informe de Desistimiento'){
+      setTimeout(()=>{
+        if(typeof renderReport === 'function') renderReport();
+        if(typeof renderPreview === 'function') renderPreview();
+      },0);
+    }
+  }, true);
+
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{
+      if(state?.tipoInforme === 'Informe de Desistimiento'){
+        if(typeof renderReport === 'function') renderReport();
+        if(typeof renderPreview === 'function') renderPreview();
+      }
+    },1400);
+  });
+
+  window.aplicarNotaDesistimientoV26 = aplicarNotaDesistimientoV26;
+})();
+</script>
+<!-- VERSIÓN 26: la nota antes de conclusiones también se imprime en Informe de Desistimiento. -->
+
 </body>
 </html>
