@@ -35200,5 +35200,210 @@ window.addEventListener('load',()=>{
 </script>
 <!-- VERSIÓN 26: la nota antes de conclusiones también se imprime en Informe de Desistimiento. -->
 
+
+<style id="patch-v27-nota-desistimiento-css">
+/* ==========================================================
+   V27 - Nota de Desistimiento antes de Conclusiones
+   ========================================================== */
+.report .nota-pre-conclusiones-v27,
+#report .nota-pre-conclusiones-v27{
+  margin:10px 0 12px 0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:#111;
+}
+.report .nota-pre-conclusiones-v27 .nota-title-v27,
+#report .nota-pre-conclusiones-v27 .nota-title-v27{
+  margin:0 0 4px 0;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.report .nota-pre-conclusiones-v27 p,
+#report .nota-pre-conclusiones-v27 p{
+  text-align:justify;
+  margin:4px 0 8px 0;
+}
+</style>
+
+
+<script id="patch-v27-nota-desistimiento-js">
+/* ==========================================================
+   V27 SOBRE V26
+   Corrige en Informe de Desistimiento:
+   - La Nota aparece antes de Conclusiones.
+   - La Nota no se mezcla ni se repite dentro de Conclusiones.
+   - Se neutraliza la corrección V26 previa que podía insertar la Nota después.
+   ========================================================== */
+(function(){
+  function escNotaV27(value){
+    if(typeof escV57 === 'function') return escV57(value);
+    if(typeof esc === 'function') return esc(value);
+    return String(value ?? '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  function nl2brNotaV27(value){
+    if(typeof nl2br === 'function') return nl2br(value);
+    return escNotaV27(value).replace(/\n/g,'<br>');
+  }
+
+  function notaTextoV27(){
+    try{
+      if(typeof ensureV36State === 'function') ensureV36State();
+      const nota = state?.notaPreConclusiones || {};
+      if(!nota.activo) return '';
+      return String(nota.texto || '').trim();
+    }catch(_e){
+      return '';
+    }
+  }
+
+  function notaHtmlV27(){
+    const texto = notaTextoV27();
+    if(!texto) return '';
+    return `<div class="nota-pre-conclusiones-v27" data-nota-pre-conclusiones="v27"><p class="nota-title-v27">Nota:</p><p>${nl2brNotaV27(texto)}</p></div>`;
+  }
+
+  function normLineV27(value){
+    return String(value||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function cleanConclusionExtraV27(value){
+    const nota = notaTextoV27();
+    let text = String(value || '').trim();
+    if(!text || !nota) return text;
+
+    const notaNorm = normLineV27(nota);
+    const lines = text.split(/\r?\n+/).map(x=>x.trim()).filter(Boolean);
+    const filtered = lines.filter(line => normLineV27(line) !== notaNorm);
+    text = filtered.join('\n');
+
+    if(normLineV27(text) === notaNorm) return '';
+    return text;
+  }
+
+  function stripOldNotaBlocksV27(html){
+    return String(html||'')
+      .replace(/<div[^>]*(?:data-nota-pre-conclusiones-v26="1"|data-nota-pre-conclusiones="v27")[\s\S]*?<\/div>\s*/gi,'');
+  }
+
+  function injectNotaBeforeConclusionesV27(html){
+    let out = stripOldNotaBlocksV27(html);
+    if(state?.tipoInforme !== 'Informe de Desistimiento') return out;
+    const nota = notaHtmlV27();
+    if(!nota) return out;
+
+    const conclusionHeading = /<h2[^>]*>\s*(?:\d+\.?\s*)?CONCLUSIONES\s*<\/h2>/i;
+    if(conclusionHeading.test(out)) return out.replace(conclusionHeading, nota + '$&');
+
+    const firma = /(<div[^>]*class=["'][^"']*signature-block[^"']*["'][\s\S]*$)/i;
+    if(firma.test(out)) return out.replace(firma, nota + '$1');
+    return out + nota;
+  }
+
+  function renderInformeDesistimientoV27(){
+    if(typeof ensureDesistimientoV69 === 'function') ensureDesistimientoV69();
+    const motivo = typeof normalizeDesMotivoV145 === 'function'
+      ? normalizeDesMotivoV145(state.desistimiento?.motivo || '')
+      : (state.desistimiento?.motivo || '');
+    const title = typeof desTituloV69 === 'function'
+      ? desTituloV69()
+      : 'INFORME TÉCNICO DE DESISTIMIENTO';
+    const nota = notaHtmlV27();
+
+    if(!motivo){
+      return `${reportHeader(title)}<div class="apr-alert">Seleccione el motivo de desistimiento en la pestaña Desistimiento.</div>`;
+    }
+
+    const isPet = (typeof DES_MOTIVO_PET_V145 !== 'undefined' && motivo === DES_MOTIVO_PET_V145)
+      || motivo === 'Por Petición del Administrado';
+
+    if(isPet){
+      const base = desRowV69('DES_BLG_003').Texto_Base || '';
+      const con = desRowV69('DES_CON_003').Texto_Base || '';
+      const rec = desRowV69('DES_REC_003').Texto_Base || '';
+      return `${reportHeader(title)}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
+        <h2>Base legal</h2><p class="legal-text">${formatLegalText(base)}</p>
+        ${nota}<h2>Conclusiones</h2><p>${nl2brNotaV27(con)}</p>
+        <h2>Recomendaciones</h2><p>${nl2brNotaV27(rec)}</p>${firmaTecnicoSection()}`;
+    }
+
+    const conId = motivo === 'Observaciones Parcialmente Subsanadas' ? 'DES_CON_002' : 'DES_CON_001';
+    const baseConclusion = desRowV69(conId).Texto_Base || 'Por las conclusiones antes expuestas se emite criterio técnico NO FAVORABLE,';
+    const extra = cleanConclusionExtraV27(state.desistimiento?.conclusiones || '');
+    const conclusionText = extra ? `${baseConclusion}\n${extra}` : baseConclusion;
+
+    return `${reportHeader(title)}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
+      <h2>Criterio técnico</h2>${selectedObsTable()}
+      <h2>Base legal</h2>${baseLegalObservacionesV69()}${textosTecnicosSection()}
+      ${nota}<h2>Conclusiones</h2><p>${nl2brNotaV27(conclusionText)}</p>${firmaTecnicoSection()}`;
+  }
+
+  window.renderInformeDesistimientoV69 = renderInformeDesistimientoV27;
+  try{ renderInformeDesistimientoV69 = renderInformeDesistimientoV27; }catch(_e){}
+
+  window.aplicarNotaDesistimientoV26 = function(html){
+    return injectNotaBeforeConclusionesV27(html);
+  };
+
+  if(typeof renderReport === 'function'){
+    window.renderReport = function(){
+      if(typeof collectTop === 'function') collectTop();
+      if(typeof updateSideActions === 'function') updateSideActions();
+      const reportEl = document.getElementById('report');
+      const isObs = state.tipoInforme === 'Informe con Observaciones';
+      const isApr = state.tipoInforme === 'Informe Técnico Aprobatorio';
+      const isDes = state.tipoInforme === 'Informe de Desistimiento';
+
+      let html = 'Seleccione el tipo de informe para generar la vista previa.';
+      if(isObs) html = renderInformeObservaciones();
+      else if(isApr) html = renderInformeAprobatorio();
+      else if(isDes) html = renderInformeDesistimientoV27();
+
+      html = stripOldNotaBlocksV27(html);
+      if(isDes) html = injectNotaBeforeConclusionesV27(html);
+
+      if(reportEl){
+        reportEl.className = 'report ' + (isApr ? 'report-aprobatorio' : (isDes ? 'report-desistimiento report-observaciones' : 'report-observaciones'));
+        document.body.classList.toggle('printing-observaciones', isObs || isDes);
+        document.body.classList.toggle('printing-aprobatorio', isApr);
+        reportEl.innerHTML = html;
+      }
+      return html;
+    };
+    try{ renderReport = window.renderReport; }catch(_e){}
+  }
+
+  window.renderPreview = function(){ return; };
+  try{ renderPreview = window.renderPreview; }catch(_e){}
+
+  document.addEventListener('input', function(event){
+    if(event.target?.id === 'notaPreConclusionesText' || event.target?.id === 'desConclusionesV69'){
+      setTimeout(()=>{ if(typeof renderReport === 'function') renderReport(); },0);
+    }
+  }, true);
+
+  document.addEventListener('change', function(event){
+    if(event.target?.id === 'toggleNotaPreConclusiones' || event.target?.id === 'desMotivoV69'){
+      setTimeout(()=>{ if(typeof renderReport === 'function') renderReport(); },0);
+    }
+  }, true);
+
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{ if(typeof renderReport === 'function') renderReport(); },1700);
+  });
+})();
+</script>
+<!-- VERSIÓN 27: Nota de desistimiento corregida antes de Conclusiones y fuera del texto de conclusión. -->
+
 </body>
 </html>
