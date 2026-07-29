@@ -27079,120 +27079,6 @@ function buildClipboardPayloadV154(){
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
 
 <!-- VERSIÓN 20: eliminado el espacio, línea, nombre y cargo de firma del PDF Siento Razón eGOB. -->
-
-
-<style id="patch-v28-sin-reg-municipal-estructural-css">
-/* ==========================================================
-   V28 - Quitar Registro Municipal de Consideraciones Estructurales
-   ========================================================== */
-.structural-table tr.reg-municipal-estructural-v28,
-.form-report-table tr.reg-municipal-estructural-v28{
-  display:none!important;
-}
-</style>
-
-<script id="patch-v28-sin-reg-municipal-estructural-js">
-/* ==========================================================
-   V28 SOBRE V27
-   Corrige el Informe Técnico Aprobatorio:
-   - Elimina REG. MUNICIPAL de Consideraciones Estructurales
-     en formulario, Vista del Informe, impresión y PDF.
-   - Mantiene DOCUMENTO, EGOB, TÉCNICO REVISOR,
-     CRITERIO TÉCNICO, ING. CALCULISTA y REG. SENESCYT.
-   ========================================================== */
-(function(){
-  function escV28(value){
-    try{
-      if(typeof escV57 === 'function') return escV57(value);
-      if(typeof esc === 'function') return esc(value);
-    }catch(_e){}
-    return String(value ?? '')
-      .replace(/&/g,'&amp;')
-      .replace(/</g,'&lt;')
-      .replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;')
-      .replace(/'/g,'&#039;');
-  }
-
-  function upperV28(value){
-    try{
-      if(typeof upper === 'function') return upper(value);
-    }catch(_e){}
-    return String(value || '').toUpperCase();
-  }
-
-  function removeStructuralMunicipalRowV28(root){
-    root = root || document;
-    try{
-      const input = root.querySelector ? root.querySelector('#estMunicipal') : null;
-      if(input){
-        const tr = input.closest('tr');
-        if(tr) tr.remove();
-      }
-
-      const tables = root.querySelectorAll ? root.querySelectorAll('table') : [];
-      tables.forEach(table=>{
-        const context = (table.closest('#tab-apr,#report,.report,.report-wrap,.preview-body,.floating-preview') || table).textContent || '';
-        const looksStructural = /CONSIDERACIONES\s+ESTRUCTURALES|DOCUMENTO:\s*|T[ÉE]CNICO\s+REVISOR|ING\.\s*CALCULISTA/i.test(context);
-        if(!looksStructural && !table.classList.contains('structural-table')) return;
-        table.querySelectorAll('tr').forEach(tr=>{
-          if(/REG\.?\s*MUNICIPAL|REGISTRO\s+MUNICIPAL/i.test(tr.textContent || '')) tr.remove();
-        });
-      });
-    }catch(e){
-      console.warn('V28 removeStructuralMunicipalRow:', e);
-    }
-  }
-
-  function aprobatorioStructuralTableV28(){
-    if(typeof ensureAprobatorioData === 'function') ensureAprobatorioData();
-    const e = state?.aprobatorio?.estructural || {};
-    if(state?.aprobatorio?.estructural && !e.criterio) state.aprobatorio.estructural.criterio = 'FAVORABLE';
-    const crit = upperV28(e.criterio || 'FAVORABLE');
-    return `<table class="informe-table structural-table"><tbody>
-      <tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">${escV28(e.documento||'')}</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">${escV28(e.egob||state.egob||'')}</td></tr>
-      <tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">${escV28(e.tecnico||state.tecnico||'')}</td></tr>
-      <tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">${escV28(crit)}</td></tr>
-      <tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">${escV28(e.calculista||'')}</td></tr>
-      <tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">${escV28(e.senescyt||'')}</td></tr>
-    </tbody></table>`;
-  }
-
-  window.aprobatorioStructuralTable = aprobatorioStructuralTableV28;
-  try{ aprobatorioStructuralTable = aprobatorioStructuralTableV28; }catch(_e){}
-
-  if(typeof renderAprobatorioForm === 'function'){
-    const baseRenderAprobatorioFormV28 = renderAprobatorioForm;
-    window.renderAprobatorioForm = function(){
-      const result = baseRenderAprobatorioFormV28.apply(this, arguments);
-      removeStructuralMunicipalRowV28(document);
-      setTimeout(()=>removeStructuralMunicipalRowV28(document),0);
-      return result;
-    };
-    try{ renderAprobatorioForm = window.renderAprobatorioForm; }catch(_e){}
-  }
-
-  if(typeof renderReport === 'function'){
-    const baseRenderReportV28 = renderReport;
-    window.renderReport = function(){
-      const result = baseRenderReportV28.apply(this, arguments);
-      removeStructuralMunicipalRowV28(document);
-      setTimeout(()=>removeStructuralMunicipalRowV28(document),0);
-      return result;
-    };
-    try{ renderReport = window.renderReport; }catch(_e){}
-  }
-
-  document.addEventListener('input', ()=>setTimeout(()=>removeStructuralMunicipalRowV28(document),0), true);
-  document.addEventListener('change', ()=>setTimeout(()=>removeStructuralMunicipalRowV28(document),0), true);
-  window.addEventListener('load',()=>{
-    setTimeout(()=>{ removeStructuralMunicipalRowV28(document); if(typeof renderReport === 'function') renderReport(); },900);
-    setTimeout(()=>removeStructuralMunicipalRowV28(document),1800);
-  });
-})();
-</script>
-<!-- VERSIÓN 28: se elimina REG. MUNICIPAL de Consideraciones Estructurales en formulario, vista, impresión y PDF. -->
-
 </body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
@@ -35518,6 +35404,212 @@ window.addEventListener('load',()=>{
 })();
 </script>
 <!-- VERSIÓN 27: Nota de desistimiento corregida antes de Conclusiones y fuera del texto de conclusión. -->
+
+
+<!-- ==========================================================
+     V29 SOBRE INDEX GITHUB CARGADO
+     Corrección final de Registro Municipal Estructural.
+     Esta versión se inserta al final real del documento para no caer
+     dentro del HTML preparado para copiar.
+     ========================================================== -->
+<style id="patch-v29-sin-reg-municipal-estructural-final-css">
+.structural-table tr.structural-reg-municipal-v29,
+.form-report-table tr.structural-reg-municipal-v29{
+  display:none!important;
+}
+</style>
+<script id="patch-v29-sin-reg-municipal-estructural-final-js">
+(function(){
+  const ROW_RE_V29=/REG\.?\s*MUNICIPAL|REGISTRO\s+MUNICIPAL/i;
+  const STRUCT_RE_V29=/T[ÉE]CNICO\s+REVISOR|ING\.?\s*CALCULISTA|REG\.?\s*SENESCYT|CONSIDERACIONES\s+ESTRUCTURALES/i;
+
+  function isStructuralTableV29(table){
+    if(!table) return false;
+    const txt=(table.textContent||'').replace(/\s+/g,' ');
+    if(!ROW_RE_V29.test(txt)) return false;
+    const hasReviewer=/T[ÉE]CNICO\s+REVISOR/i.test(txt);
+    const hasCalculista=/ING\.?\s*CALCULISTA/i.test(txt);
+    const hasSenescyt=/REG\.?\s*SENESCYT/i.test(txt);
+    const hasDocumento=/DOCUMENTO/i.test(txt);
+    return (hasReviewer && hasCalculista) || (hasCalculista && hasSenescyt) || (hasDocumento && hasReviewer && hasSenescyt);
+  }
+
+  function removeMunicipalRowsFromTableV29(table){
+    if(!table) return;
+    table.querySelectorAll('tr').forEach(tr=>{
+      const txt=(tr.textContent||'').replace(/\s+/g,' ').trim();
+      if(ROW_RE_V29.test(txt)){
+        tr.classList.add('structural-reg-municipal-v29');
+        tr.remove();
+      }
+    });
+  }
+
+  function removeByHeadingV29(root){
+    if(!root || !root.querySelectorAll) return;
+    const heads=[...root.querySelectorAll('h1,h2,h3,h4,.section-title,.report-section-title-v157,.report-section-title-v156')]
+      .filter(el=>/CONSIDERACIONES\s+ESTRUCTURALES/i.test((el.textContent||'').replace(/\s+/g,' ')));
+
+    heads.forEach(head=>{
+      let node=head.nextElementSibling;
+      let safety=0;
+      while(node && safety<10){
+        safety++;
+        const txt=(node.textContent||'').replace(/\s+/g,' ').trim();
+        if(node!==head && node.matches?.('h1,h2,h3,h4,.section-title,.report-section-title-v157,.report-section-title-v156') && !/CONSIDERACIONES\s+ESTRUCTURALES/i.test(txt)) break;
+        if(node.tagName==='TABLE'){
+          removeMunicipalRowsFromTableV29(node);
+          break;
+        }
+        const table=node.querySelector?.('table');
+        if(table){
+          removeMunicipalRowsFromTableV29(table);
+          break;
+        }
+        node=node.nextElementSibling;
+      }
+    });
+  }
+
+  function removeStructuralMunicipalV29(root){
+    root=root||document;
+    try{
+      const direct=root.querySelector ? root.querySelector('#estMunicipal') : null;
+      if(direct){
+        const tr=direct.closest('tr');
+        if(tr) tr.remove();
+      }
+
+      if(root.querySelectorAll){
+        root.querySelectorAll('table').forEach(table=>{
+          if(isStructuralTableV29(table)) removeMunicipalRowsFromTableV29(table);
+        });
+        removeByHeadingV29(root);
+      }
+    }catch(e){
+      console.warn('V29 sin REG. MUNICIPAL estructural:', e);
+    }
+  }
+
+  function stripStructuralMunicipalHtmlV29(source){
+    source=String(source||'');
+    if(!source || !ROW_RE_V29.test(source)) return source;
+    try{
+      const doc=new DOMParser().parseFromString('<div id="v29-root">'+source+'</div>','text/html');
+      const root=doc.getElementById('v29-root');
+      removeStructuralMunicipalV29(root);
+      return root.innerHTML;
+    }catch(_e){
+      return source
+        .replace(/<tr\b[^>]*>[\s\S]*?REG\.?\s*MUNICIPAL[\s\S]*?<\/tr>/gi,'')
+        .replace(/<tr\b[^>]*>[\s\S]*?REGISTRO\s+MUNICIPAL[\s\S]*?<\/tr>/gi,'');
+    }
+  }
+
+  function rebuildPlainFromHtmlV29(html){
+    try{
+      const doc=new DOMParser().parseFromString(String(html||''),'text/html');
+      return (doc.body.innerText||doc.body.textContent||'').trim();
+    }catch(_e){
+      return String(html||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    }
+  }
+
+  function structuralTableV29(){
+    try{
+      if(typeof ensureAprobatorioData === 'function') ensureAprobatorioData();
+    }catch(_e){}
+    const e=(window.state && state.aprobatorio && state.aprobatorio.estructural) ? state.aprobatorio.estructural : {};
+    const safe=(typeof esc === 'function') ? esc : (v)=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+    const up=(typeof upper === 'function') ? upper : (v)=>String(v||'').toUpperCase();
+    const egob=(window.state && state.egob) ? state.egob : '';
+    const tecnico=(window.state && state.tecnico) ? state.tecnico : '';
+    const crit=up(e.criterio||'FAVORABLE');
+    return `<table class="informe-table structural-table"><tbody>
+      <tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">${safe(e.documento||'')}</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">${safe(e.egob||egob||'')}</td></tr>
+      <tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">${safe(e.tecnico||tecnico||'')}</td></tr>
+      <tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">${safe(crit)}</td></tr>
+      <tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">${safe(e.calculista||'')}</td></tr>
+      <tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">${safe(e.senescyt||'')}</td></tr>
+    </tbody></table>`;
+  }
+
+  function installV29(){
+    try{
+      window.aprobatorioStructuralTable=structuralTableV29;
+      aprobatorioStructuralTable=structuralTableV29;
+    }catch(_e){}
+
+    if(typeof renderAprobatorioForm === 'function' && !renderAprobatorioForm.__v29SinMunicipal){
+      const base=renderAprobatorioForm;
+      const wrapped=function(){
+        const out=base.apply(this,arguments);
+        setTimeout(()=>removeStructuralMunicipalV29(document),0);
+        return out;
+      };
+      wrapped.__v29SinMunicipal=true;
+      window.renderAprobatorioForm=wrapped;
+      try{ renderAprobatorioForm=wrapped; }catch(_e){}
+    }
+
+    if(typeof renderReport === 'function' && !renderReport.__v29SinMunicipal){
+      const base=renderReport;
+      const wrapped=function(){
+        const out=base.apply(this,arguments);
+        const report=document.getElementById('report');
+        if(report){
+          report.innerHTML=stripStructuralMunicipalHtmlV29(report.innerHTML);
+          removeStructuralMunicipalV29(report);
+        }
+        setTimeout(()=>removeStructuralMunicipalV29(document),0);
+        return out;
+      };
+      wrapped.__v29SinMunicipal=true;
+      window.renderReport=wrapped;
+      try{ renderReport=wrapped; }catch(_e){}
+    }
+
+    if(typeof buildClipboardPayloadV154 === 'function' && !buildClipboardPayloadV154.__v29SinMunicipal){
+      const base=buildClipboardPayloadV154;
+      const wrapped=function(){
+        removeStructuralMunicipalV29(document);
+        const payload=base.apply(this,arguments);
+        if(payload && payload.html){
+          payload.html=stripStructuralMunicipalHtmlV29(payload.html);
+          payload.plain=rebuildPlainFromHtmlV29(payload.html);
+        }
+        return payload;
+      };
+      wrapped.__v29SinMunicipal=true;
+      window.buildClipboardPayloadV154=wrapped;
+      try{ buildClipboardPayloadV154=wrapped; }catch(_e){}
+    }
+
+    removeStructuralMunicipalV29(document);
+  }
+
+  document.addEventListener('input',()=>setTimeout(()=>removeStructuralMunicipalV29(document),0),true);
+  document.addEventListener('change',()=>setTimeout(()=>removeStructuralMunicipalV29(document),0),true);
+  window.addEventListener('beforeprint',()=>removeStructuralMunicipalV29(document));
+
+  window.addEventListener('load',()=>{
+    installV29();
+    setTimeout(()=>{ installV29(); if(typeof renderReport==='function') renderReport(); },700);
+    setTimeout(()=>removeStructuralMunicipalV29(document),1400);
+  });
+
+  if(document.readyState!=='loading'){
+    installV29();
+    setTimeout(()=>removeStructuralMunicipalV29(document),300);
+  }
+
+  try{
+    const observer=new MutationObserver(()=>setTimeout(()=>removeStructuralMunicipalV29(document),0));
+    observer.observe(document.documentElement,{childList:true,subtree:true});
+  }catch(_e){}
+})();
+</script>
+<!-- VERSIÓN 29: corrección final insertada en el cierre real del documento; elimina REG. MUNICIPAL solo en Consideraciones Estructurales. -->
 
 </body>
 </html>
