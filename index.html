@@ -27079,6 +27079,120 @@ function buildClipboardPayloadV154(){
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
 
 <!-- VERSIÓN 20: eliminado el espacio, línea, nombre y cargo de firma del PDF Siento Razón eGOB. -->
+
+
+<style id="patch-v28-sin-reg-municipal-estructural-css">
+/* ==========================================================
+   V28 - Quitar Registro Municipal de Consideraciones Estructurales
+   ========================================================== */
+.structural-table tr.reg-municipal-estructural-v28,
+.form-report-table tr.reg-municipal-estructural-v28{
+  display:none!important;
+}
+</style>
+
+<script id="patch-v28-sin-reg-municipal-estructural-js">
+/* ==========================================================
+   V28 SOBRE V27
+   Corrige el Informe Técnico Aprobatorio:
+   - Elimina REG. MUNICIPAL de Consideraciones Estructurales
+     en formulario, Vista del Informe, impresión y PDF.
+   - Mantiene DOCUMENTO, EGOB, TÉCNICO REVISOR,
+     CRITERIO TÉCNICO, ING. CALCULISTA y REG. SENESCYT.
+   ========================================================== */
+(function(){
+  function escV28(value){
+    try{
+      if(typeof escV57 === 'function') return escV57(value);
+      if(typeof esc === 'function') return esc(value);
+    }catch(_e){}
+    return String(value ?? '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  function upperV28(value){
+    try{
+      if(typeof upper === 'function') return upper(value);
+    }catch(_e){}
+    return String(value || '').toUpperCase();
+  }
+
+  function removeStructuralMunicipalRowV28(root){
+    root = root || document;
+    try{
+      const input = root.querySelector ? root.querySelector('#estMunicipal') : null;
+      if(input){
+        const tr = input.closest('tr');
+        if(tr) tr.remove();
+      }
+
+      const tables = root.querySelectorAll ? root.querySelectorAll('table') : [];
+      tables.forEach(table=>{
+        const context = (table.closest('#tab-apr,#report,.report,.report-wrap,.preview-body,.floating-preview') || table).textContent || '';
+        const looksStructural = /CONSIDERACIONES\s+ESTRUCTURALES|DOCUMENTO:\s*|T[ÉE]CNICO\s+REVISOR|ING\.\s*CALCULISTA/i.test(context);
+        if(!looksStructural && !table.classList.contains('structural-table')) return;
+        table.querySelectorAll('tr').forEach(tr=>{
+          if(/REG\.?\s*MUNICIPAL|REGISTRO\s+MUNICIPAL/i.test(tr.textContent || '')) tr.remove();
+        });
+      });
+    }catch(e){
+      console.warn('V28 removeStructuralMunicipalRow:', e);
+    }
+  }
+
+  function aprobatorioStructuralTableV28(){
+    if(typeof ensureAprobatorioData === 'function') ensureAprobatorioData();
+    const e = state?.aprobatorio?.estructural || {};
+    if(state?.aprobatorio?.estructural && !e.criterio) state.aprobatorio.estructural.criterio = 'FAVORABLE';
+    const crit = upperV28(e.criterio || 'FAVORABLE');
+    return `<table class="informe-table structural-table"><tbody>
+      <tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">${escV28(e.documento||'')}</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">${escV28(e.egob||state.egob||'')}</td></tr>
+      <tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">${escV28(e.tecnico||state.tecnico||'')}</td></tr>
+      <tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">${escV28(crit)}</td></tr>
+      <tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">${escV28(e.calculista||'')}</td></tr>
+      <tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">${escV28(e.senescyt||'')}</td></tr>
+    </tbody></table>`;
+  }
+
+  window.aprobatorioStructuralTable = aprobatorioStructuralTableV28;
+  try{ aprobatorioStructuralTable = aprobatorioStructuralTableV28; }catch(_e){}
+
+  if(typeof renderAprobatorioForm === 'function'){
+    const baseRenderAprobatorioFormV28 = renderAprobatorioForm;
+    window.renderAprobatorioForm = function(){
+      const result = baseRenderAprobatorioFormV28.apply(this, arguments);
+      removeStructuralMunicipalRowV28(document);
+      setTimeout(()=>removeStructuralMunicipalRowV28(document),0);
+      return result;
+    };
+    try{ renderAprobatorioForm = window.renderAprobatorioForm; }catch(_e){}
+  }
+
+  if(typeof renderReport === 'function'){
+    const baseRenderReportV28 = renderReport;
+    window.renderReport = function(){
+      const result = baseRenderReportV28.apply(this, arguments);
+      removeStructuralMunicipalRowV28(document);
+      setTimeout(()=>removeStructuralMunicipalRowV28(document),0);
+      return result;
+    };
+    try{ renderReport = window.renderReport; }catch(_e){}
+  }
+
+  document.addEventListener('input', ()=>setTimeout(()=>removeStructuralMunicipalRowV28(document),0), true);
+  document.addEventListener('change', ()=>setTimeout(()=>removeStructuralMunicipalRowV28(document),0), true);
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{ removeStructuralMunicipalRowV28(document); if(typeof renderReport === 'function') renderReport(); },900);
+    setTimeout(()=>removeStructuralMunicipalRowV28(document),1800);
+  });
+})();
+</script>
+<!-- VERSIÓN 28: se elimina REG. MUNICIPAL de Consideraciones Estructurales en formulario, vista, impresión y PDF. -->
+
 </body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
