@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/logo-allpa-2026.png?v=20260730-6" />
-  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-6" />
-  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-6" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/logo-allpa-2026.png?v=20260730-5" />
+  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-5" />
+  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-5" />
 
 <title>ALLPA - Obras Mayores</title>
   <style>
@@ -35729,66 +35729,58 @@ textarea.evidencia-text,
 })();
 </script>
 
-<script id="allpa-fix-estructural-final">
+<script>
 (function(){
   'use strict';
 
-  function readStructuralField(id, fallback){
+  function leerCampoEstructural(id, respaldo){
     var el=document.getElementById(id);
-    if(el && 'value' in el) return String(el.value || '').trim();
-    return String(fallback || '').trim();
+    if(!el) return String(respaldo == null ? '' : respaldo).trim();
+    var valor=('value' in el) ? el.value : el.textContent;
+    return String(valor == null ? '' : valor).trim();
   }
 
-  function buildStructuralTableFinal(){
-    try{ if(typeof ensureAprobatorioData==='function') ensureAprobatorioData(); }catch(_e){}
-    var structural=(window.state && state.aprobatorio)
-      ? (state.aprobatorio.estructural || (state.aprobatorio.estructural={}))
-      : {};
-
-    var documento=readStructuralField('estDocumento',structural.documento);
-    var egob=readStructuralField('estEgob',structural.egob || (window.state ? state.egob : ''));
-    var tecnico=readStructuralField('estTecnico',structural.tecnico || (window.state ? state.tecnico : ''));
-    var criterio=readStructuralField('estCriterio',structural.criterio);
-    var calculista=readStructuralField('estCalculista',structural.calculista);
-    var senescyt=readStructuralField('estSenescyt',structural.senescyt);
-
-    criterio=(typeof upper==='function') ? upper(criterio) : criterio.toUpperCase();
-    Object.assign(structural,{documento:documento,egob:egob,tecnico:tecnico,criterio:criterio,calculista:calculista,senescyt:senescyt});
-
-    var safe=(typeof esc==='function') ? esc : function(v){
-      return String(v == null ? '' : v).replace(/[&<>"']/g,function(m){
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
-      });
-    };
-
-    return '<table class="informe-table structural-table"><tbody>'+
-      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+safe(documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+safe(egob)+'</td></tr>'+
-      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+safe(tecnico)+'</td></tr>'+
-      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+safe(criterio)+'</td></tr>'+
-      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+safe(calculista)+'</td></tr>'+
-      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+safe(senescyt)+'</td></tr>'+
-      '</tbody></table>';
+  function escaparEstructural(valor){
+    return String(valor == null ? '' : valor).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];
+    });
   }
 
-  window.aprobatorioStructuralTable=buildStructuralTableFinal;
-  try{ aprobatorioStructuralTable=buildStructuralTableFinal; }catch(_e){}
-
-  function syncStructuralStateFinal(){
-    if(!window.state || !state.aprobatorio) return;
+  function sincronizarConsideracionesEstructurales(){
+    if(typeof state==='undefined' || !state) return {};
+    if(!state.aprobatorio) state.aprobatorio={};
     var e=state.aprobatorio.estructural || (state.aprobatorio.estructural={});
-    e.documento=readStructuralField('estDocumento',e.documento);
-    e.egob=readStructuralField('estEgob',e.egob);
-    e.tecnico=readStructuralField('estTecnico',e.tecnico);
-    e.criterio=readStructuralField('estCriterio',e.criterio);
-    e.calculista=readStructuralField('estCalculista',e.calculista);
-    e.senescyt=readStructuralField('estSenescyt',e.senescyt);
+
+    e.documento=leerCampoEstructural('estDocumento',e.documento);
+    e.egob=leerCampoEstructural('estEgob',e.egob);
+    e.tecnico=leerCampoEstructural('estTecnico',e.tecnico);
+    e.criterio=leerCampoEstructural('estCriterio',e.criterio);
+    e.calculista=leerCampoEstructural('estCalculista',e.calculista);
+    e.senescyt=leerCampoEstructural('estSenescyt',e.senescyt);
+    return e;
   }
+
+  aprobatorioStructuralTable=function(){
+    var e=sincronizarConsideracionesEstructurales();
+    var criterio=String(e.criterio || '').toUpperCase();
+    return '<table class="informe-table structural-table"><tbody>'+
+      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+escaparEstructural(e.documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+escaparEstructural(e.egob)+'</td></tr>'+
+      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+escaparEstructural(e.tecnico)+'</td></tr>'+
+      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+escaparEstructural(criterio)+'</td></tr>'+
+      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+escaparEstructural(e.calculista)+'</td></tr>'+
+      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+escaparEstructural(e.senescyt)+'</td></tr>'+
+      '</tbody></table>';
+  };
 
   document.addEventListener('input',function(ev){
-    if(ev.target && /^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target.id||'')) syncStructuralStateFinal();
+    if(ev.target && /^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target.id || '')){
+      sincronizarConsideracionesEstructurales();
+    }
   });
   document.addEventListener('change',function(ev){
-    if(ev.target && /^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target.id||'')) syncStructuralStateFinal();
+    if(ev.target && /^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target.id || '')){
+      sincronizarConsideracionesEstructurales();
+    }
   });
 })();
 </script>
