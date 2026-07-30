@@ -35645,9 +35645,9 @@ window.addEventListener('load',()=>{
 
   function aplicarIdentidadAllpaV30(){
     const titulo=document.querySelector('header h1');
-    if(titulo) titulo.textContent='ALLPA';
+    if(titulo && titulo.textContent.trim()!=='ALLPA') titulo.textContent='ALLPA';
     const acceso=document.querySelector('#passwordOverlay .password-box h2');
-    if(acceso) acceso.textContent='Bienvenido a ALLPA';
+    if(acceso && acceso.textContent.trim()!=='Bienvenido a ALLPA') acceso.textContent='Bienvenido a ALLPA';
     document.title='ALLPA - Obras Mayores';
   }
 
@@ -35769,11 +35769,15 @@ window.addEventListener('load',()=>{
   if(document.readyState!=='loading') setTimeout(iniciarV30,0);
 
   try{
+    let timerV30=null;
     new MutationObserver(()=>{
-      aplicarIdentidadAllpaV30();
-      ajustarFechasDesistimientoV30();
-      document.querySelectorAll('textarea.evidencia-text, .req-factibilidades-v134 textarea, .req-estudios-wrapper-v111 textarea').forEach(autoAlturaEvidenciaV30);
-      marcarTablasInformeV30();
+      clearTimeout(timerV30);
+      timerV30=setTimeout(()=>{
+        aplicarIdentidadAllpaV30();
+        ajustarFechasDesistimientoV30();
+        document.querySelectorAll('textarea.evidencia-text, .req-factibilidades-v134 textarea, .req-estudios-wrapper-v111 textarea').forEach(autoAlturaEvidenciaV30);
+        marcarTablasInformeV30();
+      },80);
     }).observe(document.body,{childList:true,subtree:true});
   }catch(_e){}
 })();
