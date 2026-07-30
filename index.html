@@ -3,10 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- <link rel="icon" type="image/png" sizes="32x32" href="./assets/logo-allpa-2026.png?v=1" />
-<link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=1" />
-<link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=1" />
-
+  <!-- FAVICON ALLPA: actualización forzada para evitar caché del navegador -->
+  <link id="faviconAllpa" rel="icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
+  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
+  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-2" />
+  <script>
+    (function () {
+      const version = '20260730-2';
+      const ruta = './assets/logo-allpa-2026.png?v=' + version;
+      document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(function (link) {
+        link.href = ruta;
+      });
+    })();
+  </script>
 <title>ALLPA - Obras Mayores</title>
   <style>
     :root {
