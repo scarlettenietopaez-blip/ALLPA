@@ -3,19 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- FAVICON ALLPA: actualización forzada para evitar caché del navegador -->
-  <link id="faviconAllpa" rel="icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
-  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
-  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-2" />
-  <script>
-    (function () {
-      const version = '20260730-2';
-      const ruta = './assets/logo-allpa-2026.png?v=' + version;
-      document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(function (link) {
-        link.href = ruta;
-      });
-    })();
-  </script>
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/logo-allpa-2026.png?v=20260730-3" />
+  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-3" />
+  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-3" />
+
 <title>ALLPA - Obras Mayores</title>
   <style>
     :root {
@@ -35532,40 +35523,12 @@ window.addEventListener('load',()=>{
     try{
       if(typeof ensureAprobatorioData === 'function') ensureAprobatorioData();
     }catch(_e){}
-
-    const current=(window.state && state.aprobatorio && state.aprobatorio.estructural)
-      ? state.aprobatorio.estructural
-      : {};
-
-    // Antes de construir la vista e impresión, leer directamente los campos visibles.
-    // Esto evita que la tabla salga vacía cuando los datos fueron cargados o rellenados
-    // en el formulario sin que el evento input alcanzara a sincronizar el estado.
-    const fieldValue=(id, fallback='')=>{
-      const el=document.getElementById(id);
-      return el ? String(el.value||'').trim() : String(fallback||'').trim();
-    };
-
-    const e={
-      documento: fieldValue('estDocumento', current.documento),
-      egob: fieldValue('estEgob', current.egob),
-      tecnico: fieldValue('estTecnico', current.tecnico),
-      criterio: fieldValue('estCriterio', current.criterio),
-      calculista: fieldValue('estCalculista', current.calculista),
-      senescyt: fieldValue('estSenescyt', current.senescyt)
-    };
-
-    try{
-      if(window.state && state.aprobatorio){
-        state.aprobatorio.estructural={...(state.aprobatorio.estructural||{}), ...e};
-      }
-    }catch(_e){}
-
+    const e=(window.state && state.aprobatorio && state.aprobatorio.estructural) ? state.aprobatorio.estructural : {};
     const safe=(typeof esc === 'function') ? esc : (v)=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
     const up=(typeof upper === 'function') ? upper : (v)=>String(v||'').toUpperCase();
     const egob=(window.state && state.egob) ? state.egob : '';
     const tecnico=(window.state && state.tecnico) ? state.tecnico : '';
     const crit=up(e.criterio||'FAVORABLE');
-
     return `<table class="informe-table structural-table"><tbody>
       <tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">${safe(e.documento||'')}</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">${safe(e.egob||egob||'')}</td></tr>
       <tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">${safe(e.tecnico||tecnico||'')}</td></tr>
@@ -35766,146 +35729,86 @@ textarea.evidencia-text,
 })();
 </script>
 
+
 <!-- ==========================================================
-     ALLPA V35 - Sincronización final de Consideraciones Estructurales
-     Completa directamente la tabla visible del informe con los valores
-     actuales del formulario, sin depender del generador interno de HTML.
+     ALLPA - Corrección segura de Consideraciones Estructurales
+     Sincroniza el formulario con el informe sin modificar la tabla
+     editable ni reemplazar sus celdas.
      ========================================================== -->
-<script id="allpa-v35-estructural-sync">
+<script id="allpa-fix-estructural-editable">
 (function(){
   'use strict';
 
-  const IDS_V35={
-    documento:'estDocumento',
-    egob:'estEgob',
-    tecnico:'estTecnico',
-    criterio:'estCriterio',
-    calculista:'estCalculista',
-    senescyt:'estSenescyt'
-  };
-
-  function valorV35(id){
-    const el=document.getElementById(id);
-    return el ? String(el.value ?? '').trim() : '';
+  function leerCampoEstructural(id){
+    var el=document.getElementById(id);
+    return el ? String(el.value == null ? '' : el.value).trim() : '';
   }
 
-  function datosV35(){
-    return {
-      documento:valorV35(IDS_V35.documento),
-      egob:valorV35(IDS_V35.egob),
-      tecnico:valorV35(IDS_V35.tecnico),
-      criterio:valorV35(IDS_V35.criterio),
-      calculista:valorV35(IDS_V35.calculista),
-      senescyt:valorV35(IDS_V35.senescyt)
-    };
-  }
-
-  function sincronizarEstadoV35(){
-    const d=datosV35();
+  function sincronizarEstructuralDesdeFormulario(){
     try{
-      if(window.state){
-        state.aprobatorio=state.aprobatorio||{};
-        state.aprobatorio.estructural=Object.assign({},state.aprobatorio.estructural||{},d);
-      }
-    }catch(_e){}
-    return d;
-  }
+      if(typeof ensureAprobatorioData==='function') ensureAprobatorioData();
+      if(!window.state) return;
+      state.aprobatorio=state.aprobatorio||{};
+      state.aprobatorio.estructural=state.aprobatorio.estructural||{};
+      var e=state.aprobatorio.estructural;
 
-  function textoFilaV35(tr){
-    return String(tr?.textContent||'').replace(/\s+/g,' ').trim().toUpperCase();
-  }
+      var mapa={
+        documento:'estDocumento',
+        egob:'estEgob',
+        tecnico:'estTecnico',
+        criterio:'estCriterio',
+        calculista:'estCalculista',
+        senescyt:'estSenescyt'
+      };
 
-  function ponerValorFilaV35(tr,value){
-    if(!tr) return;
-    const cells=[...tr.children].filter(c=>/^(TD|TH)$/.test(c.tagName));
-    if(cells.length<2) return;
-    // La primera celda es la etiqueta; todas las demás conforman el valor.
-    const target=cells[1];
-    target.textContent=value||'';
-    target.colSpan=Math.max(1,cells.slice(1).reduce((n,c)=>n+(Number(c.colSpan)||1),0));
-    cells.slice(2).forEach(c=>c.remove());
-  }
-
-  function esTablaEstructuralV35(table){
-    const txt=String(table?.textContent||'').replace(/\s+/g,' ').toUpperCase();
-    return txt.includes('TÉCNICO REVISOR') && txt.includes('ING. CALCULISTA') && txt.includes('SENESCYT');
-  }
-
-  function completarTablaV35(table,d){
-    if(!table || !esTablaEstructuralV35(table)) return false;
-    [...table.querySelectorAll('tr')].forEach(tr=>{
-      const txt=textoFilaV35(tr);
-      if(txt.includes('DOCUMENTO')){
-        const cells=[...tr.children].filter(c=>/^(TD|TH)$/.test(c.tagName));
-        if(cells[1]) cells[1].textContent=d.documento||'';
-        const egobLabelIndex=cells.findIndex(c=>String(c.textContent||'').trim().toUpperCase()==='EGOB');
-        if(egobLabelIndex>=0 && cells[egobLabelIndex+1]) cells[egobLabelIndex+1].textContent=d.egob||'';
-      }else if(txt.includes('TÉCNICO REVISOR')){
-        ponerValorFilaV35(tr,d.tecnico);
-      }else if(txt.includes('CRITERIO TÉCNICO')){
-        ponerValorFilaV35(tr,(d.criterio||'').toUpperCase());
-      }else if(txt.includes('ING. CALCULISTA')){
-        ponerValorFilaV35(tr,d.calculista);
-      }else if(txt.includes('SENESCYT')){
-        ponerValorFilaV35(tr,d.senescyt);
-      }
-    });
-    return true;
-  }
-
-  function completarInformeV35(){
-    const d=sincronizarEstadoV35();
-    const roots=[
-      document.getElementById('report'),
-      document.querySelector('.preview-body'),
-      document
-    ].filter(Boolean);
-    const seen=new Set();
-    roots.forEach(root=>{
-      root.querySelectorAll('table').forEach(table=>{
-        if(seen.has(table)) return;
-        seen.add(table);
-        completarTablaV35(table,d);
+      Object.keys(mapa).forEach(function(prop){
+        var el=document.getElementById(mapa[prop]);
+        if(el) e[prop]=leerCampoEstructural(mapa[prop]);
       });
-    });
+    }catch(err){
+      console.warn('ALLPA: no se pudo sincronizar Consideraciones Estructurales',err);
+    }
   }
 
-  function programarV35(){
-    completarInformeV35();
-    setTimeout(completarInformeV35,30);
-    setTimeout(completarInformeV35,180);
-  }
-
-  // Sincronización al editar cualquiera de los campos estructurales.
-  document.addEventListener('input',function(ev){
-    if(Object.values(IDS_V35).includes(ev.target?.id)) programarV35();
-  },true);
-  document.addEventListener('change',function(ev){
-    if(Object.values(IDS_V35).includes(ev.target?.id)) programarV35();
-  },true);
-
-  // Se ejecuta después de cualquier botón que pueda abrir, copiar o imprimir el informe.
-  document.addEventListener('click',function(){ programarV35(); },true);
-  window.addEventListener('beforeprint',completarInformeV35);
-
-  // Integración con el renderizador principal cuando está expuesto globalmente.
-  if(typeof window.renderReport==='function' && !window.renderReport.__allpaV35){
-    const base=window.renderReport;
-    const wrapped=function(){
-      sincronizarEstadoV35();
-      const result=base.apply(this,arguments);
-      programarV35();
-      return result;
+  /* Sincroniza antes de construir exclusivamente la tabla del informe. */
+  if(typeof aprobatorioStructuralTable==='function' && !aprobatorioStructuralTable.__allpaFixEditable){
+    var tablaBase=aprobatorioStructuralTable;
+    var tablaCorregida=function(){
+      sincronizarEstructuralDesdeFormulario();
+      return tablaBase.apply(this,arguments);
     };
-    wrapped.__allpaV35=true;
-    window.renderReport=wrapped;
-    try{ renderReport=wrapped; }catch(_e){}
+    tablaCorregida.__allpaFixEditable=true;
+    aprobatorioStructuralTable=tablaCorregida;
+    window.aprobatorioStructuralTable=tablaCorregida;
   }
 
-  window.completarConsideracionesEstructuralesV35=completarInformeV35;
-  window.addEventListener('load',programarV35,{once:true});
+  /* Refuerzo antes de vista previa, copia o impresión. */
+  if(typeof renderReport==='function' && !renderReport.__allpaFixEditable){
+    var renderBase=renderReport;
+    var renderCorregido=function(){
+      sincronizarEstructuralDesdeFormulario();
+      return renderBase.apply(this,arguments);
+    };
+    renderCorregido.__allpaFixEditable=true;
+    renderReport=renderCorregido;
+    window.renderReport=renderCorregido;
+  }
+
+  document.addEventListener('input',function(ev){
+    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target && ev.target.id || '')){
+      sincronizarEstructuralDesdeFormulario();
+    }
+  },true);
+
+  document.addEventListener('change',function(ev){
+    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target && ev.target.id || '')){
+      sincronizarEstructuralDesdeFormulario();
+      if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
+    }
+  },true);
+
+  window.addEventListener('beforeprint',sincronizarEstructuralDesdeFormulario);
 })();
 </script>
-
 </body>
 </html>
