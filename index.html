@@ -164,9 +164,7 @@
     .editable-conclusion th,.editable-conclusion td{border:1px solid #111}
     .editable-conclusion th{background:#e5e5e5;color:#111}
     .anteproyecto-table input,.anteproyecto-table select{width:100%}
-    textarea.evidencia-text{min-height:118px;resize:vertical;line-height:1.45;text-align:justify;text-transform:none;white-space:pre-wrap;overflow-wrap:anywhere}
-    .req-factibilidades-v134 textarea,.req-estudios-wrapper-v111 textarea{min-height:118px;resize:vertical;line-height:1.45;text-align:justify!important;text-transform:none!important;white-space:pre-wrap;overflow-wrap:anywhere}
-    .report .combined-studies-v145 td:nth-child(5){text-align:justify!important;text-transform:none!important;white-space:pre-wrap;overflow-wrap:anywhere}
+    textarea.evidencia-text{min-height:70px;resize:vertical;line-height:1.35}
 
     @media(max-width:1050px){.grid{grid-template-columns:1fr}.row,.row3{grid-template-columns:1fr}.floating-preview{position:static;width:auto;max-height:none;margin:0 22px 18px}}
     @media print{
@@ -5057,8 +5055,8 @@ function renderEstudiosTabla(){
 function updEstudio(i,k,elOrValue){
  if(!state.aprobatorio.estudios[i]) return;
  let v=(elOrValue&&typeof elOrValue==='object')?elOrValue.value:elOrValue;
- if(k!=='fecha' && k!=='evidencia') v=upper(v);
- if(elOrValue&&typeof elOrValue==='object' && k!=='fecha' && k!=='evidencia') elOrValue.value=v;
+ if(k!=='fecha') v=upper(v);
+ if(elOrValue&&typeof elOrValue==='object' && k!=='fecha') elOrValue.value=v;
  state.aprobatorio.estudios[i][k]=v;
  scheduleReportUpdate();
 }
@@ -25200,7 +25198,7 @@ function updateFactibilidadOMV145(i,field,el){
   const rows=ensureFactibilidadesOMV145();
   if(!rows[i]) return;
   let value=el?.value??el??'';
-  if(field!=='fecha' && field!=='evidencia'){ value=String(value).toUpperCase(); if(el&&typeof el==='object') el.value=value; }
+  if(field!=='fecha'){ value=String(value).toUpperCase(); if(el&&typeof el==='object') el.value=value; }
   rows[i][field]=value; if(typeof scheduleReportUpdate==='function') scheduleReportUpdate(); else {renderReport();renderPreview();}
 }
 function renderFactibilidadesOMV145(){
@@ -28761,14 +28759,13 @@ updateSideActions = function(){
   if(_updateSideActions_base_V119N) _updateSideActions_base_V119N();
 
   const isApr=state.tipoInforme==='Informe Técnico Aprobatorio';
-  const isDes=state.tipoInforme==='Informe de Desistimiento';
   const lab=document.getElementById('fechaRevisionLabel');
   const note=document.getElementById('fechaRevisionNote');
   const sub=document.getElementById('fechaSubsanacionWrap');
 
   if(lab) lab.textContent=isApr?'Fecha de emisión *':'Fecha de revisión *';
   if(note) note.textContent=isApr?'Fecha de emisión para registro del informe aprobatorio.':'';
-  if(sub) sub.classList.toggle('hidden', isApr || isDes);
+  if(sub) sub.classList.toggle('hidden', isApr);
 
   updateCopyButtonByReportV119N();
 };
@@ -35614,5 +35611,118 @@ window.addEventListener('load',()=>{
 </script>
 <!-- VERSIÓN 29: corrección final insertada en el cierre real del documento; elimina REG. MUNICIPAL solo en Consideraciones Estructurales. -->
 
+
+
+<!-- ==========================================================
+     ALLPA V34 - Correcciones puntuales y estables
+     1) Desistimiento: únicamente Fecha de revisión.
+     2) Evidencia/detalle: mayúsculas y minúsculas, saltos visibles
+        y texto justificado en el informe.
+     ========================================================== -->
+<style id="allpa-v34-css">
+/* Hacer visibles los saltos de línea y facilitar la revisión del texto pegado. */
+.service-edit-v13 .service-evidence-row-v13 textarea,
+textarea.evidencia-text,
+.req-factibilidades-table-v134 textarea {
+  min-height: 135px !important;
+  line-height: 1.55 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  text-transform: none !important;
+  font-family: 'Segoe UI', Arial, sans-serif !important;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(1.55em - 1px),
+    rgba(23,50,77,.08) calc(1.55em - 1px),
+    rgba(23,50,77,.08) 1.55em
+  );
+  background-attachment: local;
+}
+/* Justificación y conservación de párrafos/saltos en la vista del informe. */
+.report .combined-studies-v13 .detail-v13,
+.report .estudios-table .detail-v13,
+.report td.service-evidence-report-v34 {
+  text-align: justify !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+</style>
+<script id="allpa-v34-js">
+(function(){
+  'use strict';
+
+  function esDesistimientoV34(){
+    const tipo=document.getElementById('tipoInforme')?.value || window.state?.tipoInforme || '';
+    return tipo==='Informe de Desistimiento';
+  }
+
+  function aplicarFechasDesistimientoV34(){
+    const esDes=esDesistimientoV34();
+    const lab=document.getElementById('fechaRevisionLabel');
+    const note=document.getElementById('fechaRevisionNote');
+    const sub=document.getElementById('fechaSubsanacionWrap');
+    const segunda=document.querySelector('label.subsanacion-5dias-v55');
+
+    if(esDes){
+      if(lab) lab.textContent='Fecha de revisión *';
+      if(note) note.textContent='';
+      if(sub) sub.classList.add('hidden');
+      if(segunda) segunda.classList.add('hidden');
+      const cb=document.getElementById('calc5DiasSubsanacionV55');
+      if(cb){ cb.checked=false; cb.disabled=true; }
+    }else{
+      if(segunda) segunda.classList.remove('hidden');
+      const cb=document.getElementById('calc5DiasSubsanacionV55');
+      if(cb) cb.disabled=false;
+    }
+  }
+
+  /* Se integra en la actualización normal de la interfaz, sin observadores ni ciclos. */
+  const actualizarAccionesBaseV34=typeof window.updateSideActions==='function' ? window.updateSideActions : null;
+  window.updateSideActions=function(){
+    if(actualizarAccionesBaseV34) actualizarAccionesBaseV34.apply(this,arguments);
+    aplicarFechasDesistimientoV34();
+  };
+  try{ updateSideActions=window.updateSideActions; }catch(_e){}
+
+  /* Evidencia conserva exactamente mayúsculas, minúsculas y saltos pegados. */
+  const updEstudioBaseV34=typeof window.updEstudio==='function' ? window.updEstudio : null;
+  window.updEstudio=function(i,k,elOrValue){
+    if(k!=='evidencia'){
+      if(updEstudioBaseV34) return updEstudioBaseV34.apply(this,arguments);
+      return;
+    }
+    if(!window.state?.aprobatorio?.estudios?.[i]) return;
+    const value=(elOrValue&&typeof elOrValue==='object') ? elOrValue.value : String(elOrValue??'');
+    window.state.aprobatorio.estudios[i][k]=value;
+    if(typeof window.scheduleReportUpdate==='function') window.scheduleReportUpdate();
+  };
+  try{ updEstudio=window.updEstudio; }catch(_e){}
+
+  const updFactBaseV34=typeof window.updateFactibilidadOMV145==='function' ? window.updateFactibilidadOMV145 : null;
+  window.updateFactibilidadOMV145=function(i,field,elOrValue){
+    if(field!=='evidencia'){
+      if(updFactBaseV34) return updFactBaseV34.apply(this,arguments);
+      return;
+    }
+    const rows=typeof window.ensureFactibilidadesOMV145==='function'
+      ? window.ensureFactibilidadesOMV145()
+      : window.state?.aprobatorio?.factibilidadesOMV145;
+    if(!rows?.[i]) return;
+    const value=(elOrValue&&typeof elOrValue==='object') ? elOrValue.value : String(elOrValue??'');
+    rows[i][field]=value;
+    if(typeof window.scheduleReportUpdate==='function') window.scheduleReportUpdate();
+  };
+  try{ updateFactibilidadOMV145=window.updateFactibilidadOMV145; }catch(_e){}
+
+  /* Anteproyecto usa updEstudio para sus factibilidades; queda cubierto por el ajuste anterior. */
+  window.addEventListener('load',function(){
+    aplicarFechasDesistimientoV34();
+    setTimeout(aplicarFechasDesistimientoV34,900);
+  },{once:true});
+})();
+</script>
 </body>
 </html>
