@@ -35532,12 +35532,40 @@ window.addEventListener('load',()=>{
     try{
       if(typeof ensureAprobatorioData === 'function') ensureAprobatorioData();
     }catch(_e){}
-    const e=(window.state && state.aprobatorio && state.aprobatorio.estructural) ? state.aprobatorio.estructural : {};
+
+    const current=(window.state && state.aprobatorio && state.aprobatorio.estructural)
+      ? state.aprobatorio.estructural
+      : {};
+
+    // Antes de construir la vista e impresión, leer directamente los campos visibles.
+    // Esto evita que la tabla salga vacía cuando los datos fueron cargados o rellenados
+    // en el formulario sin que el evento input alcanzara a sincronizar el estado.
+    const fieldValue=(id, fallback='')=>{
+      const el=document.getElementById(id);
+      return el ? String(el.value||'').trim() : String(fallback||'').trim();
+    };
+
+    const e={
+      documento: fieldValue('estDocumento', current.documento),
+      egob: fieldValue('estEgob', current.egob),
+      tecnico: fieldValue('estTecnico', current.tecnico),
+      criterio: fieldValue('estCriterio', current.criterio),
+      calculista: fieldValue('estCalculista', current.calculista),
+      senescyt: fieldValue('estSenescyt', current.senescyt)
+    };
+
+    try{
+      if(window.state && state.aprobatorio){
+        state.aprobatorio.estructural={...(state.aprobatorio.estructural||{}), ...e};
+      }
+    }catch(_e){}
+
     const safe=(typeof esc === 'function') ? esc : (v)=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
     const up=(typeof upper === 'function') ? upper : (v)=>String(v||'').toUpperCase();
     const egob=(window.state && state.egob) ? state.egob : '';
     const tecnico=(window.state && state.tecnico) ? state.tecnico : '';
     const crit=up(e.criterio||'FAVORABLE');
+
     return `<table class="informe-table structural-table"><tbody>
       <tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">${safe(e.documento||'')}</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">${safe(e.egob||egob||'')}</td></tr>
       <tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">${safe(e.tecnico||tecnico||'')}</td></tr>
