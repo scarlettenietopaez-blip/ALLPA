@@ -27083,6 +27083,74 @@ function buildClipboardPayloadV154(){
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
 
 <!-- VERSIÓN 20: eliminado el espacio, línea, nombre y cargo de firma del PDF Siento Razón eGOB. -->
+
+<!-- ==========================================================
+     ALLPA V4 - Corrección definitiva de Consideraciones Estructurales
+     La tabla del informe lee directamente los campos editables.
+     ========================================================== -->
+<script id="allpa-fix-estructural-v4">
+(function(){
+  'use strict';
+
+  function valorCampoEstructuralV4(id, respaldo){
+    var el=document.getElementById(id);
+    if(el && typeof el.value !== 'undefined') return String(el.value || '').trim();
+    return String(respaldo || '').trim();
+  }
+
+  function construirTablaEstructuralV4(){
+    var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+      ? state.aprobatorio.estructural : {};
+
+    var documento=valorCampoEstructuralV4('estDocumento',e.documento);
+    var egob=valorCampoEstructuralV4('estEgob',e.egob || (typeof state!=='undefined' ? state.egob : ''));
+    var tecnico=valorCampoEstructuralV4('estTecnico',e.tecnico || (typeof state!=='undefined' ? state.tecnico : ''));
+    var criterio=valorCampoEstructuralV4('estCriterio',e.criterio);
+    var calculista=valorCampoEstructuralV4('estCalculista',e.calculista);
+    var senescyt=valorCampoEstructuralV4('estSenescyt',e.senescyt);
+
+    /* Mantiene el estado sincronizado para guardar, copiar e imprimir. */
+    if(typeof state!=='undefined'){
+      state.aprobatorio=state.aprobatorio||{};
+      state.aprobatorio.estructural=state.aprobatorio.estructural||{};
+      Object.assign(state.aprobatorio.estructural,{documento,egob,tecnico,criterio,calculista,senescyt});
+    }
+
+    var escapar=(typeof esc==='function') ? esc : function(v){
+      return String(v==null?'':v).replace(/[&<>\"']/g,function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
+      });
+    };
+
+    return '<table class="informe-table structural-table"><tbody>'+
+      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+escapar(documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+escapar(egob)+'</td></tr>'+
+      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+escapar(tecnico)+'</td></tr>'+
+      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+escapar(String(criterio).toUpperCase())+'</td></tr>'+
+      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+escapar(calculista)+'</td></tr>'+
+      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+escapar(senescyt)+'</td></tr>'+
+      '</tbody></table>';
+  }
+
+  /* Sustituye la función que realmente usa el constructor del informe. */
+  aprobatorioStructuralTable=construirTablaEstructuralV4;
+  window.aprobatorioStructuralTable=construirTablaEstructuralV4;
+
+  function sincronizarV4(ev){
+    var id=ev && ev.target ? ev.target.id : '';
+    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(id)){
+      var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+        ? state.aprobatorio.estructural : null;
+      if(e){
+        var prop={estDocumento:'documento',estEgob:'egob',estTecnico:'tecnico',estCriterio:'criterio',estCalculista:'calculista',estSenescyt:'senescyt'}[id];
+        if(prop) e[prop]=String(ev.target.value||'').trim();
+      }
+    }
+  }
+  document.addEventListener('input',sincronizarV4,true);
+  document.addEventListener('change',sincronizarV4,true);
+})();
+</script>
+
 </body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
@@ -27620,6 +27688,74 @@ if(typeof buildClipboardPayloadV154==='function'){
     `;
     const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
+
+<!-- ==========================================================
+     ALLPA V4 - Corrección definitiva de Consideraciones Estructurales
+     La tabla del informe lee directamente los campos editables.
+     ========================================================== -->
+<script id="allpa-fix-estructural-v4">
+(function(){
+  'use strict';
+
+  function valorCampoEstructuralV4(id, respaldo){
+    var el=document.getElementById(id);
+    if(el && typeof el.value !== 'undefined') return String(el.value || '').trim();
+    return String(respaldo || '').trim();
+  }
+
+  function construirTablaEstructuralV4(){
+    var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+      ? state.aprobatorio.estructural : {};
+
+    var documento=valorCampoEstructuralV4('estDocumento',e.documento);
+    var egob=valorCampoEstructuralV4('estEgob',e.egob || (typeof state!=='undefined' ? state.egob : ''));
+    var tecnico=valorCampoEstructuralV4('estTecnico',e.tecnico || (typeof state!=='undefined' ? state.tecnico : ''));
+    var criterio=valorCampoEstructuralV4('estCriterio',e.criterio);
+    var calculista=valorCampoEstructuralV4('estCalculista',e.calculista);
+    var senescyt=valorCampoEstructuralV4('estSenescyt',e.senescyt);
+
+    /* Mantiene el estado sincronizado para guardar, copiar e imprimir. */
+    if(typeof state!=='undefined'){
+      state.aprobatorio=state.aprobatorio||{};
+      state.aprobatorio.estructural=state.aprobatorio.estructural||{};
+      Object.assign(state.aprobatorio.estructural,{documento,egob,tecnico,criterio,calculista,senescyt});
+    }
+
+    var escapar=(typeof esc==='function') ? esc : function(v){
+      return String(v==null?'':v).replace(/[&<>\"']/g,function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
+      });
+    };
+
+    return '<table class="informe-table structural-table"><tbody>'+
+      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+escapar(documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+escapar(egob)+'</td></tr>'+
+      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+escapar(tecnico)+'</td></tr>'+
+      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+escapar(String(criterio).toUpperCase())+'</td></tr>'+
+      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+escapar(calculista)+'</td></tr>'+
+      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+escapar(senescyt)+'</td></tr>'+
+      '</tbody></table>';
+  }
+
+  /* Sustituye la función que realmente usa el constructor del informe. */
+  aprobatorioStructuralTable=construirTablaEstructuralV4;
+  window.aprobatorioStructuralTable=construirTablaEstructuralV4;
+
+  function sincronizarV4(ev){
+    var id=ev && ev.target ? ev.target.id : '';
+    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(id)){
+      var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+        ? state.aprobatorio.estructural : null;
+      if(e){
+        var prop={estDocumento:'documento',estEgob:'egob',estTecnico:'tecnico',estCriterio:'criterio',estCalculista:'calculista',estSenescyt:'senescyt'}[id];
+        if(prop) e[prop]=String(ev.target.value||'').trim();
+      }
+    }
+  }
+  document.addEventListener('input',sincronizarV4,true);
+  document.addEventListener('change',sincronizarV4,true);
+})();
+</script>
+
 </body></html>`;
     const plain=(clone.innerText||clone.textContent||'').trim();
     return {html,plain};
@@ -27789,6 +27925,74 @@ function buildClipboardPayloadV154(){
   `;
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
+
+<!-- ==========================================================
+     ALLPA V4 - Corrección definitiva de Consideraciones Estructurales
+     La tabla del informe lee directamente los campos editables.
+     ========================================================== -->
+<script id="allpa-fix-estructural-v4">
+(function(){
+  'use strict';
+
+  function valorCampoEstructuralV4(id, respaldo){
+    var el=document.getElementById(id);
+    if(el && typeof el.value !== 'undefined') return String(el.value || '').trim();
+    return String(respaldo || '').trim();
+  }
+
+  function construirTablaEstructuralV4(){
+    var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+      ? state.aprobatorio.estructural : {};
+
+    var documento=valorCampoEstructuralV4('estDocumento',e.documento);
+    var egob=valorCampoEstructuralV4('estEgob',e.egob || (typeof state!=='undefined' ? state.egob : ''));
+    var tecnico=valorCampoEstructuralV4('estTecnico',e.tecnico || (typeof state!=='undefined' ? state.tecnico : ''));
+    var criterio=valorCampoEstructuralV4('estCriterio',e.criterio);
+    var calculista=valorCampoEstructuralV4('estCalculista',e.calculista);
+    var senescyt=valorCampoEstructuralV4('estSenescyt',e.senescyt);
+
+    /* Mantiene el estado sincronizado para guardar, copiar e imprimir. */
+    if(typeof state!=='undefined'){
+      state.aprobatorio=state.aprobatorio||{};
+      state.aprobatorio.estructural=state.aprobatorio.estructural||{};
+      Object.assign(state.aprobatorio.estructural,{documento,egob,tecnico,criterio,calculista,senescyt});
+    }
+
+    var escapar=(typeof esc==='function') ? esc : function(v){
+      return String(v==null?'':v).replace(/[&<>\"']/g,function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
+      });
+    };
+
+    return '<table class="informe-table structural-table"><tbody>'+
+      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+escapar(documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+escapar(egob)+'</td></tr>'+
+      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+escapar(tecnico)+'</td></tr>'+
+      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+escapar(String(criterio).toUpperCase())+'</td></tr>'+
+      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+escapar(calculista)+'</td></tr>'+
+      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+escapar(senescyt)+'</td></tr>'+
+      '</tbody></table>';
+  }
+
+  /* Sustituye la función que realmente usa el constructor del informe. */
+  aprobatorioStructuralTable=construirTablaEstructuralV4;
+  window.aprobatorioStructuralTable=construirTablaEstructuralV4;
+
+  function sincronizarV4(ev){
+    var id=ev && ev.target ? ev.target.id : '';
+    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(id)){
+      var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+        ? state.aprobatorio.estructural : null;
+      if(e){
+        var prop={estDocumento:'documento',estEgob:'egob',estTecnico:'tecnico',estCriterio:'criterio',estCalculista:'calculista',estSenescyt:'senescyt'}[id];
+        if(prop) e[prop]=String(ev.target.value||'').trim();
+      }
+    }
+  }
+  document.addEventListener('input',sincronizarV4,true);
+  document.addEventListener('change',sincronizarV4,true);
+})();
+</script>
+
 </body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
@@ -35745,85 +35949,74 @@ textarea.evidencia-text,
 </script>
 
 
+
+
 <!-- ==========================================================
-     ALLPA - Corrección segura de Consideraciones Estructurales
-     Sincroniza el formulario con el informe sin modificar la tabla
-     editable ni reemplazar sus celdas.
+     ALLPA V4 - Corrección definitiva de Consideraciones Estructurales
+     La tabla del informe lee directamente los campos editables.
      ========================================================== -->
-<script id="allpa-fix-estructural-editable">
+<script id="allpa-fix-estructural-v4">
 (function(){
   'use strict';
 
-  function leerCampoEstructural(id){
+  function valorCampoEstructuralV4(id, respaldo){
     var el=document.getElementById(id);
-    return el ? String(el.value == null ? '' : el.value).trim() : '';
+    if(el && typeof el.value !== 'undefined') return String(el.value || '').trim();
+    return String(respaldo || '').trim();
   }
 
-  function sincronizarEstructuralDesdeFormulario(){
-    try{
-      if(typeof ensureAprobatorioData==='function') ensureAprobatorioData();
-      if(!window.state) return;
+  function construirTablaEstructuralV4(){
+    var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+      ? state.aprobatorio.estructural : {};
+
+    var documento=valorCampoEstructuralV4('estDocumento',e.documento);
+    var egob=valorCampoEstructuralV4('estEgob',e.egob || (typeof state!=='undefined' ? state.egob : ''));
+    var tecnico=valorCampoEstructuralV4('estTecnico',e.tecnico || (typeof state!=='undefined' ? state.tecnico : ''));
+    var criterio=valorCampoEstructuralV4('estCriterio',e.criterio);
+    var calculista=valorCampoEstructuralV4('estCalculista',e.calculista);
+    var senescyt=valorCampoEstructuralV4('estSenescyt',e.senescyt);
+
+    /* Mantiene el estado sincronizado para guardar, copiar e imprimir. */
+    if(typeof state!=='undefined'){
       state.aprobatorio=state.aprobatorio||{};
       state.aprobatorio.estructural=state.aprobatorio.estructural||{};
-      var e=state.aprobatorio.estructural;
+      Object.assign(state.aprobatorio.estructural,{documento,egob,tecnico,criterio,calculista,senescyt});
+    }
 
-      var mapa={
-        documento:'estDocumento',
-        egob:'estEgob',
-        tecnico:'estTecnico',
-        criterio:'estCriterio',
-        calculista:'estCalculista',
-        senescyt:'estSenescyt'
-      };
-
-      Object.keys(mapa).forEach(function(prop){
-        var el=document.getElementById(mapa[prop]);
-        if(el) e[prop]=leerCampoEstructural(mapa[prop]);
+    var escapar=(typeof esc==='function') ? esc : function(v){
+      return String(v==null?'':v).replace(/[&<>\"']/g,function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
       });
-    }catch(err){
-      console.warn('ALLPA: no se pudo sincronizar Consideraciones Estructurales',err);
-    }
-  }
-
-  /* Sincroniza antes de construir exclusivamente la tabla del informe. */
-  if(typeof aprobatorioStructuralTable==='function' && !aprobatorioStructuralTable.__allpaFixEditable){
-    var tablaBase=aprobatorioStructuralTable;
-    var tablaCorregida=function(){
-      sincronizarEstructuralDesdeFormulario();
-      return tablaBase.apply(this,arguments);
     };
-    tablaCorregida.__allpaFixEditable=true;
-    aprobatorioStructuralTable=tablaCorregida;
-    window.aprobatorioStructuralTable=tablaCorregida;
+
+    return '<table class="informe-table structural-table"><tbody>'+
+      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+escapar(documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+escapar(egob)+'</td></tr>'+
+      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+escapar(tecnico)+'</td></tr>'+
+      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+escapar(String(criterio).toUpperCase())+'</td></tr>'+
+      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+escapar(calculista)+'</td></tr>'+
+      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+escapar(senescyt)+'</td></tr>'+
+      '</tbody></table>';
   }
 
-  /* Refuerzo antes de vista previa, copia o impresión. */
-  if(typeof renderReport==='function' && !renderReport.__allpaFixEditable){
-    var renderBase=renderReport;
-    var renderCorregido=function(){
-      sincronizarEstructuralDesdeFormulario();
-      return renderBase.apply(this,arguments);
-    };
-    renderCorregido.__allpaFixEditable=true;
-    renderReport=renderCorregido;
-    window.renderReport=renderCorregido;
+  /* Sustituye la función que realmente usa el constructor del informe. */
+  aprobatorioStructuralTable=construirTablaEstructuralV4;
+  window.aprobatorioStructuralTable=construirTablaEstructuralV4;
+
+  function sincronizarV4(ev){
+    var id=ev && ev.target ? ev.target.id : '';
+    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(id)){
+      var e=(typeof state!=='undefined' && state.aprobatorio && state.aprobatorio.estructural)
+        ? state.aprobatorio.estructural : null;
+      if(e){
+        var prop={estDocumento:'documento',estEgob:'egob',estTecnico:'tecnico',estCriterio:'criterio',estCalculista:'calculista',estSenescyt:'senescyt'}[id];
+        if(prop) e[prop]=String(ev.target.value||'').trim();
+      }
+    }
   }
-
-  document.addEventListener('input',function(ev){
-    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target && ev.target.id || '')){
-      sincronizarEstructuralDesdeFormulario();
-    }
-  },true);
-
-  document.addEventListener('change',function(ev){
-    if(/^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target && ev.target.id || '')){
-      sincronizarEstructuralDesdeFormulario();
-      if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
-    }
-  },true);
-
-  window.addEventListener('beforeprint',sincronizarEstructuralDesdeFormulario);
+  document.addEventListener('input',sincronizarV4,true);
+  document.addEventListener('change',sincronizarV4,true);
 })();
 </script>
+
 </body>
 </html>
