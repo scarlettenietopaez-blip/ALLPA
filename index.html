@@ -3,10 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./assets/logo-allpa-2026.png?v=20260730-5" />
-  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-5" />
-  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-5" />
-
+  <!-- FAVICON ALLPA: actualización forzada para evitar caché del navegador -->
+  <link id="faviconAllpa" rel="icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
+  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
+  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-2" />
+  <script>
+    (function () {
+      const version = '20260730-2';
+      const ruta = './assets/logo-allpa-2026.png?v=' + version;
+      document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(function (link) {
+        link.href = ruta;
+      });
+    })();
+  </script>
 <title>ALLPA - Obras Mayores</title>
   <style>
     :root {
@@ -35726,62 +35735,6 @@ textarea.evidencia-text,
     aplicarFechasDesistimientoV34();
     setTimeout(aplicarFechasDesistimientoV34,900);
   },{once:true});
-})();
-</script>
-
-<script>
-(function(){
-  'use strict';
-
-  function leerCampoEstructural(id, respaldo){
-    var el=document.getElementById(id);
-    if(!el) return String(respaldo == null ? '' : respaldo).trim();
-    var valor=('value' in el) ? el.value : el.textContent;
-    return String(valor == null ? '' : valor).trim();
-  }
-
-  function escaparEstructural(valor){
-    return String(valor == null ? '' : valor).replace(/[&<>"']/g,function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];
-    });
-  }
-
-  function sincronizarConsideracionesEstructurales(){
-    if(typeof state==='undefined' || !state) return {};
-    if(!state.aprobatorio) state.aprobatorio={};
-    var e=state.aprobatorio.estructural || (state.aprobatorio.estructural={});
-
-    e.documento=leerCampoEstructural('estDocumento',e.documento);
-    e.egob=leerCampoEstructural('estEgob',e.egob);
-    e.tecnico=leerCampoEstructural('estTecnico',e.tecnico);
-    e.criterio=leerCampoEstructural('estCriterio',e.criterio);
-    e.calculista=leerCampoEstructural('estCalculista',e.calculista);
-    e.senescyt=leerCampoEstructural('estSenescyt',e.senescyt);
-    return e;
-  }
-
-  aprobatorioStructuralTable=function(){
-    var e=sincronizarConsideracionesEstructurales();
-    var criterio=String(e.criterio || '').toUpperCase();
-    return '<table class="informe-table structural-table"><tbody>'+
-      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+escaparEstructural(e.documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+escaparEstructural(e.egob)+'</td></tr>'+
-      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+escaparEstructural(e.tecnico)+'</td></tr>'+
-      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+escaparEstructural(criterio)+'</td></tr>'+
-      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+escaparEstructural(e.calculista)+'</td></tr>'+
-      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+escaparEstructural(e.senescyt)+'</td></tr>'+
-      '</tbody></table>';
-  };
-
-  document.addEventListener('input',function(ev){
-    if(ev.target && /^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target.id || '')){
-      sincronizarConsideracionesEstructurales();
-    }
-  });
-  document.addEventListener('change',function(ev){
-    if(ev.target && /^est(?:Documento|Egob|Tecnico|Criterio|Calculista|Senescyt)$/.test(ev.target.id || '')){
-      sincronizarConsideracionesEstructurales();
-    }
-  });
 })();
 </script>
 </body>
