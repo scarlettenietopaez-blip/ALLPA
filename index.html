@@ -35765,5 +35765,147 @@ textarea.evidencia-text,
   },{once:true});
 })();
 </script>
+
+<!-- ==========================================================
+     ALLPA V35 - Sincronización final de Consideraciones Estructurales
+     Completa directamente la tabla visible del informe con los valores
+     actuales del formulario, sin depender del generador interno de HTML.
+     ========================================================== -->
+<script id="allpa-v35-estructural-sync">
+(function(){
+  'use strict';
+
+  const IDS_V35={
+    documento:'estDocumento',
+    egob:'estEgob',
+    tecnico:'estTecnico',
+    criterio:'estCriterio',
+    calculista:'estCalculista',
+    senescyt:'estSenescyt'
+  };
+
+  function valorV35(id){
+    const el=document.getElementById(id);
+    return el ? String(el.value ?? '').trim() : '';
+  }
+
+  function datosV35(){
+    return {
+      documento:valorV35(IDS_V35.documento),
+      egob:valorV35(IDS_V35.egob),
+      tecnico:valorV35(IDS_V35.tecnico),
+      criterio:valorV35(IDS_V35.criterio),
+      calculista:valorV35(IDS_V35.calculista),
+      senescyt:valorV35(IDS_V35.senescyt)
+    };
+  }
+
+  function sincronizarEstadoV35(){
+    const d=datosV35();
+    try{
+      if(window.state){
+        state.aprobatorio=state.aprobatorio||{};
+        state.aprobatorio.estructural=Object.assign({},state.aprobatorio.estructural||{},d);
+      }
+    }catch(_e){}
+    return d;
+  }
+
+  function textoFilaV35(tr){
+    return String(tr?.textContent||'').replace(/\s+/g,' ').trim().toUpperCase();
+  }
+
+  function ponerValorFilaV35(tr,value){
+    if(!tr) return;
+    const cells=[...tr.children].filter(c=>/^(TD|TH)$/.test(c.tagName));
+    if(cells.length<2) return;
+    // La primera celda es la etiqueta; todas las demás conforman el valor.
+    const target=cells[1];
+    target.textContent=value||'';
+    target.colSpan=Math.max(1,cells.slice(1).reduce((n,c)=>n+(Number(c.colSpan)||1),0));
+    cells.slice(2).forEach(c=>c.remove());
+  }
+
+  function esTablaEstructuralV35(table){
+    const txt=String(table?.textContent||'').replace(/\s+/g,' ').toUpperCase();
+    return txt.includes('TÉCNICO REVISOR') && txt.includes('ING. CALCULISTA') && txt.includes('SENESCYT');
+  }
+
+  function completarTablaV35(table,d){
+    if(!table || !esTablaEstructuralV35(table)) return false;
+    [...table.querySelectorAll('tr')].forEach(tr=>{
+      const txt=textoFilaV35(tr);
+      if(txt.includes('DOCUMENTO')){
+        const cells=[...tr.children].filter(c=>/^(TD|TH)$/.test(c.tagName));
+        if(cells[1]) cells[1].textContent=d.documento||'';
+        const egobLabelIndex=cells.findIndex(c=>String(c.textContent||'').trim().toUpperCase()==='EGOB');
+        if(egobLabelIndex>=0 && cells[egobLabelIndex+1]) cells[egobLabelIndex+1].textContent=d.egob||'';
+      }else if(txt.includes('TÉCNICO REVISOR')){
+        ponerValorFilaV35(tr,d.tecnico);
+      }else if(txt.includes('CRITERIO TÉCNICO')){
+        ponerValorFilaV35(tr,(d.criterio||'').toUpperCase());
+      }else if(txt.includes('ING. CALCULISTA')){
+        ponerValorFilaV35(tr,d.calculista);
+      }else if(txt.includes('SENESCYT')){
+        ponerValorFilaV35(tr,d.senescyt);
+      }
+    });
+    return true;
+  }
+
+  function completarInformeV35(){
+    const d=sincronizarEstadoV35();
+    const roots=[
+      document.getElementById('report'),
+      document.querySelector('.preview-body'),
+      document
+    ].filter(Boolean);
+    const seen=new Set();
+    roots.forEach(root=>{
+      root.querySelectorAll('table').forEach(table=>{
+        if(seen.has(table)) return;
+        seen.add(table);
+        completarTablaV35(table,d);
+      });
+    });
+  }
+
+  function programarV35(){
+    completarInformeV35();
+    setTimeout(completarInformeV35,30);
+    setTimeout(completarInformeV35,180);
+  }
+
+  // Sincronización al editar cualquiera de los campos estructurales.
+  document.addEventListener('input',function(ev){
+    if(Object.values(IDS_V35).includes(ev.target?.id)) programarV35();
+  },true);
+  document.addEventListener('change',function(ev){
+    if(Object.values(IDS_V35).includes(ev.target?.id)) programarV35();
+  },true);
+
+  // Se ejecuta después de cualquier botón que pueda abrir, copiar o imprimir el informe.
+  document.addEventListener('click',function(){ programarV35(); },true);
+  window.addEventListener('beforeprint',completarInformeV35);
+
+  // Integración con el renderizador principal cuando está expuesto globalmente.
+  if(typeof window.renderReport==='function' && !window.renderReport.__allpaV35){
+    const base=window.renderReport;
+    const wrapped=function(){
+      sincronizarEstadoV35();
+      const result=base.apply(this,arguments);
+      programarV35();
+      return result;
+    };
+    wrapped.__allpaV35=true;
+    window.renderReport=wrapped;
+    try{ renderReport=wrapped; }catch(_e){}
+  }
+
+  window.completarConsideracionesEstructuralesV35=completarInformeV35;
+  window.addEventListener('load',programarV35,{once:true});
+})();
+</script>
+
 </body>
 </html>
