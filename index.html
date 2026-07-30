@@ -35523,7 +35523,22 @@ window.addEventListener('load',()=>{
     try{
       if(typeof ensureAprobatorioData === 'function') ensureAprobatorioData();
     }catch(_e){}
-    const e=(window.state && state.aprobatorio && state.aprobatorio.estructural) ? state.aprobatorio.estructural : {};
+    const stored=(window.state && state.aprobatorio && state.aprobatorio.estructural) ? state.aprobatorio.estructural : {};
+    const readV29=(id,fallback='')=>{
+      const el=document.getElementById(id);
+      return el ? String(el.value??'').trim() : String(fallback??'').trim();
+    };
+    const e={
+      documento:readV29('estDocumento',stored.documento),
+      egob:readV29('estEgob',stored.egob),
+      tecnico:readV29('estTecnico',stored.tecnico),
+      criterio:readV29('estCriterio',stored.criterio),
+      calculista:readV29('estCalculista',stored.calculista),
+      senescyt:readV29('estSenescyt',stored.senescyt)
+    };
+    if(window.state && state.aprobatorio){
+      state.aprobatorio.estructural=Object.assign({},stored,e);
+    }
     const safe=(typeof esc === 'function') ? esc : (v)=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
     const up=(typeof upper === 'function') ? upper : (v)=>String(v||'').toUpperCase();
     const egob=(window.state && state.egob) ? state.egob : '';
