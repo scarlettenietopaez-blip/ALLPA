@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Generador Local de Informes - Obras Mayores</title>
+  <title>ALLPA - Obras Mayores</title>
   <style>
     :root {
       --azul:#17324d; --azul2:#24445f; --rojo:#a71930; --gris:#f3f5f8; --linea:#d8dee8;
@@ -164,7 +164,9 @@
     .editable-conclusion th,.editable-conclusion td{border:1px solid #111}
     .editable-conclusion th{background:#e5e5e5;color:#111}
     .anteproyecto-table input,.anteproyecto-table select{width:100%}
-    textarea.evidencia-text{min-height:70px;resize:vertical;line-height:1.35}
+    textarea.evidencia-text{min-height:118px;resize:vertical;line-height:1.45;text-align:justify;text-transform:none;white-space:pre-wrap;overflow-wrap:anywhere}
+    .req-factibilidades-v134 textarea,.req-estudios-wrapper-v111 textarea{min-height:118px;resize:vertical;line-height:1.45;text-align:justify!important;text-transform:none!important;white-space:pre-wrap;overflow-wrap:anywhere}
+    .report .combined-studies-v145 td:nth-child(5){text-align:justify!important;text-transform:none!important;white-space:pre-wrap;overflow-wrap:anywhere}
 
     @media(max-width:1050px){.grid{grid-template-columns:1fr}.row,.row3{grid-template-columns:1fr}.floating-preview{position:static;width:auto;max-height:none;margin:0 22px 18px}}
     @media print{
@@ -3562,7 +3564,7 @@ main{
 
 <div id="passwordOverlay" class="password-overlay">
   <div class="password-box">
-    <h2>Acceso al generador</h2>
+    <h2>Bienvenido a ALLPA</h2>
     <p>Ingrese la contraseña para continuar.</p>
     <input id="appPasswordInput" type="password" placeholder="Contraseña" autocomplete="current-password">
     <button class="success" style="width:100%;margin-top:12px" onclick="unlockAppV36()">Ingresar</button>
@@ -3571,7 +3573,7 @@ main{
 </div>
 
 <header class="no-print">
-  <h1>GENERADOR LOCAL DE INFORMES</h1>
+  <h1>ALLPA</h1>
   <p><br><span id="dataSourceStatus">Fuente de datos: verificando CSV...</span></p>
 </header>
 
@@ -5055,8 +5057,8 @@ function renderEstudiosTabla(){
 function updEstudio(i,k,elOrValue){
  if(!state.aprobatorio.estudios[i]) return;
  let v=(elOrValue&&typeof elOrValue==='object')?elOrValue.value:elOrValue;
- if(k!=='fecha') v=upper(v);
- if(elOrValue&&typeof elOrValue==='object' && k!=='fecha') elOrValue.value=v;
+ if(k!=='fecha' && k!=='evidencia') v=upper(v);
+ if(elOrValue&&typeof elOrValue==='object' && k!=='fecha' && k!=='evidencia') elOrValue.value=v;
  state.aprobatorio.estudios[i][k]=v;
  scheduleReportUpdate();
 }
@@ -25198,7 +25200,7 @@ function updateFactibilidadOMV145(i,field,el){
   const rows=ensureFactibilidadesOMV145();
   if(!rows[i]) return;
   let value=el?.value??el??'';
-  if(field!=='fecha'){ value=String(value).toUpperCase(); if(el&&typeof el==='object') el.value=value; }
+  if(field!=='fecha' && field!=='evidencia'){ value=String(value).toUpperCase(); if(el&&typeof el==='object') el.value=value; }
   rows[i][field]=value; if(typeof scheduleReportUpdate==='function') scheduleReportUpdate(); else {renderReport();renderPreview();}
 }
 function renderFactibilidadesOMV145(){
@@ -28759,13 +28761,14 @@ updateSideActions = function(){
   if(_updateSideActions_base_V119N) _updateSideActions_base_V119N();
 
   const isApr=state.tipoInforme==='Informe Técnico Aprobatorio';
+  const isDes=state.tipoInforme==='Informe de Desistimiento';
   const lab=document.getElementById('fechaRevisionLabel');
   const note=document.getElementById('fechaRevisionNote');
   const sub=document.getElementById('fechaSubsanacionWrap');
 
   if(lab) lab.textContent=isApr?'Fecha de emisión *':'Fecha de revisión *';
   if(note) note.textContent=isApr?'Fecha de emisión para registro del informe aprobatorio.':'';
-  if(sub) sub.classList.toggle('hidden', isApr);
+  if(sub) sub.classList.toggle('hidden', isApr || isDes);
 
   updateCopyButtonByReportV119N();
 };
@@ -35610,178 +35613,6 @@ window.addEventListener('load',()=>{
 })();
 </script>
 <!-- VERSIÓN 29: corrección final insertada en el cierre real del documento; elimina REG. MUNICIPAL solo en Consideraciones Estructurales. -->
-
-
-
-<!-- VERSIÓN 30: identidad ALLPA, desistimiento solo con fecha de revisión y evidencia con formato libre. -->
-<style id="allpaPatchV30">
-  /* Evidencia / detalle: conservar mayúsculas, minúsculas y saltos de línea. */
-  textarea.evidencia-text,
-  .req-factibilidades-v134 textarea,
-  .req-estudios-wrapper-v111 textarea{
-    min-height:118px!important;
-    line-height:1.45!important;
-    text-align:justify!important;
-    text-transform:none!important;
-    white-space:pre-wrap!important;
-    overflow-wrap:anywhere!important;
-    tab-size:4;
-  }
-  .report table.allpa-evidencia-v30 td:last-child,
-  .report table.allpa-evidencia-v30 th:last-child{
-    text-align:justify!important;
-    text-transform:none!important;
-    white-space:pre-wrap!important;
-    overflow-wrap:anywhere!important;
-  }
-</style>
-<script>
-(function(){
-  'use strict';
-
-  function tipoActualV30(){
-    return document.getElementById('tipoInforme')?.value || window.state?.tipoInforme || '';
-  }
-
-  function aplicarIdentidadAllpaV30(){
-    const titulo=document.querySelector('header h1');
-    if(titulo && titulo.textContent.trim()!=='ALLPA') titulo.textContent='ALLPA';
-    const acceso=document.querySelector('#passwordOverlay .password-box h2');
-    if(acceso && acceso.textContent.trim()!=='Bienvenido a ALLPA') acceso.textContent='Bienvenido a ALLPA';
-    document.title='ALLPA - Obras Mayores';
-  }
-
-  function ajustarFechasDesistimientoV30(){
-    const tipo=tipoActualV30();
-    const esDes=tipo==='Informe de Desistimiento';
-    const esApr=tipo==='Informe Técnico Aprobatorio';
-    const wrapSub=document.getElementById('fechaSubsanacionWrap');
-    const label=document.getElementById('fechaRevisionLabel');
-    const note=document.getElementById('fechaRevisionNote');
-    const cb=document.getElementById('calc5DiasSubsanacionV55');
-
-    if(wrapSub) wrapSub.classList.toggle('hidden', esDes || esApr);
-    if(label){
-      label.textContent=esDes ? 'Fecha de revisión *' : (esApr ? 'Fecha de emisión *' : 'Fecha de revisión *');
-    }
-    if(note){
-      note.textContent=esApr ? 'Fecha de emisión para registro del informe aprobatorio.' : '';
-    }
-    if(esDes && cb){
-      cb.checked=false;
-      if(window.state){
-        state.fechaSubsanacionCincoDias=false;
-        state.segundaObservacionV116=false;
-      }
-    }
-  }
-
-  function autoAlturaEvidenciaV30(el){
-    if(!el || !el.matches('textarea.evidencia-text, .req-factibilidades-v134 textarea, .req-estudios-wrapper-v111 textarea')) return;
-    el.style.height='auto';
-    el.style.height=Math.max(118, Math.min(el.scrollHeight+2, 360))+'px';
-  }
-
-  function marcarTablasInformeV30(){
-    const report=document.getElementById('report');
-    if(!report) return;
-    report.querySelectorAll('table').forEach(t=>{
-      const cab=[...t.querySelectorAll('th')].map(x=>(x.textContent||'').toUpperCase()).join(' | ');
-      if(cab.includes('EVIDENCIA') || cab.includes('DETALLE')) t.classList.add('allpa-evidencia-v30');
-    });
-  }
-
-  /* Estudios complementarios: solo Evidencia conserva el texto tal como se escribe o pega. */
-  if(typeof window.updEstudio==='function'){
-    const baseUpdEstudioV30=window.updEstudio;
-    window.updEstudio=function(i,k,elOrValue){
-      if(k!=='evidencia') return baseUpdEstudioV30.apply(this,arguments);
-      if(!state?.aprobatorio?.estudios?.[i]) return;
-      const v=(elOrValue&&typeof elOrValue==='object') ? elOrValue.value : String(elOrValue??'');
-      state.aprobatorio.estudios[i][k]=v;
-      if(elOrValue&&typeof elOrValue==='object') autoAlturaEvidenciaV30(elOrValue);
-      if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
-      else { if(typeof renderReport==='function') renderReport(); if(typeof renderPreview==='function') renderPreview(); }
-    };
-    try{ updEstudio=window.updEstudio; }catch(_e){}
-  }
-
-  /* Factibilidades: Documento se mantiene en mayúsculas; Evidencia permite formato libre. */
-  if(typeof window.updateFactibilidadOMV145==='function'){
-    const baseFactV30=window.updateFactibilidadOMV145;
-    window.updateFactibilidadOMV145=function(i,field,el){
-      if(field!=='evidencia') return baseFactV30.apply(this,arguments);
-      const rows=typeof ensureFactibilidadesOMV145==='function' ? ensureFactibilidadesOMV145() : state?.aprobatorio?.factibilidadesOMV145;
-      if(!rows?.[i]) return;
-      rows[i][field]=(el&&typeof el==='object') ? el.value : String(el??'');
-      if(el&&typeof el==='object') autoAlturaEvidenciaV30(el);
-      if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
-      else { if(typeof renderReport==='function') renderReport(); if(typeof renderPreview==='function') renderPreview(); }
-    };
-    try{ updateFactibilidadOMV145=window.updateFactibilidadOMV145; }catch(_e){}
-  }
-
-  /* Refuerzo posterior a cada render, incluso frente a versiones anteriores del archivo. */
-  if(typeof window.updateSideActions==='function' && !window.updateSideActions.__allpaV30){
-    const baseSideV30=window.updateSideActions;
-    const wrapped=function(){
-      const out=baseSideV30.apply(this,arguments);
-      ajustarFechasDesistimientoV30();
-      return out;
-    };
-    wrapped.__allpaV30=true;
-    window.updateSideActions=wrapped;
-    try{ updateSideActions=wrapped; }catch(_e){}
-  }
-
-  if(typeof window.renderReport==='function' && !window.renderReport.__allpaV30){
-    const baseReportV30=window.renderReport;
-    const wrapped=function(){
-      const out=baseReportV30.apply(this,arguments);
-      setTimeout(marcarTablasInformeV30,0);
-      return out;
-    };
-    wrapped.__allpaV30=true;
-    window.renderReport=wrapped;
-    try{ renderReport=wrapped; }catch(_e){}
-  }
-
-  document.addEventListener('input',e=>{
-    if(e.target?.id==='tipoInforme') setTimeout(ajustarFechasDesistimientoV30,0);
-    autoAlturaEvidenciaV30(e.target);
-  },true);
-  document.addEventListener('change',e=>{
-    if(e.target?.id==='tipoInforme') setTimeout(ajustarFechasDesistimientoV30,0);
-  },true);
-  document.addEventListener('paste',e=>{
-    if(e.target?.matches?.('textarea.evidencia-text, .req-factibilidades-v134 textarea, .req-estudios-wrapper-v111 textarea')){
-      setTimeout(()=>autoAlturaEvidenciaV30(e.target),0);
-    }
-  },true);
-
-  const iniciarV30=()=>{
-    aplicarIdentidadAllpaV30();
-    ajustarFechasDesistimientoV30();
-    document.querySelectorAll('textarea.evidencia-text, .req-factibilidades-v134 textarea, .req-estudios-wrapper-v111 textarea').forEach(autoAlturaEvidenciaV30);
-    marcarTablasInformeV30();
-  };
-  window.addEventListener('load',()=>{ iniciarV30(); setTimeout(iniciarV30,700); });
-  if(document.readyState!=='loading') setTimeout(iniciarV30,0);
-
-  try{
-    let timerV30=null;
-    new MutationObserver(()=>{
-      clearTimeout(timerV30);
-      timerV30=setTimeout(()=>{
-        aplicarIdentidadAllpaV30();
-        ajustarFechasDesistimientoV30();
-        document.querySelectorAll('textarea.evidencia-text, .req-factibilidades-v134 textarea, .req-estudios-wrapper-v111 textarea').forEach(autoAlturaEvidenciaV30);
-        marcarTablasInformeV30();
-      },80);
-    }).observe(document.body,{childList:true,subtree:true});
-  }catch(_e){}
-})();
-</script>
 
 </body>
 </html>
