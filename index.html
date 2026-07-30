@@ -3,19 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- FAVICON ALLPA: actualización forzada para evitar caché del navegador -->
-  <link id="faviconAllpa" rel="icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
-  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-2" />
-  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-2" />
-  <script>
-    (function () {
-      const version = '20260730-2';
-      const ruta = './assets/logo-allpa-2026.png?v=' + version;
-      document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]').forEach(function (link) {
-        link.href = ruta;
-      });
-    })();
-  </script>
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/logo-allpa-2026.png?v=20260730-3" />
+  <link rel="shortcut icon" type="image/png" href="./assets/logo-allpa-2026.png?v=20260730-3" />
+  <link rel="apple-touch-icon" href="./assets/logo-allpa-2026.png?v=20260730-3" />
+
 <title>ALLPA - Obras Mayores</title>
   <style>
     :root {
@@ -35735,6 +35726,94 @@ textarea.evidencia-text,
     aplicarFechasDesistimientoV34();
     setTimeout(aplicarFechasDesistimientoV34,900);
   },{once:true});
+})();
+</script>
+
+<script id="allpa-fix-estructural-v1">
+(function(){
+  'use strict';
+
+  function valorCampo(id){
+    var el=document.getElementById(id);
+    return el ? String(el.value || '').trim() : '';
+  }
+
+  function escapar(v){
+    if(typeof window.esc === 'function') return window.esc(v);
+    return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];
+    });
+  }
+
+  function sincronizarEstructuralALLPA(){
+    try{
+      if(typeof window.ensureAprobatorioData === 'function') window.ensureAprobatorioData();
+      if(!window.state) return;
+      if(!state.aprobatorio) state.aprobatorio={};
+      if(!state.aprobatorio.estructural) state.aprobatorio.estructural={};
+      var e=state.aprobatorio.estructural;
+      var mapa={
+        documento:'estDocumento',
+        egob:'estEgob',
+        tecnico:'estTecnico',
+        criterio:'estCriterio',
+        calculista:'estCalculista',
+        senescyt:'estSenescyt'
+      };
+      Object.keys(mapa).forEach(function(k){
+        var el=document.getElementById(mapa[k]);
+        if(el) e[k]=String(el.value || '').trim();
+      });
+    }catch(err){
+      console.error('ALLPA: no se pudo sincronizar Consideraciones Estructurales',err);
+    }
+  }
+
+  function tablaEstructuralALLPA(){
+    sincronizarEstructuralALLPA();
+    var e=(window.state && state.aprobatorio && state.aprobatorio.estructural) ? state.aprobatorio.estructural : {};
+    var documento=valorCampo('estDocumento') || e.documento || '';
+    var egob=valorCampo('estEgob') || e.egob || (window.state ? state.egob : '') || '';
+    var tecnico=valorCampo('estTecnico') || e.tecnico || (window.state ? state.tecnico : '') || '';
+    var criterio=valorCampo('estCriterio') || e.criterio || 'FAVORABLE';
+    var calculista=valorCampo('estCalculista') || e.calculista || '';
+    var senescyt=valorCampo('estSenescyt') || e.senescyt || '';
+
+    return '<table class="informe-table structural-table"><tbody>'+
+      '<tr><td class="label-cell">DOCUMENTO:</td><td class="data-cell highlight" colspan="2">'+escapar(documento)+'</td><td class="label-cell center">EGOB</td><td class="data-cell highlight">'+escapar(egob)+'</td></tr>'+
+      '<tr><td class="label-cell">TÉCNICO REVISOR:</td><td class="data-cell" colspan="4">'+escapar(tecnico)+'</td></tr>'+
+      '<tr><td class="label-cell">CRITERIO TÉCNICO:</td><td class="data-cell bold" colspan="4">'+escapar(String(criterio).toUpperCase())+'</td></tr>'+
+      '<tr><td class="label-cell">ING. CALCULISTA:</td><td class="data-cell" colspan="4">'+escapar(calculista)+'</td></tr>'+
+      '<tr><td class="label-cell">REG. SENESCYT:</td><td class="data-cell" colspan="4">'+escapar(senescyt)+'</td></tr>'+
+      '</tbody></table>';
+  }
+
+  function instalarALLPA(){
+    window.aprobatorioStructuralTable=tablaEstructuralALLPA;
+    try{ aprobatorioStructuralTable=tablaEstructuralALLPA; }catch(_e){}
+  }
+
+  document.addEventListener('input',function(ev){
+    if(ev.target && /^(estDocumento|estEgob|estTecnico|estCriterio|estCalculista|estSenescyt)$/.test(ev.target.id)){
+      sincronizarEstructuralALLPA();
+      if(typeof window.scheduleReportUpdate === 'function') window.scheduleReportUpdate();
+    }
+  });
+  document.addEventListener('change',function(ev){
+    if(ev.target && /^(estDocumento|estEgob|estTecnico|estCriterio|estCalculista|estSenescyt)$/.test(ev.target.id)){
+      sincronizarEstructuralALLPA();
+      if(typeof window.scheduleReportUpdate === 'function') window.scheduleReportUpdate();
+    }
+  });
+
+  // Se instala al final de todo el código para prevalecer sobre versiones anteriores.
+  instalarALLPA();
+  window.addEventListener('load',function(){
+    instalarALLPA();
+    sincronizarEstructuralALLPA();
+    setTimeout(instalarALLPA,500);
+    setTimeout(instalarALLPA,1500);
+  });
 })();
 </script>
 </body>
