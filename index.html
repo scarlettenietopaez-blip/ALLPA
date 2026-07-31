@@ -36428,5 +36428,117 @@ textarea.evidencia-text,
   }
 })();
 </script>
+
+
+<!-- ==========================================================
+     ALLPA V57
+     - Conclusión Técnica: descripción alineada a la izquierda.
+     - Factibilidades / Estudios Complementarios: evidencia justificada,
+       conserva saltos de línea y mayúsculas/minúsculas.
+     - Mantiene estos formatos al copiar el informe.
+     ========================================================== -->
+<style id="allpa-v57-conclusion-evidencia-css">
+/* Solo las celdas de descripción de la Conclusión Técnica. */
+.report.report-aprobatorio table.conclusion-report tbody td:first-child{
+  text-align:left !important;
+  vertical-align:middle !important;
+}
+/* Si la descripción ocupa dos columnas, también permanece a la izquierda. */
+.report.report-aprobatorio table.conclusion-report tbody td[colspan="2"]{
+  text-align:left !important;
+}
+
+/* Formulario: respetar exactamente mayúsculas, minúsculas y saltos pegados. */
+.service-edit-v13 .service-evidence-row-v13 textarea,
+textarea.evidencia-text,
+.req-factibilidades-table-v134 textarea,
+.study-edit-table textarea,
+.form-report-table textarea.evidencia-text{
+  text-transform:none !important;
+  white-space:pre-wrap !important;
+  overflow-wrap:anywhere !important;
+  line-height:1.55 !important;
+  min-height:135px !important;
+}
+
+/* Informe: Evidencia/Detalle justificada y con saltos conservados. */
+.report.report-aprobatorio table.combined-studies-v13 td.detail-v13,
+.report.report-aprobatorio table.estudios-table td.detail-v13,
+.report.report-aprobatorio td.service-evidence-report-v34{
+  text-align:justify !important;
+  vertical-align:top !important;
+  white-space:pre-wrap !important;
+  overflow-wrap:anywhere !important;
+  hyphens:auto !important;
+  text-transform:none !important;
+}
+</style>
+
+<script id="allpa-v57-conclusion-evidencia-js">
+(function(){
+  'use strict';
+
+  function setImportant(el, rules){
+    if(!el) return;
+    Object.keys(rules).forEach(function(key){
+      el.style.setProperty(key, rules[key], 'important');
+    });
+  }
+
+  function applyV57(root){
+    if(!root || !root.querySelectorAll) return root;
+
+    root.querySelectorAll('table.conclusion-report tbody tr').forEach(function(tr){
+      var first=tr.querySelector('td:first-child');
+      setImportant(first, {'text-align':'left','vertical-align':'middle'});
+    });
+
+    root.querySelectorAll('table.combined-studies-v13 td.detail-v13, table.estudios-table td.detail-v13, td.service-evidence-report-v34').forEach(function(cell){
+      setImportant(cell, {
+        'text-align':'justify',
+        'vertical-align':'top',
+        'white-space':'pre-wrap',
+        'overflow-wrap':'anywhere',
+        'hyphens':'auto',
+        'text-transform':'none'
+      });
+    });
+    return root;
+  }
+  window.applyReportFormatsV57=applyV57;
+
+  /* Reaplicar en vista previa y antes de imprimir. */
+  function applyToVisibleReport(){
+    applyV57(document.getElementById('report') || document.querySelector('.report'));
+  }
+  document.addEventListener('click', function(event){
+    if(event.target && event.target.closest && event.target.closest('.tab-btn,[data-tab="tab-vista"],#tab-vista')){
+      setTimeout(applyToVisibleReport,0);
+      setTimeout(applyToVisibleReport,250);
+    }
+  });
+  window.addEventListener('beforeprint', applyToVisibleReport);
+  window.addEventListener('load', function(){ setTimeout(applyToVisibleReport,500); });
+
+  /* Mantener los mismos formatos dentro del HTML copiado. */
+  if(typeof window.buildClipboardPayloadV154==='function' && !window.buildClipboardPayloadV154.__v57){
+    var base=window.buildClipboardPayloadV154;
+    var wrapped=function(){
+      var payload=base.apply(this,arguments);
+      if(!payload || !payload.html) return payload;
+      try{
+        var doc=new DOMParser().parseFromString(payload.html,'text/html');
+        applyV57(doc.body);
+        payload.html='<!DOCTYPE html>'+doc.documentElement.outerHTML;
+        payload.plain=(doc.body.innerText||doc.body.textContent||'').trim();
+      }catch(_e){}
+      return payload;
+    };
+    wrapped.__v57=true;
+    window.buildClipboardPayloadV154=wrapped;
+    try{ buildClipboardPayloadV154=wrapped; }catch(_e){}
+  }
+})();
+</script>
 </body>
 </html>
