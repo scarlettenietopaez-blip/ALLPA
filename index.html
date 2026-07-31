@@ -18097,16 +18097,41 @@ function prepareRowsConclV108(){
   }
 
   const bases=baseRowsV108();
+
+  /* ALLPA V54: una fila de área bruta se identifica por la combinación
+     Descripción + Tipo de intervención. De esta forma pueden coexistir dos
+     filas con la misma descripción cuando una es Aprobada (Existente) y la
+     otra es Ampliación o Modificación. */
+  const typedBaseKeyV54=function(raw){
+    const row=rowConclV108(raw||{});
+    const descKey=normConclV108(row.descripcion || raw?.descripcion || '');
+    const role=roleFromDescV108(row.descripcion || raw?.descripcion || '');
+    if(role==='bruta'){
+      const tipo=typeof normalizeAreaTypeV13==='function'
+        ? normalizeAreaTypeV13(raw?.tipoAreaV13 || row?.tipoAreaV13 || '')
+        : String(raw?.tipoAreaV13 || row?.tipoAreaV13 || '').trim();
+      return descKey+'||TIPO:'+normConclV108(tipo || 'APROBADA (EXISTENTE)');
+    }
+    return descKey;
+  };
+
+  bases.forEach(function(base){
+    base._baseKeyV108=typedBaseKeyV54(base);
+  });
   const baseKeySet=new Set(bases.map(r=>r._baseKeyV108));
   const deleted=deletedKeysAllV108();
 
   // Etiqueta filas actuales. Si ya tenían metadata, se conserva aunque cambie descripción.
   state.aprobatorio.conclusion.forEach((raw,i)=>{
     const row=rowConclV108(raw);
-    if(!raw._baseKeyV108){
-      const key=normConclV108(row.descripcion || raw.descripcion || '');
-      if(baseKeySet.has(key)){
-        raw._baseKeyV108=key;
+    {
+      const typedKey=typedBaseKeyV54(raw);
+      const plainKey=normConclV108(row.descripcion || raw.descripcion || '');
+      if(baseKeySet.has(typedKey)){
+        raw._baseKeyV108=typedKey;
+        raw._originV108='base';
+      }else if(!raw._baseKeyV108 && baseKeySet.has(plainKey)){
+        raw._baseKeyV108=plainKey;
         raw._originV108='base';
       }
     }
@@ -18334,7 +18359,11 @@ if(typeof conclusionRowsForReportV81 === 'function'){
 
     return arr.filter(raw=>{
       if(raw._originV108==='custom') return true;
-      if(raw._baseKeyV108) return activeKeys.has(raw._baseKeyV108);
+      if(raw._baseKeyV108){
+        const fullKey=String(raw._baseKeyV108);
+        const plainKey=fullKey.split('||TIPO:')[0];
+        return activeKeys.has(fullKey) || activeKeys.has(plainKey);
+      }
       const key=normConclV108(rowConclV108(raw).descripcion || '');
       return activeKeys.has(key);
     });
@@ -27090,6 +27119,8 @@ function buildClipboardPayloadV154(){
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
 
 <!-- VERSIÓN 20: eliminado el espacio, línea, nombre y cargo de firma del PDF Siento Razón eGOB. -->
+
+<!-- ALLPA V54: permite descripciones repetidas cuando cambia el Tipo de intervención. -->
 </body></html>`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
@@ -35821,6 +35852,580 @@ textarea.evidencia-text,
     setTimeout(instalarALLPA,500);
     setTimeout(instalarALLPA,1500);
   });
+})();
+</script>
+
+
+<!-- ==========================================================
+     ALLPA V52 - Ajustes de Conclusión Técnica y Anteproyecto
+     - Suma inmediata de áreas Aprobada (Existente) + Ampliación.
+     - Tipo de intervención visible en el informe.
+     - Requisitos de Anteproyecto alineados a la izquierda.
+     - Factibilidades de Anteproyecto con Evidencia/Detalle en fila nueva.
+     ========================================================== -->
+<style id="allpa-v52-css">
+  .report.report-aprobatorio table.ante-req-report-v52 th {
+    text-align: center !important;
+  }
+  .report.report-aprobatorio table.ante-req-report-v52 td {
+    text-align: left !important;
+  }
+  .report.report-aprobatorio table.ante-req-report-v52 td.center {
+    text-align: left !important;
+  }
+  .report .tipo-intervencion-report-v52 {
+    display: block;
+    margin-top: 3px;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #334155;
+  }
+  .report .fact-evidencia-label-v52 {
+    width: 22%;
+    background: #eeeeee;
+    font-weight: 900;
+    text-transform: uppercase;
+  }
+  .report .fact-evidencia-v52 {
+    text-align: justify !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+  }
+</style>
+<script id="allpa-v52-js">
+(function(){
+  'use strict';
+
+  function normV52(value){
+    return String(value == null ? '' : value)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,' ').trim().toUpperCase();
+  }
+
+  function escV52(value){
+    if(typeof window.esc === 'function') return window.esc(String(value == null ? '' : value));
+    return String(value == null ? '' : value).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function rowV52(raw){
+    if(typeof window.rowConclV108 === 'function') return window.rowConclV108(raw || {});
+    if(typeof window.rowConclV87 === 'function') return window.rowConclV87(raw || {});
+    if(typeof window.normalizeConclusionRowSafeV73 === 'function') return window.normalizeConclusionRowSafeV73(raw || {});
+    if(typeof window.normalizeConclusionRow === 'function') return window.normalizeConclusionRow(raw || {});
+    return raw || {};
+  }
+
+  function parseNumV52(value){
+    var txt=String(value == null ? '' : value).trim().replace(/\s/g,'');
+    if(!txt) return 0;
+    if(txt.indexOf(',') >= 0 && txt.indexOf('.') >= 0){
+      if(txt.lastIndexOf(',') > txt.lastIndexOf('.')) txt=txt.replace(/\./g,'').replace(',','.');
+      else txt=txt.replace(/,/g,'');
+    }else{
+      txt=txt.replace(',','.');
+    }
+    var n=Number(txt.replace(/[^0-9.+-]/g,''));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatNumV52(value){
+    var rounded=Math.round((Number(value)||0)*100)/100;
+    return rounded.toFixed(2).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1');
+  }
+
+  function isBrutaDetailV52(raw){
+    var d=normV52(rowV52(raw).descripcion || raw?.descripcion || '');
+    return d.includes('AREA BRUTA') && !d.includes('TOTAL');
+  }
+
+  function isBrutaTotalV52(raw){
+    var d=normV52(rowV52(raw).descripcion || raw?.descripcion || '');
+    return d.includes('AREA BRUTA') && d.includes('TOTAL') && !d.includes('AMPLIACION');
+  }
+
+  function isAmpliacionTotalV52(raw){
+    var d=normV52(rowV52(raw).descripcion || raw?.descripcion || '');
+    return d.includes('AREA TOTAL') && (d.includes('AMPLIACION') || d.includes('MODIFICACION'));
+  }
+
+  function tipoV52(raw){
+    var t=normV52(raw?.tipoAreaV13 || raw?.tipoIntervencion || raw?.tipo_intervencion || '');
+    if(t.includes('AMPLIACION')) return 'Ampliación';
+    if(t.includes('MODIFICACION')) return 'Modificación';
+    return 'Aprobada (Existente)';
+  }
+
+  function syncVisibleInputsV52(){
+    var arr=window.state?.aprobatorio?.conclusion;
+    if(!Array.isArray(arr)) return;
+    document.querySelectorAll('#conclusionTabla [data-i][data-field]').forEach(function(el){
+      var i=Number(el.dataset.i);
+      var field=el.dataset.field;
+      if(!Number.isInteger(i) || !arr[i] || !field) return;
+      var row=rowV52(arr[i]);
+      row[field]=el.value;
+      arr[i]=Object.assign({},arr[i],row);
+    });
+    document.querySelectorAll('#conclusionTabla select[onchange*="updateAreaTypeV13"]').forEach(function(el){
+      var m=String(el.getAttribute('onchange')||'').match(/updateAreaTypeV13\((\d+)/);
+      if(!m) return;
+      var i=Number(m[1]);
+      if(arr[i]) arr[i].tipoAreaV13=tipoV52({tipoAreaV13:el.value});
+    });
+  }
+
+  function setRowQuantityV52(index,value){
+    var arr=window.state?.aprobatorio?.conclusion;
+    if(!Array.isArray(arr) || !arr[index]) return;
+    var row=rowV52(arr[index]);
+    row.cantidad=value;
+    row.unidad=row.unidad || 'm2';
+    arr[index]=Object.assign({},arr[index],row);
+    var input=document.getElementById('conc_qty_'+index);
+    if(input && input.value !== value) input.value=value;
+  }
+
+  function recalcAreasV52(){
+    var arr=window.state?.aprobatorio?.conclusion;
+    if(!Array.isArray(arr)) return {bruta:0,ampliacion:0};
+    syncVisibleInputsV52();
+    var bruta=0, ampliacion=0;
+    arr.forEach(function(raw){
+      if(!isBrutaDetailV52(raw)) return;
+      var qty=parseNumV52(rowV52(raw).cantidad);
+      var type=tipoV52(raw);
+      raw.tipoAreaV13=type;
+      if(type==='Aprobada (Existente)' || type==='Ampliación') bruta+=qty;
+      if(type==='Ampliación' || type==='Modificación') ampliacion+=qty;
+    });
+    arr.forEach(function(raw,index){
+      if(isBrutaTotalV52(raw)) setRowQuantityV52(index,formatNumV52(bruta));
+      if(isAmpliacionTotalV52(raw)) setRowQuantityV52(index,formatNumV52(ampliacion));
+    });
+    return {bruta:bruta,ampliacion:ampliacion};
+  }
+
+  window.recalcAreasALLPAV52=recalcAreasV52;
+
+  /* La rutina final es autoritativa para evitar que otras versiones vuelvan a
+     colocar el Área Bruta desde un campo general desactualizado. */
+  window.calculateAreasV13=recalcAreasV52;
+  try{ calculateAreasV13=window.calculateAreasV13; }catch(_e){}
+
+  var reportTimerV52=0;
+  function scheduleV52(){
+    cancelAnimationFrame(window.__allpaAreaRafV52 || 0);
+    window.__allpaAreaRafV52=requestAnimationFrame(function(){
+      recalcAreasV52();
+      clearTimeout(reportTimerV52);
+      reportTimerV52=setTimeout(function(){
+        if(typeof window.renderReport==='function') window.renderReport();
+        if(typeof window.renderPreview==='function') window.renderPreview();
+      },45);
+    });
+  }
+
+  document.addEventListener('input',function(event){
+    if(event.target?.closest?.('#conclusionTabla')) scheduleV52();
+  },true);
+  document.addEventListener('change',function(event){
+    if(event.target?.closest?.('#conclusionTabla')) scheduleV52();
+  },true);
+
+  /* Informe de Conclusión Técnica: añade el tipo de intervención junto a la
+     descripción, tanto en Obra Mayor como en Anteproyecto. */
+  window.conclusionReport=function(){
+    recalcAreasV52();
+    var arr=typeof window.conclusionRowsForReportV81==='function'
+      ? (window.conclusionRowsForReportV81() || [])
+      : (window.state?.aprobatorio?.conclusion || []);
+    if(!arr.length) return '<p>No se registran datos de conclusión técnica.</p>';
+    var body=arr.map(function(raw){
+      var r=rowV52(raw);
+      var niveles=(r.levels||[]).filter(Boolean).map(escV52).join('<br>');
+      var descClass=/TOTAL|NÚMERO DE PISOS|UNIDADES|COS/.test(normV52(r.descripcion||''))?'desc-bold':'';
+      var tipoHtml=isBrutaDetailV52(raw)
+        ? '<span class="tipo-intervencion-report-v52">Tipo de intervención: '+escV52(tipoV52(raw))+'</span>'
+        : '';
+      var desc=escV52(r.descripcion||'')+tipoHtml;
+      if(niveles){
+        return '<tr><td class="'+descClass+'">'+desc+'</td><td class="level-cell">'+niveles+'</td><td class="right">'+escV52(r.cantidad||'')+'</td><td>'+escV52(r.unidad||'')+'</td></tr>';
+      }
+      return '<tr><td colspan="2" class="'+descClass+'">'+desc+'</td><td class="right">'+escV52(r.cantidad||'')+'</td><td>'+escV52(r.unidad||'')+'</td></tr>';
+    }).join('');
+    return '<table class="informe-table conclusion-report"><thead><tr><th colspan="2">DESCRIPCIÓN</th><th>CANTIDAD</th><th>UNIDAD</th></tr></thead><tbody>'+body+'</tbody></table>';
+  };
+  try{ conclusionReport=window.conclusionReport; }catch(_e){}
+
+  /* Requisitos de Anteproyecto: contenido a la izquierda y encabezados centrados. */
+  if(typeof window.reqTable==='function'){
+    var reqTableBaseV52=window.reqTable;
+    window.reqTable=function(reqs,mode){
+      var html=String(reqTableBaseV52.apply(this,arguments)||'');
+      var isAnte=typeof window.isAnteproyectoV123==='function' && window.isAnteproyectoV123();
+      if(isAnte && mode==='apr' && /^\s*<table/i.test(html)){
+        html=html.replace(/^\s*<table/i,'<table class="ante-req-report-v52"');
+      }
+      return html;
+    };
+    try{ reqTable=window.reqTable; }catch(_e){}
+  }
+
+  /* Factibilidades de Anteproyecto: Evidencia/Detalle siempre se imprime en
+     una fila independiente, conservando mayúsculas, minúsculas y saltos. */
+  window.factibilidadesReportV134=function(){
+    var rows=typeof window.ensureAnteFactibilidadesV134==='function'
+      ? (window.ensureAnteFactibilidadesV134() || [])
+      : (window.state?.aprobatorio?.estudios || []);
+    if(!rows.length) return '<p>No se registran factibilidades.</p>';
+    var body=rows.map(function(row){
+      var evidencia=String(row?.evidencia ?? row?.detalle ?? row?.observacion ?? '');
+      var fecha=typeof window.fmtDate==='function' ? window.fmtDate(row?.fecha||'') : String(row?.fecha||'');
+      return '<tr>'+
+        '<td class="study-cell">'+escV52(row?.estudio||row?.empresa||'')+'</td>'+
+        '<td class="doc-title">'+escV52(row?.documento||row?.tramite||'')+'</td>'+
+        '<td class="doc-title center" style="width:16%">'+escV52(fecha)+'</td>'+
+        '</tr>'+
+        '<tr><td class="fact-evidencia-label-v52">Evidencia / detalle</td>'+
+        '<td colspan="2" class="fact-evidencia-v52">'+(evidencia?escV52(evidencia):'—')+'</td></tr>';
+    }).join('');
+    return '<table class="informe-table estudios-table factibilidades-ante-v52">'+
+      '<thead><tr><th>EMPRESA</th><th colspan="2">DOCUMENTO / TRÁMITE</th></tr></thead><tbody>'+body+'</tbody></table>';
+  };
+  try{ factibilidadesReportV134=window.factibilidadesReportV134; }catch(_e){}
+
+  /* Refuerzo tras las rutinas de carga y cambios de pestaña. */
+  window.addEventListener('load',function(){
+    setTimeout(scheduleV52,250);
+    setTimeout(scheduleV52,900);
+  },{once:true});
+  document.addEventListener('click',function(event){
+    if(event.target?.closest?.('.tab-btn,[data-tab],#tab-vista')) setTimeout(scheduleV52,0);
+  },true);
+})();
+</script>
+
+
+
+<style>
+/* V53: Factibilidades de Anteproyecto con el mismo formato de Obra Mayor. */
+.report .combined-studies-v13 td.entity-v13{
+  vertical-align:middle !important;
+  text-align:center !important;
+  font-weight:900;
+}
+.report .combined-studies-v13 td.detail-v13{
+  text-align:justify;
+  white-space:pre-wrap;
+}
+</style>
+<script>
+/* ==========================================================
+   VERSIÓN 53
+   1. El tipo de intervención se muestra seguido de la descripción,
+      sin la leyenda "Tipo de intervención:".
+   2. Factibilidades de Anteproyecto usa exactamente la tabla
+      combinada de Obra Mayor: ENTIDAD, TIPO, DOCUMENTO/TRÁMITE,
+      FECHA y evidencia en una fila inferior.
+   ========================================================== */
+(function(){
+  function escV53(value){
+    return typeof esc==='function' ? esc(value) : String(value??'')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function normV53(value){
+    return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
+  }
+  function rowV53(raw){
+    return typeof rowV13==='function' ? rowV13(raw) : (raw||{});
+  }
+  function roleV53(raw,index){
+    if(typeof roleV13==='function') return roleV13(raw,index);
+    const d=normV53(rowV53(raw).descripcion||'');
+    if(d.includes('AREA BRUTA TOTAL')) return 'brutaTotal';
+    if(d.includes('AREA TOTAL DE AMPLIACION')||d.includes('AREA TOTAL DE MODIFICACION')) return 'areaAmpliacionTotal';
+    return d.includes('AREA BRUTA') ? 'bruta' : '';
+  }
+  function typeV53(raw){
+    if(typeof normalizeAreaTypeV13==='function') return normalizeAreaTypeV13(raw?.tipoAreaV13);
+    return String(raw?.tipoAreaV13||'').trim();
+  }
+  function modeV53(){
+    return typeof modoAmpModV13==='function' ? modoAmpModV13() : true;
+  }
+
+  window.conclusionReport=function(){
+    if(typeof recalcAreasALLPAV52==='function') recalcAreasALLPAV52();
+    const arr=typeof conclusionRowsForReportV81==='function'
+      ? (conclusionRowsForReportV81()||[])
+      : (window.state?.aprobatorio?.conclusion||[]);
+    if(!arr.length) return '<p>No se registran datos de conclusión técnica.</p>';
+
+    const body=arr.map(function(raw,index){
+      const r=rowV53(raw);
+      const levels=(r.levels||[]).filter(Boolean).map(escV53).join('<br>');
+      const descClass=/TOTAL|NÚMERO DE PISOS|NUMERO DE PISOS|UNIDADES|COS/.test(normV53(r.descripcion||''))?'desc-bold':'';
+      let descripcion=String(r.descripcion||'').trim();
+      if(modeV53() && roleV53(raw,index)==='bruta'){
+        const tipo=typeV53(raw);
+        if(tipo && !normV53(descripcion).endsWith(normV53(tipo))){
+          descripcion=(descripcion+' '+tipo).trim();
+        }
+      }
+      const desc=escV53(descripcion);
+      if(levels){
+        return '<tr><td class="'+descClass+'">'+desc+'</td><td class="level-cell">'+levels+'</td><td class="right">'+escV53(r.cantidad||'')+'</td><td>'+escV53(r.unidad||'')+'</td></tr>';
+      }
+      return '<tr><td colspan="2" class="'+descClass+'">'+desc+'</td><td class="right">'+escV53(r.cantidad||'')+'</td><td>'+escV53(r.unidad||'')+'</td></tr>';
+    }).join('');
+
+    return '<table class="informe-table conclusion-report"><thead><tr><th colspan="2">DESCRIPCIÓN</th><th>CANTIDAD</th><th>UNIDAD</th></tr></thead><tbody>'+body+'</tbody></table>';
+  };
+  try{ conclusionReport=window.conclusionReport; }catch(_e){}
+
+  window.factibilidadesReportV134=function(){
+    const rows=typeof ensureAnteFactibilidadesV134==='function' ? ensureAnteFactibilidadesV134() : [];
+    if(typeof combinedServiceReportV13==='function'){
+      return combinedServiceReportV13(rows,[],false);
+    }
+    return '<p>No se registran factibilidades.</p>';
+  };
+  try{ factibilidadesReportV134=window.factibilidadesReportV134; }catch(_e){}
+
+  /* Refuerzo: algunas versiones llaman estudiosReport() en Anteproyecto. */
+  const estudiosBaseV53=typeof window.estudiosReport==='function' ? window.estudiosReport : null;
+  window.estudiosReport=function(){
+    const ante=typeof isAnteproyectoV123==='function' && isAnteproyectoV123();
+    if(ante) return window.factibilidadesReportV134();
+    return estudiosBaseV53 ? estudiosBaseV53.apply(this,arguments) : '<p>No se registran estudios complementarios.</p>';
+  };
+  try{ estudiosReport=window.estudiosReport; }catch(_e){}
+})();
+</script>
+
+
+<!-- ==========================================================
+     ALLPA V55 - Tabla de requisitos de Anteproyecto
+     - Amplía RESULTADO / DETALLE para mejorar la lectura.
+     - La alineación izquierda se limita únicamente a esta tabla.
+     - Las demás tablas conservan sus alineaciones originales.
+     ========================================================== -->
+<style id="allpa-v55-requisitos-anteproyecto-css">
+  /* Solo la tabla de requisitos de la sección 2 del Anteproyecto. */
+  .report.report-aprobatorio table.ante-req-report-v52 {
+    table-layout: fixed !important;
+    width: 100% !important;
+  }
+
+  /* REQUISITO: 67 % | RESULTADO / DETALLE: 33 % */
+  .report.report-aprobatorio table.ante-req-report-v52 th:first-child,
+  .report.report-aprobatorio table.ante-req-report-v52 td:first-child {
+    width: 67% !important;
+  }
+  .report.report-aprobatorio table.ante-req-report-v52 th:nth-child(2),
+  .report.report-aprobatorio table.ante-req-report-v52 td:nth-child(2) {
+    width: 33% !important;
+  }
+
+  /* Encabezados centrados; únicamente el contenido de esta tabla a la izquierda. */
+  .report.report-aprobatorio table.ante-req-report-v52 thead th {
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+  .report.report-aprobatorio table.ante-req-report-v52 tbody td,
+  .report.report-aprobatorio table.ante-req-report-v52 tbody td.center,
+  .report.report-aprobatorio table.ante-req-report-v52 tbody td.right {
+    text-align: left !important;
+    vertical-align: top !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+</style>
+
+
+<!-- ==========================================================
+     ALLPA V56 - Restauración de formatos de tablas del informe
+     Mantiene exclusivamente la alineación izquierda de la tabla
+     2. DETALLE DEL ANTEPROYECTO incorporada en V55.
+     ========================================================== -->
+<style id="allpa-v56-formatos-tablas-css">
+/* 1. INFORMACIÓN GENERAL / RESOLUCIÓN DE ANTEPROYECTO */
+.report.report-aprobatorio table.apr-info-table th,
+.report.report-aprobatorio table.apr-info-table td{
+  text-align:center !important;
+  vertical-align:middle !important;
+  line-height:1.12 !important;
+}
+.report.report-aprobatorio table.apr-info-table .apr-info-label,
+.report.report-aprobatorio table.apr-info-table .apr-info-section{
+  font-weight:900 !important;
+  text-transform:uppercase !important;
+}
+
+/* CONCLUSIÓN TÉCNICA */
+.report.report-aprobatorio table.conclusion-report th,
+.report.report-aprobatorio table.conclusion-report td{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+.report.report-aprobatorio table.conclusion-report .right,
+.report.report-aprobatorio table.conclusion-report .level-cell{
+  text-align:center !important;
+}
+
+/* RESOLUCIÓN DE ANTEPROYECTO Y CONSIDERACIONES ESTRUCTURALES */
+.report.report-aprobatorio table.ante-resolution-report-v56 th,
+.report.report-aprobatorio table.ante-resolution-report-v56 td,
+.report.report-aprobatorio table.structural-report-v56 th,
+.report.report-aprobatorio table.structural-report-v56 td{
+  text-align:center !important;
+  vertical-align:middle !important;
+  line-height:1.12 !important;
+}
+.report.report-aprobatorio table.ante-resolution-report-v56 .label-cell,
+.report.report-aprobatorio table.structural-report-v56 .label-cell{
+  font-weight:900 !important;
+  text-transform:uppercase !important;
+}
+
+/* FACTIBILIDADES Y ESTUDIOS COMPLEMENTARIOS */
+.report.report-aprobatorio table.combined-studies-v13 th,
+.report.report-aprobatorio table.combined-studies-v13 td{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+.report.report-aprobatorio table.combined-studies-v13 td.entity-v13{
+  text-align:center !important;
+  vertical-align:top !important;
+  font-weight:400 !important;
+  padding-top:7px !important;
+}
+.report.report-aprobatorio table.combined-studies-v13 td.type-v13{
+  font-weight:900 !important;
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+.report.report-aprobatorio table.combined-studies-v13 td.detail-v13{
+  text-align:center !important;
+  vertical-align:middle !important;
+  white-space:normal !important;
+}
+
+/* Excepción solicitada: solo esta tabla conserva contenido a la izquierda. */
+.report.report-aprobatorio table.ante-req-report-v52 tbody td{
+  text-align:left !important;
+  vertical-align:top !important;
+}
+.report.report-aprobatorio table.ante-req-report-v52 thead th{
+  text-align:center !important;
+  vertical-align:middle !important;
+}
+</style>
+
+<script id="allpa-v56-formatos-tablas-js">
+(function(){
+  function addClassToFirstTable(html, className){
+    html=String(html||'');
+    if(!html) return html;
+    if(/<table\b[^>]*class=["'][^"']*\b/.test(html)){
+      return html.replace(/<table\b([^>]*?)class=(["'])([^"']*)\2/i,
+        function(_m,before,q,classes){
+          if(new RegExp('(?:^|\\s)'+className+'(?:\\s|$)').test(classes)) return _m;
+          return '<table'+before+'class='+q+(classes+' '+className).trim()+q;
+        });
+    }
+    return html.replace(/<table\b/i,'<table class="'+className+'"');
+  }
+
+  /* Añade clases semánticas sin cambiar la información ni la estructura. */
+  if(typeof window.aprobatorioStructuralTable==='function' && !window.aprobatorioStructuralTable.__v56){
+    const base=window.aprobatorioStructuralTable;
+    const wrapped=function(){ return addClassToFirstTable(base.apply(this,arguments),'structural-report-v56'); };
+    wrapped.__v56=true;
+    window.aprobatorioStructuralTable=wrapped;
+    try{ aprobatorioStructuralTable=wrapped; }catch(_e){}
+  }
+
+  /* La tabla de Resolución de Anteproyecto usa la misma estructura de informe. */
+  ['anteproyectoReportTable','anteproyectoResolutionTable','aprobatorioAnteproyectoTable'].forEach(function(name){
+    const fn=window[name];
+    if(typeof fn==='function' && !fn.__v56){
+      const wrapped=function(){ return addClassToFirstTable(fn.apply(this,arguments),'ante-resolution-report-v56'); };
+      wrapped.__v56=true;
+      window[name]=wrapped;
+      try{ eval(name+'=wrapped'); }catch(_e){}
+    }
+  });
+
+  function styleCell(el, obj){
+    Object.keys(obj).forEach(function(k){ el.style.setProperty(k,obj[k],'important'); });
+  }
+
+  function inlineReportTableFormatsV56(root){
+    if(!root || !root.querySelectorAll) return root;
+    const common={
+      'border':'1px solid #000','padding':'4px 5px','font-family':'Arial,Helvetica,sans-serif',
+      'font-size':'8.5pt','line-height':'1.12','color':'#111'
+    };
+    root.querySelectorAll('table').forEach(function(tbl){
+      tbl.style.setProperty('border-collapse','collapse','important');
+      tbl.style.setProperty('width','100%','important');
+      tbl.style.setProperty('border','1px solid #000','important');
+      tbl.querySelectorAll('th,td').forEach(function(cell){ styleCell(cell,common); });
+
+      if(tbl.classList.contains('apr-info-table') || tbl.classList.contains('conclusion-report') ||
+         tbl.classList.contains('structural-report-v56') || tbl.classList.contains('ante-resolution-report-v56')){
+        tbl.querySelectorAll('th,td').forEach(function(cell){
+          styleCell(cell,{'text-align':'center','vertical-align':'middle'});
+        });
+      }
+
+      if(tbl.classList.contains('combined-studies-v13')){
+        tbl.querySelectorAll('th,td').forEach(function(cell){
+          styleCell(cell,{'text-align':'center','vertical-align':'middle'});
+        });
+        tbl.querySelectorAll('td.type-v13').forEach(function(cell){
+          styleCell(cell,{'font-weight':'900','text-align':'center','vertical-align':'middle'});
+        });
+        tbl.querySelectorAll('td.entity-v13').forEach(function(cell){
+          styleCell(cell,{'text-align':'center','vertical-align':'top','padding-top':'7px'});
+        });
+      }
+
+      if(tbl.classList.contains('ante-req-report-v52')){
+        tbl.querySelectorAll('thead th').forEach(function(cell){
+          styleCell(cell,{'text-align':'center','vertical-align':'middle'});
+        });
+        tbl.querySelectorAll('tbody td').forEach(function(cell){
+          styleCell(cell,{'text-align':'left','vertical-align':'top'});
+        });
+      }
+    });
+    return root;
+  }
+  window.inlineReportTableFormatsV56=inlineReportTableFormatsV56;
+
+  /* Conserva bordes, centrados, anchos y negritas al usar COPIAR. */
+  if(typeof window.buildClipboardPayloadV154==='function' && !window.buildClipboardPayloadV154.__v56){
+    const base=window.buildClipboardPayloadV154;
+    const wrapped=function(){
+      const payload=base.apply(this,arguments);
+      if(!payload || !payload.html) return payload;
+      try{
+        const doc=new DOMParser().parseFromString(payload.html,'text/html');
+        inlineReportTableFormatsV56(doc.body);
+        payload.html='<!DOCTYPE html>'+doc.documentElement.outerHTML;
+      }catch(_e){}
+      return payload;
+    };
+    wrapped.__v56=true;
+    window.buildClipboardPayloadV154=wrapped;
+    try{ buildClipboardPayloadV154=wrapped; }catch(_e){}
+  }
 })();
 </script>
 </body>
