@@ -36540,5 +36540,164 @@ textarea.evidencia-text,
   }
 })();
 </script>
+
+
+<!-- ==========================================================
+     ALLPA V58
+     - Formato fijo de niveles: N+ para cero/positivos y N- para negativos.
+     - Botón "Iniciar nuevamente" para restaurar la tabla inicial de
+       Conclusión Técnica sin valores.
+     ========================================================== -->
+<style id="allpa-v58-conclusion-css">
+  .conclusion-reset-v58{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:10px;
+  }
+  .conclusion-reset-v58 button{
+    background:#a71930;
+    color:#fff;
+  }
+</style>
+<script id="allpa-v58-conclusion-js">
+(function(){
+  'use strict';
+
+  function formatLevelV58(value){
+    var raw=String(value == null ? '' : value).trim();
+    if(!raw) return '';
+    var cleaned=raw
+      .replace(/^\s*N\s*/i,'')
+      .replace(/\s+/g,'')
+      .replace(',','.');
+    var negative=/^-/.test(cleaned);
+    cleaned=cleaned.replace(/^[+-]/,'');
+    if(!cleaned) return '';
+    return 'N'+(negative?'-':'+')+cleaned;
+  }
+  window.formatConclusionLevelV58=formatLevelV58;
+
+  /* Conserva toda la programación vigente del informe y modifica únicamente
+     la presentación de las celdas de niveles. */
+  var conclusionReportBaseV58=typeof window.conclusionReport==='function'
+    ? window.conclusionReport : null;
+  if(conclusionReportBaseV58 && !conclusionReportBaseV58.__allpaV58){
+    var conclusionReportV58=function(){
+      var html=String(conclusionReportBaseV58.apply(this,arguments)||'');
+      if(!html || typeof DOMParser==='undefined') return html;
+      try{
+        var doc=new DOMParser().parseFromString('<div id="v58-root">'+html+'</div>','text/html');
+        var root=doc.getElementById('v58-root');
+        root.querySelectorAll('td.level-cell').forEach(function(cell){
+          var values=[];
+          Array.from(cell.childNodes).forEach(function(node){
+            if(node.nodeName==='BR') return;
+            var txt=String(node.textContent||'').trim();
+            if(txt) values.push(txt);
+          });
+          if(!values.length){
+            values=String(cell.innerText||cell.textContent||'').split(/\n+/).map(function(v){return v.trim();}).filter(Boolean);
+          }
+          cell.innerHTML=values.map(function(v){
+            var formatted=formatLevelV58(v);
+            return typeof window.esc==='function' ? window.esc(formatted) : formatted;
+          }).join('<br>');
+        });
+        return root.innerHTML;
+      }catch(_e){
+        return html;
+      }
+    };
+    conclusionReportV58.__allpaV58=true;
+    window.conclusionReport=conclusionReportV58;
+    try{ conclusionReport=conclusionReportV58; }catch(_e){}
+  }
+
+  function appendResetButtonV58(){
+    var container=document.getElementById('conclusionTabla');
+    if(!container || container.querySelector('.conclusion-reset-v58')) return;
+    var wrap=document.createElement('div');
+    wrap.className='conclusion-reset-v58';
+    var button=document.createElement('button');
+    button.type='button';
+    button.textContent='Iniciar nuevamente';
+    button.addEventListener('click',function(){ window.resetConclusionTableV58(); });
+    wrap.appendChild(button);
+    container.appendChild(wrap);
+  }
+
+  window.resetConclusionTableV58=async function(){
+    var ok=window.confirm('¿Desea borrar los valores ingresados y restaurar la tabla inicial de Conclusión Técnica?');
+    if(!ok) return;
+    if(!window.state) return;
+    if(!state.aprobatorio) state.aprobatorio={};
+    state.aprobatorio.conclusion=[];
+
+    try{
+      if(typeof window.cargarConclusionCSVV80==='function'){
+        await window.cargarConclusionCSVV80(false);
+      }else if(typeof cargarConclusionCSVV80==='function'){
+        await cargarConclusionCSVV80(false);
+      }
+    }catch(_e){}
+
+    try{
+      if(typeof window.rebuildConclusionEditableFromCSVV80==='function'){
+        window.rebuildConclusionEditableFromCSVV80(true);
+      }else if(typeof rebuildConclusionEditableFromCSVV80==='function'){
+        rebuildConclusionEditableFromCSVV80(true);
+      }
+    }catch(_e){}
+
+    /* Respaldo para instalaciones donde el CSV todavía no se haya cargado. */
+    if(!Array.isArray(state.aprobatorio.conclusion) || !state.aprobatorio.conclusion.length){
+      var defaults=['Área del predio (IPRUS)','Área útil planta baja','Área útil total','Área bruta planta baja','Área Bruta total de construcción','Número de pisos','Unidades Habitacionales','Unidades Comerciales','COS PB','COS Total'];
+      state.aprobatorio.conclusion=defaults.map(function(desc){
+        var upper=desc.toUpperCase();
+        var unit=(upper.indexOf('COS')>=0)?'%':((upper.indexOf('NÚMERO')>=0||upper.indexOf('UNIDADES')>=0)?'U':'m2');
+        return {descripcion:desc,cantidad:'',unidad:unit,levels:[],allowLevels:upper.indexOf('ÁREA BRUTA')>=0 && upper.indexOf('TOTAL')<0};
+      });
+    }
+
+    /* Asegura que ningún valor anterior permanezca en las filas base. */
+    state.aprobatorio.conclusion.forEach(function(raw){
+      raw.cantidad='';
+      raw.levels=[];
+      if(raw.tipoAreaV13) raw.tipoAreaV13='Aprobada (Existente)';
+    });
+
+    if(typeof window.ensureAreaUtilTotalConclusionV119N==='function') try{ window.ensureAreaUtilTotalConclusionV119N(); }catch(_e){}
+    if(typeof window.ensureConclusionOrderV73==='function') try{ window.ensureConclusionOrderV73(); }catch(_e){}
+    if(typeof window.renderConclusionTabla==='function') window.renderConclusionTabla();
+    if(typeof window.renderReport==='function') window.renderReport();
+    if(typeof window.renderPreview==='function') window.renderPreview();
+    setTimeout(appendResetButtonV58,0);
+  };
+
+  var renderConclusionBaseV58=typeof window.renderConclusionTabla==='function'
+    ? window.renderConclusionTabla : null;
+  if(renderConclusionBaseV58 && !renderConclusionBaseV58.__allpaV58){
+    var renderConclusionV58=function(){
+      var out=renderConclusionBaseV58.apply(this,arguments);
+      appendResetButtonV58();
+      return out;
+    };
+    renderConclusionV58.__allpaV58=true;
+    window.renderConclusionTabla=renderConclusionV58;
+    try{ renderConclusionTabla=renderConclusionV58; }catch(_e){}
+  }
+
+  window.addEventListener('load',function(){
+    setTimeout(appendResetButtonV58,500);
+    setTimeout(appendResetButtonV58,1500);
+  });
+  document.addEventListener('click',function(event){
+    if(event.target && event.target.closest && event.target.closest('[data-tab="tab-apr"],#tab-apr,.tab-btn')){
+      setTimeout(appendResetButtonV58,100);
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
