@@ -37214,9 +37214,33 @@ textarea.evidencia-text,
   }
 
   function notificationContentV66(){
-    if(typeof notificationContentV17==='function') return notificationContentV17();
-    if(typeof notificationContentFromUIV14==='function') return notificationContentFromUIV14();
-    if(typeof emailDataV119X==='function') return emailDataV119X();
+    /*
+      La vista previa de Notificar ya contiene el asunto y el cuerpo completos.
+      Las funciones notificationContentV17 / notificationContentFromUIV14 están
+      encapsuladas en otros bloques y no son accesibles desde esta versión final,
+      por eso aquí se leen directamente los nodos visibles del DOM.
+    */
+    const subjectNode=document.getElementById('emailSubjectPreviewV119X');
+    const bodyNode=document.getElementById('emailBodyPreviewV119X');
+
+    const subject=String(
+      subjectNode ? (subjectNode.innerText || subjectNode.textContent || '') : ''
+    ).replace(/^\s*Asunto\s*:\s*/i,'').trim();
+
+    const body=String(
+      bodyNode ? (bodyNode.innerText || bodyNode.textContent || '') : ''
+    ).replace(/\r\n?/g,'\n').trim();
+
+    if(subject || body) return {subject,body};
+
+    /* Respaldo por si la pestaña todavía no se ha renderizado. */
+    if(typeof emailDataV119X==='function'){
+      const data=emailDataV119X()||{};
+      return {
+        subject:String(data.subject||'').replace(/^\s*Asunto\s*:\s*/i,'').trim(),
+        body:String(data.body||'').replace(/\r\n?/g,'\n').trim()
+      };
+    }
     return {subject:'',body:''};
   }
 
