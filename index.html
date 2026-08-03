@@ -36626,53 +36626,137 @@ textarea.evidencia-text,
     container.appendChild(wrap);
   }
 
-  window.resetConclusionTableV58=async function(){
-    var ok=window.confirm('¿Desea borrar los valores ingresados y restaurar la tabla inicial de Conclusión Técnica?');
-    if(!ok) return;
-    if(!window.state) return;
-    if(!state.aprobatorio) state.aprobatorio={};
-    state.aprobatorio.conclusion=[];
+  /* V59: reinicio real de la tabla. No reutiliza las filas del formulario
+     guardado ni las filas personalizadas que el usuario haya agregado. */
+  window.__CONCLUSION_JUST_RESET_V59__=false;
 
+  function freshBaseRowsV59(){
+    var bases=[];
     try{
-      if(typeof window.cargarConclusionCSVV80==='function'){
-        await window.cargarConclusionCSVV80(false);
-      }else if(typeof cargarConclusionCSVV80==='function'){
-        await cargarConclusionCSVV80(false);
-      }
-    }catch(_e){}
+      if(typeof window.baseRowsV108==='function') bases=window.baseRowsV108()||[];
+      else if(typeof baseRowsV108==='function') bases=baseRowsV108()||[];
+    }catch(_e){ bases=[]; }
 
-    try{
-      if(typeof window.rebuildConclusionEditableFromCSVV80==='function'){
-        window.rebuildConclusionEditableFromCSVV80(true);
-      }else if(typeof rebuildConclusionEditableFromCSVV80==='function'){
-        rebuildConclusionEditableFromCSVV80(true);
-      }
-    }catch(_e){}
+    if(!bases.length){
+      try{
+        if(typeof window.allConclusionCSVRowsV81==='function') bases=window.allConclusionCSVRowsV81()||[];
+        else if(typeof allConclusionCSVRowsV81==='function') bases=allConclusionCSVRowsV81()||[];
+      }catch(_e){ bases=[]; }
+    }
 
-    /* Respaldo para instalaciones donde el CSV todavía no se haya cargado. */
-    if(!Array.isArray(state.aprobatorio.conclusion) || !state.aprobatorio.conclusion.length){
-      var defaults=['Área del predio (IPRUS)','Área útil planta baja','Área útil total','Área bruta planta baja','Área Bruta total de construcción','Número de pisos','Unidades Habitacionales','Unidades Comerciales','COS PB','COS Total'];
-      state.aprobatorio.conclusion=defaults.map(function(desc){
-        var upper=desc.toUpperCase();
-        var unit=(upper.indexOf('COS')>=0)?'%':((upper.indexOf('NÚMERO')>=0||upper.indexOf('UNIDADES')>=0)?'U':'m2');
-        return {descripcion:desc,cantidad:'',unidad:unit,levels:[],allowLevels:upper.indexOf('ÁREA BRUTA')>=0 && upper.indexOf('TOTAL')<0};
+    /* Último respaldo: mismas filas base de la instalación original. */
+    if(!bases.length){
+      var defaults=[
+        ['Área del predio (IPRUS)','m2'],
+        ['Área útil planta baja','m2'],
+        ['Área útil total','m2'],
+        ['Área bruta planta baja','m2'],
+        ['Área Bruta total de construcción','m2'],
+        ['Número de pisos','U'],
+        ['Unidades Habitacionales','U'],
+        ['Unidades Comerciales','U'],
+        ['COS PB','%'],
+        ['COS Total','%']
+      ];
+      bases=defaults.map(function(x,i){
+        return {descripcion:x[0],unidad:x[1],levels:[],cantidad:'',_baseOrderV108:i};
       });
     }
 
-    /* Asegura que ningún valor anterior permanezca en las filas base. */
-    state.aprobatorio.conclusion.forEach(function(raw){
-      raw.cantidad='';
-      raw.levels=[];
-      if(raw.tipoAreaV13) raw.tipoAreaV13='Aprobada (Existente)';
+    return bases.map(function(base,index){
+      var desc=String(base.descripcion || base['Descripción'] || base.Descripcion || '').trim();
+      var unit=String(base.unidad || base.Unidad || 'm2').trim() || 'm2';
+      var key='';
+      try{
+        key=typeof window.normConclV108==='function' ? window.normConclV108(desc)
+          : (typeof normConclV108==='function' ? normConclV108(desc) : desc.toUpperCase());
+      }catch(_e){ key=desc.toUpperCase(); }
+      var role='';
+      try{
+        role=typeof window.roleFromDescV108==='function' ? window.roleFromDescV108(desc)
+          : (typeof roleFromDescV108==='function' ? roleFromDescV108(desc) : '');
+      }catch(_e){}
+      var row={
+        descripcion:desc,
+        levels:[],
+        cantidad:'',
+        unidad:unit,
+        allowLevels:role==='bruta',
+        _baseKeyV108:base._baseKeyV108 || key,
+        _originV108:'base',
+        _baseOrderV108:base._baseOrderV108!=null ? base._baseOrderV108 : index
+      };
+      if(role){ row._roleV108=role; row._roleV104=role; }
+      if(role==='bruta') row.tipoAreaV13='Aprobada (Existente)';
+      return row;
+    }).filter(function(r){ return r.descripcion; });
+  }
+
+  window.resetConclusionTableV58=async function(){
+    var ok=window.confirm('¿Desea borrar todas las filas agregadas y restaurar la tabla inicial de Conclusión Técnica con sus campos vacíos?');
+    if(!ok) return;
+    if(!window.state) return;
+    if(!state.aprobatorio) state.aprobatorio={};
+
+    /* Quita todo rastro de filas eliminadas/agregadas de formularios actuales
+       o recuperados desde Formularios guardados. */
+    state.aprobatorio.deletedConclusionKeysV108=[];
+    state.aprobatorio.deletedConclusionKeysV107=[];
+    state.aprobatorio.deletedConclusionKeysV106=[];
+    ['deletedConclusionKeysV105','deletedConclusionKeysV104','deletedConclusionKeysV103'].forEach(function(k){
+      if(k in state.aprobatorio) state.aprobatorio[k]=[];
     });
 
-    if(typeof window.ensureAreaUtilTotalConclusionV119N==='function') try{ window.ensureAreaUtilTotalConclusionV119N(); }catch(_e){}
-    if(typeof window.ensureConclusionOrderV73==='function') try{ window.ensureConclusionOrderV73(); }catch(_e){}
+    /* Sustitución completa: esto elimina físicamente todas las filas de usuario,
+       incluso las que provenían de un formulario guardado anteriormente. */
+    state.aprobatorio.conclusion=freshBaseRowsV59();
+
+    /* Evita que los cálculos automáticos rellenen inmediatamente los totales:
+       el objetivo del botón es devolver la tabla al estado inicial vacío. */
+    window.__CONCLUSION_JUST_RESET_V59__=true;
+
+    window.__CONCLUSION_EDITING_V87__=false;
     if(typeof window.renderConclusionTabla==='function') window.renderConclusionTabla();
+    else if(typeof renderConclusionTabla==='function') renderConclusionTabla();
+
+    /* renderConclusionTabla puede ejecutar rutinas heredadas que reconstruyen
+       filas. Se vuelve a imponer la base limpia una vez terminado ese ciclo. */
+    state.aprobatorio.conclusion=freshBaseRowsV59();
+    if(typeof window.renderConclusionTabla==='function') window.renderConclusionTabla();
+    else if(typeof renderConclusionTabla==='function') renderConclusionTabla();
+
     if(typeof window.renderReport==='function') window.renderReport();
+    else if(typeof renderReport==='function') renderReport();
     if(typeof window.renderPreview==='function') window.renderPreview();
+    else if(typeof renderPreview==='function') renderPreview();
+
     setTimeout(appendResetButtonV58,0);
+    if(typeof window.msg==='function') window.msg('Conclusión Técnica restaurada a su formato inicial.',true);
+    else if(typeof msg==='function') msg('Conclusión Técnica restaurada a su formato inicial.',true);
   };
+
+  /* Mientras la tabla acaba de reiniciarse, bloquea únicamente el cálculo
+     automático de Conclusión Técnica. Al primer cambio del técnico vuelve
+     inmediatamente al funcionamiento normal. */
+  var recalcBaseV59=typeof window.recalcAreasCOSV36==='function' ? window.recalcAreasCOSV36 : null;
+  if(recalcBaseV59 && !recalcBaseV59.__allpaV59){
+    var recalcV59=function(){
+      if(window.__CONCLUSION_JUST_RESET_V59__) return;
+      return recalcBaseV59.apply(this,arguments);
+    };
+    recalcV59.__allpaV59=true;
+    window.recalcAreasCOSV36=recalcV59;
+    try{ recalcAreasCOSV36=recalcV59; }catch(_e){}
+  }
+
+  function activateConclusionAfterResetV59(event){
+    if(!window.__CONCLUSION_JUST_RESET_V59__) return;
+    if(!event.target || !event.target.closest || !event.target.closest('#conclusionTabla')) return;
+    if(event.target.closest('.conclusion-reset-v58')) return;
+    window.__CONCLUSION_JUST_RESET_V59__=false;
+  }
+  document.addEventListener('input',activateConclusionAfterResetV59,true);
+  document.addEventListener('change',activateConclusionAfterResetV59,true);
 
   var renderConclusionBaseV58=typeof window.renderConclusionTabla==='function'
     ? window.renderConclusionTabla : null;
