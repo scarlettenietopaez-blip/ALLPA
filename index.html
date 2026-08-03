@@ -37305,5 +37305,84 @@ textarea.evidencia-text,
   };
 })();
 </script>
+
+<script>
+/* ALLPA v68 - RESTAURACIÓN DEL MÉTODO ORIGINAL DE NOTIFICACIÓN
+   Recuperado del entregable ALLPA-main que sí utilizaba mailto: con
+   destinatario, asunto y cuerpo. El cliente/protocolo configurado en Windows
+   se encarga de abrir el correo institucional y conservar la composición. */
+(function(){
+  function normalizarCorreosV68(){
+    try{
+      if (typeof allNotificationEmailsV119X === 'function') {
+        return allNotificationEmailsV119X()
+          .map(v => String(v || '').trim())
+          .filter(Boolean);
+      }
+    } catch(_e){}
+    const emails=[];
+    const principal=document.getElementById('correoNotificacionV119X');
+    if(principal && principal.value.trim()) emails.push(principal.value.trim());
+    document.querySelectorAll('.extra-email-row-v119x input').forEach(input=>{
+      const v=String(input.value||'').trim();
+      if(v) emails.push(v);
+    });
+    return [...new Set(emails)];
+  }
+
+  function obtenerCorreoV68(){
+    try{
+      if (typeof emailDataV119X === 'function') {
+        const d=emailDataV119X();
+        if(d && (d.subject || d.body)) return {
+          subject:String(d.subject||'').trim(),
+          body:String(d.body||'').trim()
+        };
+      }
+    } catch(_e){}
+
+    const subjectNode=document.getElementById('emailSubjectPreviewV119X');
+    const bodyNode=document.getElementById('emailBodyPreviewV119X');
+    return {
+      subject:String(subjectNode ? (subjectNode.innerText||subjectNode.textContent||'') : '')
+        .replace(/^\s*Asunto\s*:\s*/i,'').trim(),
+      body:String(bodyNode ? (bodyNode.innerText||bodyNode.textContent||'') : '').trim()
+    };
+  }
+
+  function correoValidoV68(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email||'').trim());
+  }
+
+  window.openInstitutionalMailV119X=function(){
+    try{ if(typeof collectTop==='function') collectTop(); }catch(_e){}
+
+    const emails=normalizarCorreosV68();
+    const invalido=emails.find(e=>!correoValidoV68(e));
+    if(!emails.length || invalido){
+      if(typeof msg==='function') msg(invalido
+        ? `El correo “${invalido}” no tiene un formato válido.`
+        : 'Ingrese al menos un correo electrónico antes de notificar.');
+      document.getElementById('correoNotificacionV119X')?.focus();
+      return;
+    }
+
+    const data=obtenerCorreoV68();
+    if(!data.subject || !data.body){
+      if(typeof msg==='function') msg('No se pudo obtener el asunto o el cuerpo de la notificación. Revise la vista previa del correo.');
+      return;
+    }
+
+    // Método original del entregable funcional: mailto directo.
+    // Si Windows/Edge tiene asociado mailto al correo institucional, abrirá OWA
+    // y conservará destinatario, asunto y cuerpo incluso si antes debe iniciar sesión.
+    const recipients=emails.map(email=>encodeURIComponent(email)).join(',');
+    const bodyCRLF=data.body.replace(/\r?\n/g,'\r\n');
+    const href=`mailto:${recipients}?subject=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(bodyCRLF)}`;
+
+    window.location.href=href;
+  };
+})();
+</script>
 </body>
 </html>
