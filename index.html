@@ -37249,14 +37249,15 @@ textarea.evidencia-text,
   }
 
   function buildOwaComposeUrlV70(emails,subject,body){
-    // Se usa directamente el directorio /owa/ y la sesion web ya autenticada.
-    // No se pasa por /owa/auth/logon.aspx porque ese flujo puede perder los parametros de composicion.
-    const u=new URL('https://maile.gadmriobamba.gob.ec/owa/');
-    u.searchParams.set('path','/mail/action/compose');
-    u.searchParams.set('to',emails.join(';'));
-    if(subject) u.searchParams.set('subject',subject);
-    if(body) u.searchParams.set('body',body.replace(/\r?\n/g,'\r\n'));
-    return u.toString();
+    // Exchange Server local: el endpoint documentado de OWA recibe un URI mailto completo
+    // mediante el parametro mailtouri. No se envian to/subject/body como parametros separados.
+    const recipients=emails.join(';');
+    let mailto='mailto:' + recipients;
+    const params=[];
+    if(subject) params.push('subject=' + encodeURIComponent(subject));
+    if(body) params.push('body=' + encodeURIComponent(String(body).replace(/\r?\n/g,'\r\n')));
+    if(params.length) mailto += '?' + params.join('&');
+    return 'https://maile.gadmriobamba.gob.ec/?path=/mail/action/compose&mailtouri=' + encodeURIComponent(mailto);
   }
 
   window.openInstitutionalMailV119X=function(){
@@ -37296,7 +37297,7 @@ textarea.evidencia-text,
     else window.location.href=href;
 
     if(typeof msg==='function'){
-      msg('Se abrió Outlook Web con la notificación precargada. Si OWA solicita credenciales porque la sesión expiró, inicie sesión, vuelva a ALLPA y presione NOTIFICAR nuevamente.',true);
+      msg('Se abrió Outlook Web usando el enlace de composición compatible con Exchange Server. Si la sesión expiró, inicie sesión y vuelva a presionar NOTIFICAR.',true);
     }
   };
 })();
