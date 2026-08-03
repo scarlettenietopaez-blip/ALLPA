@@ -37189,5 +37189,136 @@ textarea.evidencia-text,
 })();
 </script>
 
+
+<script>
+/* ==========================================================
+   V62 - RESTAURACIÓN SEGURA DEL BOTÓN NOTIFICAR
+   Exchange/OWA institucional usa mailtouri para redactar.
+   Se conserva el registro de fecha/hora y la copia del cuerpo.
+   ========================================================== */
+(function(){
+  function cleanMailV62(value){
+    return String(value||'').trim().replace(/^mailto:/i,'');
+  }
+  function validMailV62(value){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanMailV62(value));
+  }
+  function notificationEmailsV62(){
+    const values=[];
+    const main=document.getElementById('correoNotificacionV119X');
+    if(main) values.push(main.value);
+    document.querySelectorAll('.extra-email-row-v119x input').forEach(input=>values.push(input.value));
+    const clean=values.map(cleanMailV62).filter(Boolean);
+    return [...new Map(clean.map(email=>[email.toLowerCase(),email])).values()];
+  }
+  function notificationContentV62(){
+    const subjectNode=document.getElementById('emailSubjectPreviewV119X');
+    const bodyNode=document.getElementById('emailBodyPreviewV119X');
+    const subject=String(subjectNode?.textContent||'').replace(/^\s*Asunto\s*:\s*/i,'').trim();
+    const body=String(bodyNode?.textContent||'').replace(/\r\n?/g,'\n').trim();
+    return {subject,body};
+  }
+  function copyBodyV62(text){
+    const value=String(text||'');
+    let copied=false;
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=value;
+      ta.setAttribute('readonly','');
+      ta.style.position='fixed';
+      ta.style.left='-9999px';
+      ta.style.top='0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      copied=!!document.execCommand('copy');
+      ta.remove();
+    }catch(_e){}
+    try{
+      if(navigator.clipboard&&window.isSecureContext){
+        navigator.clipboard.writeText(value).catch(()=>{});
+        copied=true;
+      }
+    }catch(_e){}
+    return copied;
+  }
+  function institutionalComposeUrlV62(emails,subject,body,includeBody){
+    const params=new URLSearchParams();
+    if(subject) params.set('subject',String(subject));
+    if(includeBody&&body) params.set('body',String(body).replace(/\r?\n/g,'\r\n'));
+    const query=params.toString();
+    const mailto='mailto:'+emails.join(';')+(query?'?'+query:'');
+    const owa=new URL('https://maile.gadmriobamba.gob.ec/');
+    owa.searchParams.set('path','/mail/action/compose');
+    owa.searchParams.set('mailtouri',mailto);
+    return owa.toString();
+  }
+  function openOwaV62(href,popup){
+    if(popup){
+      try{ popup.opener=null; }catch(_e){}
+      try{ popup.location.replace(href); return; }catch(_e){}
+    }
+    window.location.href=href;
+  }
+
+  window.openInstitutionalMailV119X=function(){
+    if(typeof state!=='undefined' && state?.tipoInforme!=='Informe con Observaciones') return;
+
+    if(typeof collectTop==='function'){
+      try{ collectTop(); }catch(_e){}
+    }
+
+    const emails=notificationEmailsV62();
+    const invalid=emails.find(email=>!validMailV62(email));
+    if(!emails.length||invalid){
+      if(typeof msg==='function'){
+        msg(invalid ? `El correo “${invalid}” no tiene un formato válido.` : 'Ingrese al menos un correo electrónico antes de notificar.');
+      }
+      document.getElementById('correoNotificacionV119X')?.focus();
+      return;
+    }
+
+    if(typeof state!=='undefined'){
+      if(!state.notificacionEgob || typeof state.notificacionEgob!=='object') state.notificacionEgob={};
+      state.notificacionEgob.fechaHoraNotificacion=new Date().toISOString();
+    }
+
+    if(typeof window.renderNotificationTabV119X==='function'){
+      try{ window.renderNotificationTabV119X(); }catch(_e){}
+    }
+
+    const data=notificationContentV62();
+    if(!data.body){
+      if(typeof msg==='function') msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
+      return;
+    }
+
+    const copied=copyBodyV62(data.body);
+    const fullHref=institutionalComposeUrlV62(emails,data.subject,data.body,true);
+    const shortHref=institutionalComposeUrlV62(emails,data.subject,'',false);
+
+    /* Evita errores 500 de OWA causados por URLs demasiado largas. */
+    if(fullHref.length<=1800){
+      const popup=window.open(fullHref,'_blank');
+      if(popup){ try{popup.opener=null;}catch(_e){} }
+      else window.location.href=fullHref;
+      if(typeof msg==='function'){
+        msg(copied
+          ? 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados. El cuerpo también quedó copiado como respaldo.'
+          : 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados.',true);
+      }
+      return;
+    }
+
+    const popup=window.open('about:blank','_blank');
+    openOwaV62(shortHref,popup);
+    if(typeof msg==='function'){
+      msg(copied
+        ? 'El correo institucional se abrió con destinatarios y asunto. Por seguridad, el cuerpo fue copiado: péguelo con Ctrl + V y adjunte el informe firmado.'
+        : 'El correo institucional se abrió con destinatarios y asunto. Copie el cuerpo desde la vista previa y adjunte el informe firmado.',true);
+    }
+  };
+})();
+</script>
 </body>
 </html>
