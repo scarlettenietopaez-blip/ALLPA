@@ -36987,5 +36987,207 @@ textarea.evidencia-text,
   setTimeout(rebindButtonV60,0);
 })();
 </script>
+
+
+<!-- ==========================================================
+     ALLPA V61 - REINICIO CORREGIDO DE CONCLUSIÓN TÉCNICA
+     ========================================================== -->
+<script id="allpa-v61-reset-conclusion-fixed">
+(function(){
+  'use strict';
+
+  /* IMPORTANTE: `state` fue declarado con `let`, por lo que NO existe como
+     window.state. Las versiones V58-V60 comprobaban window.state y salían
+     inmediatamente sin ejecutar el reinicio. */
+  window.__ALLPA_RESET_CONCLUSION_V61__ = false;
+
+  function cloneBaseRowsV61(){
+    var src=[];
+    try{
+      if(typeof DATA!=='undefined' && Array.isArray(DATA.conclusionBase)) src=DATA.conclusionBase;
+    }catch(_e){}
+
+    if(!src.length){
+      src=[
+        {descripcion:'Área del predio (IPRUS)',unidad:'m2'},
+        {descripcion:'Área útil planta baja',unidad:'m2'},
+        {descripcion:'Área útil total',unidad:'m2'},
+        {descripcion:'Área bruta planta baja',unidad:'m2'},
+        {descripcion:'Área Bruta total de construcción',unidad:'m2'},
+        {descripcion:'Número de pisos',unidad:'U'},
+        {descripcion:'Unidades Habitacionales',unidad:'U'},
+        {descripcion:'Unidades Comerciales',unidad:'U'},
+        {descripcion:'COS PB',unidad:'%'},
+        {descripcion:'COS Total',unidad:'%'}
+      ];
+    }
+
+    var seen=new Set();
+    return src.map(function(r,idx){
+      var desc=String(r.descripcion ?? r['Descripción'] ?? r.Descripcion ?? '').trim();
+      if(!desc) return null;
+      var k=desc.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+      if(seen.has(k)) return null;
+      seen.add(k);
+      var unit=String(r.unidad ?? r.Unidad ?? '').trim();
+      if(!unit){
+        unit=/COS/i.test(desc)?'%':(/NÚMERO|NUMERO|UNIDADES/i.test(desc)?'U':'m2');
+      }
+      var row={descripcion:desc,cantidad:'',unidad:unit,levels:[]};
+      /* Conserva metadatos de fila base para que prepareRowsConclV108 no la
+         confunda con una fila personalizada. */
+      try{
+        if(typeof normConclV108==='function') row._baseKeyV108=normConclV108(desc);
+      }catch(_e){ row._baseKeyV108=k; }
+      row._originV108='base';
+      row._baseOrderV108=idx;
+      try{
+        if(typeof roleFromDescV108==='function'){
+          var role=roleFromDescV108(desc);
+          if(role){ row._roleV108=role; row._roleV104=role; }
+          if(role==='bruta') row.tipoAreaV13='Aprobada (Existente)';
+        }
+      }catch(_e){}
+      return row;
+    }).filter(Boolean);
+  }
+
+  function clearDeletedV61(){
+    if(!state.aprobatorio) state.aprobatorio={};
+    Object.keys(state.aprobatorio).forEach(function(k){
+      if(/^deletedConclusionKeys/i.test(k)) state.aprobatorio[k]=[];
+    });
+    state.aprobatorio.deletedConclusionKeysV108=[];
+    state.aprobatorio.deletedConclusionKeysV107=[];
+    state.aprobatorio.deletedConclusionKeysV106=[];
+  }
+
+  function blankAllConclusionValuesV61(){
+    var arr=state.aprobatorio?.conclusion;
+    if(!Array.isArray(arr)) return;
+    arr.forEach(function(raw){
+      if(!raw) return;
+      raw.cantidad='';
+      raw.levels=[];
+      if(Array.isArray(raw.cells)) raw.cells=[raw.descripcion||'', '', raw.unidad||''];
+      /* La fila calculada de ampliación también debe iniciar vacía. */
+      if(raw._fixedAreaAmpliacionV13) raw.cantidad='';
+    });
+  }
+
+  /* Las rutinas automáticas V145/V13 rellenaban inmediatamente Área del
+     predio, Área Bruta, pisos, totales y COS durante el render. Se bloquean
+     únicamente mientras se ejecuta el reinicio. */
+  if(typeof syncConclusionAutoV145==='function' && !syncConclusionAutoV145.__v61){
+    var syncBaseV61=syncConclusionAutoV145;
+    syncConclusionAutoV145=function(){
+      if(window.__ALLPA_RESET_CONCLUSION_V61__) return;
+      return syncBaseV61.apply(this,arguments);
+    };
+    syncConclusionAutoV145.__v61=true;
+    try{ window.syncConclusionAutoV145=syncConclusionAutoV145; }catch(_e){}
+  }
+
+  if(typeof recalcAreasCOSV36==='function' && !recalcAreasCOSV36.__v61){
+    var recalcBaseV61=recalcAreasCOSV36;
+    recalcAreasCOSV36=function(){
+      if(window.__ALLPA_RESET_CONCLUSION_V61__) return;
+      return recalcBaseV61.apply(this,arguments);
+    };
+    recalcAreasCOSV36.__v61=true;
+    try{ window.recalcAreasCOSV36=recalcAreasCOSV36; }catch(_e){}
+  }
+
+  /* Esta es la función que usa el botón existente. Se reemplaza por completo. */
+  window.resetConclusionTableV58=function(){
+    if(!window.confirm('¿Desea eliminar todas las filas agregadas y restaurar la tabla inicial de Conclusión Técnica con sus valores vacíos?')) return;
+
+    /* `state` es una variable global léxica (`let state`), por eso se usa
+       directamente y no window.state. */
+    if(typeof state==='undefined') return;
+    if(!state.aprobatorio) state.aprobatorio={};
+
+    window.__ALLPA_RESET_CONCLUSION_V61__=true;
+    window.__CONCLUSION_JUST_RESET_V59__=true;
+    window.__CONCLUSION_JUST_RESET_V60__=true;
+    window.__CONCLUSION_EDITING_V87__=false;
+
+    clearDeletedV61();
+
+    /* Reemplazo físico del arreglo: desaparecen TODAS las filas agregadas,
+       incluidas las recuperadas de formularios guardados. */
+    state.aprobatorio.conclusion=cloneBaseRowsV61();
+
+    /* El renderizador vigente agrega, cuando corresponde, la fila fija
+       Área Total de Ampliación/Modificación; eso forma parte del estado inicial
+       del modo ampliatorio/modificatorio. */
+    if(typeof renderConclusionTabla==='function') renderConclusionTabla();
+
+    /* Ninguna capa heredada debe dejar valores calculados tras el render. */
+    blankAllConclusionValuesV61();
+
+    /* Refleja el estado vacío directamente en el DOM sin volver a recalcular. */
+    var box=document.getElementById('conclusionTabla');
+    if(box){
+      box.querySelectorAll('input[data-field="cantidad"],input[id^="conc_qty_"]').forEach(function(el){el.value='';});
+      box.querySelectorAll('.levels-edit .level-item').forEach(function(el){el.remove();});
+    }
+
+    /* Actualiza solo la tabla. No se invoca renderReport/renderPreview aquí
+       porque esas funciones llaman nuevamente a la sincronización automática. */
+    if(typeof msg==='function') msg('Conclusión Técnica restaurada a su estado inicial.',true);
+
+    /* Reafirma después del ciclo actual por si un listener heredado se ejecuta
+       al mismo tiempo. */
+    setTimeout(function(){
+      if(!window.__ALLPA_RESET_CONCLUSION_V61__) return;
+      var current=state.aprobatorio?.conclusion||[];
+      var hasCustom=current.some(function(r){return r && (r._originV108==='custom' || r._userRowV108===true) && !r._fixedAreaAmpliacionV13;});
+      if(hasCustom){
+        state.aprobatorio.conclusion=cloneBaseRowsV61();
+        if(typeof renderConclusionTabla==='function') renderConclusionTabla();
+      }
+      blankAllConclusionValuesV61();
+      var b=document.getElementById('conclusionTabla');
+      if(b){
+        b.querySelectorAll('input[data-field="cantidad"],input[id^="conc_qty_"]').forEach(function(el){el.value='';});
+        b.querySelectorAll('.levels-edit .level-item').forEach(function(el){el.remove();});
+      }
+    },80);
+  };
+
+  /* Al primer cambio real del técnico se reactivan los cálculos normales. */
+  function unlockV61(ev){
+    if(!window.__ALLPA_RESET_CONCLUSION_V61__) return;
+    var t=ev.target;
+    if(!t || !t.closest || !t.closest('#conclusionTabla')) return;
+    if(t.closest('.conclusion-reset-v58')) return;
+    window.__ALLPA_RESET_CONCLUSION_V61__=false;
+    window.__CONCLUSION_JUST_RESET_V59__=false;
+    window.__CONCLUSION_JUST_RESET_V60__=false;
+  }
+  document.addEventListener('input',unlockV61,true);
+  document.addEventListener('change',unlockV61,true);
+
+  /* El botón creado por V58 llama dinámicamente a window.resetConclusionTableV58,
+     pero se refuerza el enlace por si proviene de un formulario cargado. */
+  function bindV61(){
+    document.querySelectorAll('.conclusion-reset-v58 button').forEach(function(btn){
+      if(btn.dataset.v61Bound==='1') return;
+      btn.dataset.v61Bound='1';
+      btn.onclick=function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        window.resetConclusionTableV58();
+        return false;
+      };
+    });
+  }
+  window.addEventListener('load',function(){setTimeout(bindV61,500);setTimeout(bindV61,1600);});
+  document.addEventListener('click',function(){setTimeout(bindV61,0);},true);
+  setTimeout(bindV61,0);
+})();
+</script>
+
 </body>
 </html>
