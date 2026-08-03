@@ -36783,5 +36783,209 @@ textarea.evidencia-text,
 })();
 </script>
 
+
+
+<!-- ==========================================================
+     ALLPA V60 - REINICIO REAL DE CONCLUSIÓN TÉCNICA
+     Corrige V58/V59. Restaura desde la fuente base CSV,
+     elimina filas agregadas y deja todos los valores vacíos,
+     incluso en formularios guardados cargados previamente.
+     ========================================================== -->
+<script id="allpa-v60-reset-conclusion-real">
+(function(){
+  'use strict';
+
+  function normV60(v){
+    return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,' ').trim().toUpperCase();
+  }
+
+  function roleV60(desc){
+    var d=normV60(desc);
+    if(d.includes('AREA') && d.includes('PREDIO')) return 'predio';
+    if(d.includes('AREA') && d.includes('UTIL') && d.includes('PLANTA BAJA')) return 'utilPB';
+    if(d.includes('AREA') && d.includes('UTIL') && d.includes('TOTAL')) return 'utilTotal';
+    if(d.includes('AREA') && d.includes('BRUTA') && d.includes('TOTAL')) return 'brutaTotal';
+    if(d.includes('AREA') && d.includes('BRUTA')) return 'bruta';
+    if(d.includes('NUMERO DE PISOS')) return 'pisos';
+    if(d.includes('UNIDADES HABITACIONALES')) return 'unidadesHabitacionales';
+    if(d.includes('UNIDADES COMERCIALES')) return 'unidadesComerciales';
+    if(d.includes('COS PB')) return 'cosPB';
+    if(d.includes('COS TOTAL')) return 'cosTotal';
+    return '';
+  }
+
+  function sourceRowsV60(){
+    var rows=[];
+    try{
+      if(typeof allConclusionCSVRowsV81==='function') rows=allConclusionCSVRowsV81()||[];
+    }catch(_e){}
+    if(!rows.length){
+      try{
+        if(window.__CONCLUSION_CSV_V80__ && Array.isArray(window.__CONCLUSION_CSV_V80__.allRows)) rows=window.__CONCLUSION_CSV_V80__.allRows;
+        else if(window.__CONCLUSION_ALL_CSV_V79__ && Array.isArray(window.__CONCLUSION_ALL_CSV_V79__.allRows)) rows=window.__CONCLUSION_ALL_CSV_V79__.allRows;
+      }catch(_e){}
+    }
+    if(!rows.length && window.DATA && Array.isArray(DATA.conclusionBase)){
+      rows=DATA.conclusionBase;
+    }
+    if(!rows.length){
+      rows=[
+        {descripcion:'Área del predio (IPRUS)',unidad:'m2'},
+        {descripcion:'Área útil planta baja',unidad:'m2'},
+        {descripcion:'Área útil total',unidad:'m2'},
+        {descripcion:'Área bruta planta baja',unidad:'m2'},
+        {descripcion:'Área Bruta total de construcción',unidad:'m2'},
+        {descripcion:'Número de pisos',unidad:'U'},
+        {descripcion:'Unidades Habitacionales',unidad:'U'},
+        {descripcion:'Unidades Comerciales',unidad:'U'},
+        {descripcion:'COS PB',unidad:'%'},
+        {descripcion:'COS Total',unidad:'%'}
+      ];
+    }
+    return rows;
+  }
+
+  function pristineRowsV60(){
+    var seen=new Set();
+    return sourceRowsV60().map(function(src,index){
+      var desc=String(src.descripcion ?? src['Descripción'] ?? src.Descripcion ?? '').trim();
+      if(!desc) return null;
+      var key=normV60(desc);
+      /* La fuente base puede contener duplicados técnicos; el estado inicial
+         usa una sola copia de cada descripción base. Las filas repetidas por
+         intervención son filas de trabajo y deben desaparecer al reiniciar. */
+      if(seen.has(key)) return null;
+      seen.add(key);
+      var unit=String(src.unidad ?? src.Unidad ?? '').trim();
+      if(!unit){
+        var r=roleV60(desc);
+        unit=(r==='cosPB'||r==='cosTotal')?'%':(r==='pisos'||r==='unidadesHabitacionales'||r==='unidadesComerciales')?'U':'m2';
+      }
+      var role=roleV60(desc);
+      var row={
+        descripcion:desc,
+        levels:[],
+        cantidad:'',
+        unidad:unit,
+        allowLevels:role==='bruta',
+        _originV108:'base',
+        _baseOrderV108:index
+      };
+      var baseKey='';
+      try{ baseKey=typeof normConclV108==='function'?normConclV108(desc):key; }catch(_e){ baseKey=key; }
+      row._baseKeyV108=baseKey;
+      if(role){ row._roleV108=role; row._roleV104=role; }
+      if(role==='bruta') row.tipoAreaV13='Aprobada (Existente)';
+      row.cells=[row.descripcion,row.cantidad,row.unidad];
+      return row;
+    }).filter(Boolean);
+  }
+
+  function clearDeletionAndTransientFlagsV60(){
+    if(!state.aprobatorio) state.aprobatorio={};
+    Object.keys(state.aprobatorio).forEach(function(k){
+      if(/^deletedConclusionKeys/i.test(k) && Array.isArray(state.aprobatorio[k])) state.aprobatorio[k]=[];
+    });
+    state.aprobatorio.deletedConclusionKeysV108=[];
+    state.aprobatorio.deletedConclusionKeysV107=[];
+    state.aprobatorio.deletedConclusionKeysV106=[];
+  }
+
+  function forceBlankStateAndDOMV60(){
+    var arr=state?.aprobatorio?.conclusion;
+    if(Array.isArray(arr)){
+      arr.forEach(function(raw){
+        if(!raw) return;
+        raw.cantidad='';
+        raw.levels=[];
+        if(Array.isArray(raw.cells)) raw.cells=[raw.descripcion||'',raw.cantidad||'',raw.unidad||''];
+        var role=roleV60(raw.descripcion||'');
+        if(role==='bruta' && !raw._fixedAreaAmpliacionV13) raw.tipoAreaV13='Aprobada (Existente)';
+      });
+    }
+    var box=document.getElementById('conclusionTabla');
+    if(!box) return;
+    box.querySelectorAll('input[id^="conc_qty_"], input[data-field="cantidad"]').forEach(function(el){ el.value=''; });
+    box.querySelectorAll('.levels-edit .level-item').forEach(function(el){ el.remove(); });
+    /* Los selectores vuelven al valor inicial solo en filas base. */
+    box.querySelectorAll('.tipo-area-v13 select').forEach(function(sel){ sel.value='Aprobada (Existente)'; });
+  }
+
+  function renderFreshV60(){
+    /* Se usa el renderizador vigente para conservar exactamente el diseño y
+       botones actuales. Luego se vacían los cálculos que ese renderizador
+       pueda haber rellenado automáticamente. */
+    if(typeof renderConclusionTabla==='function') renderConclusionTabla();
+    else if(typeof window.renderConclusionTabla==='function') window.renderConclusionTabla();
+    forceBlankStateAndDOMV60();
+    if(typeof appendResetButtonV58==='function') try{appendResetButtonV58();}catch(_e){}
+  }
+
+  window.resetConclusionTableV58=function(){
+    var ok=window.confirm('¿Desea eliminar las filas agregadas y restaurar la tabla original de Conclusión Técnica con todos sus valores vacíos?');
+    if(!ok) return;
+    if(!window.state) return;
+    if(!state.aprobatorio) state.aprobatorio={};
+
+    clearDeletionAndTransientFlagsV60();
+    state.aprobatorio.conclusion=pristineRowsV60();
+    window.__CONCLUSION_EDITING_V87__=false;
+    window.__CONCLUSION_JUST_RESET_V59__=true;
+    window.__CONCLUSION_JUST_RESET_V60__=true;
+
+    renderFreshV60();
+
+    /* Algunas capas antiguas ejecutan una sincronización en el mismo ciclo.
+       Se reafirma el estado limpio sin reconstruir desde el formulario guardado. */
+    [0,40,140].forEach(function(ms){
+      setTimeout(function(){
+        if(!window.__CONCLUSION_JUST_RESET_V60__) return;
+        /* Si una rutina heredada reinsertó una fila de usuario, se descarta
+           restaurando otra vez desde la fuente base. */
+        var current=state.aprobatorio.conclusion||[];
+        var hasUser=current.some(function(r){return r && (r._userRowV108===true || r._originV108==='custom') && !r._fixedAreaAmpliacionV13;});
+        if(hasUser){
+          state.aprobatorio.conclusion=pristineRowsV60();
+          renderFreshV60();
+        }else{
+          forceBlankStateAndDOMV60();
+        }
+      },ms);
+    });
+
+    /* No se llama renderReport/renderPreview aquí: esas funciones recalculan
+       automáticamente y volverían a llenar los valores. El informe se
+       actualizará en cuanto el técnico haga el primer cambio. */
+    if(typeof msg==='function') msg('Conclusión Técnica reiniciada a la tabla original.',true);
+  };
+
+  function reactivateV60(event){
+    if(!window.__CONCLUSION_JUST_RESET_V60__) return;
+    var target=event.target;
+    if(!target?.closest?.('#conclusionTabla')) return;
+    if(target.closest('.conclusion-reset-v58')) return;
+    window.__CONCLUSION_JUST_RESET_V60__=false;
+    window.__CONCLUSION_JUST_RESET_V59__=false;
+  }
+  document.addEventListener('input',reactivateV60,true);
+  document.addEventListener('change',reactivateV60,true);
+
+  /* Reasigna explícitamente el manejador de cualquier botón V58 existente,
+     incluidos los creados al abrir formularios guardados. */
+  function rebindButtonV60(){
+    document.querySelectorAll('.conclusion-reset-v58 button').forEach(function(btn){
+      if(btn.dataset.v60Bound==='1') return;
+      var clone=btn.cloneNode(true);
+      clone.dataset.v60Bound='1';
+      clone.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();window.resetConclusionTableV58();});
+      btn.replaceWith(clone);
+    });
+  }
+  document.addEventListener('click',function(){setTimeout(rebindButtonV60,0);},true);
+  window.addEventListener('load',function(){setTimeout(rebindButtonV60,700);setTimeout(rebindButtonV60,1700);});
+  setTimeout(rebindButtonV60,0);
+})();
+</script>
 </body>
 </html>
