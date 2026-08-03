@@ -34717,12 +34717,7 @@ window.addEventListener('load',()=>{
     /* Se intenta precargar el cuerpo completo. Para mensajes cuyo enlace
        supere un tamaño seguro, se abre la redacción con destinatarios y asunto
        y se copia el cuerpo para evitar errores del servidor al iniciar sesión. */
-    /* El cuerpo normal de la notificación supera fácilmente 1.900 caracteres
-       una vez codificado en la URL. Ese límite hacía que ALLPA omitiera siempre
-       el cuerpo y abriera únicamente destinatario + asunto. Exchange OWA admite
-       enlaces más largos en este entorno, por lo que se permite el cuerpo hasta
-       7.000 caracteres de URL antes de usar el modo de respaldo. */
-    if(fullHref.length<=7000){
+    if(fullHref.length<=1900){
       const popup=window.open(fullHref,'_blank');
       if(popup){try{popup.opener=null;}catch(_e){}}
       else window.location.href=fullHref;
@@ -34734,8 +34729,8 @@ window.addEventListener('load',()=>{
     openInstitutionalOwaUrlV16(shortHref,popup);
     if(typeof msg==='function'){
       msg(copied
-        ?'La notificación es demasiado extensa para precargarla de forma segura en el correo institucional. El cuerpo fue copiado: péguelo con Ctrl + V y adjunte el informe firmado.'
-        :'La notificación es demasiado extensa para precargarla de forma segura. Copie el cuerpo desde la vista previa y adjunte el informe firmado.',
+        ?'El correo institucional se abrió con destinatarios y asunto. El cuerpo de la notificación fue copiado: péguelo con Ctrl + V y adjunte el informe firmado.'
+        :'El correo institucional se abrió con destinatarios y asunto. Copie el cuerpo desde la vista previa y adjunte el informe firmado.',
         true);
     }
   };
@@ -37195,89 +37190,60 @@ textarea.evidencia-text,
 </script>
 
 
+
 <script>
 /* ==========================================================
-   V62 - RESTAURACIÓN SEGURA DEL BOTÓN NOTIFICAR
-   Exchange/OWA institucional usa mailtouri para redactar.
-   Se conserva el registro de fecha/hora y la copia del cuerpo.
+   VERSIÓN 66 - NOTIFICAR OWA INSTITUCIONAL
+   Corrección: el correo institucional está publicado bajo /owa/.
+   Se usa el formato clásico de composición de OWA para conservar
+   destinatarios, asunto y cuerpo, sin usar la raíz del dominio.
    ========================================================== */
 (function(){
-  function cleanMailV62(value){
-    return String(value||'').trim().replace(/^mailto:/i,'');
+  const OWA_BASE_V66 = 'https://maile.gadmriobamba.gob.ec/owa/';
+
+  function validMailV66(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email||'').trim());
   }
-  function validMailV62(value){
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanMailV62(value));
+
+  function notificationEmailsV66(){
+    if(typeof notificationEmailsV17==='function') return notificationEmailsV17();
+    if(typeof emailsFromNotificationUIV14==='function') return emailsFromNotificationUIV14();
+    if(typeof allNotificationEmailsV119X==='function') return allNotificationEmailsV119X();
+    const primary=String(document.getElementById('correoNotificacionV119X')?.value||'').trim();
+    return primary?[primary]:[];
   }
-  function notificationEmailsV62(){
-    const values=[];
-    const main=document.getElementById('correoNotificacionV119X');
-    if(main) values.push(main.value);
-    document.querySelectorAll('.extra-email-row-v119x input').forEach(input=>values.push(input.value));
-    const clean=values.map(cleanMailV62).filter(Boolean);
-    return [...new Map(clean.map(email=>[email.toLowerCase(),email])).values()];
+
+  function notificationContentV66(){
+    if(typeof notificationContentV17==='function') return notificationContentV17();
+    if(typeof notificationContentFromUIV14==='function') return notificationContentFromUIV14();
+    if(typeof emailDataV119X==='function') return emailDataV119X();
+    return {subject:'',body:''};
   }
-  function notificationContentV62(){
-    const subjectNode=document.getElementById('emailSubjectPreviewV119X');
-    const bodyNode=document.getElementById('emailBodyPreviewV119X');
-    const subject=String(subjectNode?.textContent||'').replace(/^\s*Asunto\s*:\s*/i,'').trim();
-    const body=String(bodyNode?.textContent||'').replace(/\r\n?/g,'\n').trim();
-    return {subject,body};
-  }
-  function copyBodyV62(text){
-    const value=String(text||'');
-    let copied=false;
-    try{
-      const ta=document.createElement('textarea');
-      ta.value=value;
-      ta.setAttribute('readonly','');
-      ta.style.position='fixed';
-      ta.style.left='-9999px';
-      ta.style.top='0';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      copied=!!document.execCommand('copy');
-      ta.remove();
-    }catch(_e){}
-    try{
-      if(navigator.clipboard&&window.isSecureContext){
-        navigator.clipboard.writeText(value).catch(()=>{});
-        copied=true;
-      }
-    }catch(_e){}
-    return copied;
-  }
-  function institutionalComposeUrlV62(emails,subject,body,includeBody){
-    const params=new URLSearchParams();
-    if(subject) params.set('subject',String(subject));
-    if(includeBody&&body) params.set('body',String(body).replace(/\r?\n/g,'\r\n'));
-    const query=params.toString();
-    const mailto='mailto:'+emails.join(';')+(query?'?'+query:'');
-    const owa=new URL('https://maile.gadmriobamba.gob.ec/');
-    owa.searchParams.set('path','/mail/action/compose');
-    owa.searchParams.set('mailtouri',mailto);
-    return owa.toString();
-  }
-  function openOwaV62(href,popup){
-    if(popup){
-      try{ popup.opener=null; }catch(_e){}
-      try{ popup.location.replace(href); return; }catch(_e){}
-    }
-    window.location.href=href;
+
+  function buildOwaComposeV66(emails,subject,body){
+    const url=new URL(OWA_BASE_V66);
+    /* Sintaxis clásica de Outlook Web App / Exchange local. */
+    url.searchParams.set('ae','Item');
+    url.searchParams.set('a','New');
+    url.searchParams.set('t','IPM.Note');
+    url.searchParams.set('to',emails.join(';'));
+    if(subject) url.searchParams.set('subject',String(subject));
+    if(body) url.searchParams.set('body',String(body).replace(/\r?\n/g,'\r\n'));
+    return url.toString();
   }
 
   window.openInstitutionalMailV119X=function(){
     if(typeof state!=='undefined' && state?.tipoInforme!=='Informe con Observaciones') return;
 
-    if(typeof collectTop==='function'){
-      try{ collectTop(); }catch(_e){}
-    }
+    if(typeof collectTop==='function') collectTop();
 
-    const emails=notificationEmailsV62();
-    const invalid=emails.find(email=>!validMailV62(email));
-    if(!emails.length||invalid){
+    const emails=notificationEmailsV66().map(v=>String(v||'').trim()).filter(Boolean);
+    const invalid=emails.find(email=>!validMailV66(email));
+    if(!emails.length || invalid){
       if(typeof msg==='function'){
-        msg(invalid ? `El correo “${invalid}” no tiene un formato válido.` : 'Ingrese al menos un correo electrónico antes de notificar.');
+        msg(invalid
+          ? `El correo “${invalid}” no tiene un formato válido.`
+          : 'Ingrese al menos un correo electrónico antes de notificar.');
       }
       document.getElementById('correoNotificacionV119X')?.focus();
       return;
@@ -37288,142 +37254,29 @@ textarea.evidencia-text,
       state.notificacionEgob.fechaHoraNotificacion=new Date().toISOString();
     }
 
-    if(typeof window.renderNotificationTabV119X==='function'){
-      try{ window.renderNotificationTabV119X(); }catch(_e){}
-    }
+    const data=notificationContentV66();
+    const subject=String(data?.subject||'').trim();
+    const body=String(data?.body||'');
 
-    const data=notificationContentV62();
-    if(!data.body){
+    if(!body){
       if(typeof msg==='function') msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
       return;
     }
 
-    const copied=copyBodyV62(data.body);
-    const fullHref=institutionalComposeUrlV62(emails,data.subject,data.body,true);
-    const shortHref=institutionalComposeUrlV62(emails,data.subject,'',false);
-
-    /* Evita errores 500 de OWA causados por URLs demasiado largas. */
-    if(fullHref.length<=1800){
-      const popup=window.open(fullHref,'_blank');
-      if(popup){ try{popup.opener=null;}catch(_e){} }
-      else window.location.href=fullHref;
-      if(typeof msg==='function'){
-        msg(copied
-          ? 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados. El cuerpo también quedó copiado como respaldo.'
-          : 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados.',true);
+    /* Mantener copia de respaldo sin condicionar la apertura de OWA. */
+    try{
+      if(navigator.clipboard && window.isSecureContext){
+        navigator.clipboard.writeText(body).catch(()=>{});
       }
-      return;
-    }
-
-    const popup=window.open('about:blank','_blank');
-    openOwaV62(shortHref,popup);
-    if(typeof msg==='function'){
-      msg(copied
-        ? 'El correo institucional se abrió con destinatarios y asunto. Por seguridad, el cuerpo fue copiado: péguelo con Ctrl + V y adjunte el informe firmado.'
-        : 'El correo institucional se abrió con destinatarios y asunto. Copie el cuerpo desde la vista previa y adjunte el informe firmado.',true);
-    }
-  };
-})();
-</script>
-
-<script>
-/* ==========================================================
-   V64 - NOTIFICAR: cuerpo precargado en OWA institucional
-   Mantiene el endpoint mailtouri (evita error 500) y permite
-   una URL más amplia para incluir el cuerpo del mensaje.
-   ========================================================== */
-(function(){
-  function cleanMailV64(v){
-    return String(v||'').trim().replace(/^mailto:/i,'');
-  }
-  function validMailV64(v){
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanMailV64(v));
-  }
-  function emailsV64(){
-    const values=[];
-    const main=document.getElementById('correoNotificacionV119X');
-    if(main) values.push(main.value);
-    document.querySelectorAll('.extra-email-row-v119x input').forEach(i=>values.push(i.value));
-    const clean=values.flatMap(v=>String(v||'').split(/[;,\n]+/)).map(cleanMailV64).filter(Boolean);
-    return [...new Map(clean.map(v=>[v.toLowerCase(),v])).values()];
-  }
-  function contentV64(){
-    const s=document.getElementById('emailSubjectPreviewV119X');
-    const b=document.getElementById('emailBodyPreviewV119X');
-    return {
-      subject:String(s?.textContent||'').replace(/^\s*Asunto\s*:\s*/i,'').trim(),
-      body:String(b?.textContent||'').replace(/\r\n?/g,'\n').trim()
-    };
-  }
-  function copyV64(value){
-    value=String(value||'');
-    let copied=false;
-    try{
-      const ta=document.createElement('textarea');
-      ta.value=value; ta.setAttribute('readonly','');
-      ta.style.position='fixed'; ta.style.left='-9999px'; ta.style.top='0';
-      document.body.appendChild(ta); ta.focus(); ta.select();
-      copied=!!document.execCommand('copy'); ta.remove();
     }catch(_e){}
-    try{
-      if(navigator.clipboard&&window.isSecureContext){ navigator.clipboard.writeText(value).catch(()=>{}); copied=true; }
-    }catch(_e){}
-    return copied;
-  }
-  function composeV64(emails,subject,body,withBody=true){
-    const inner=[];
-    if(subject) inner.push('subject='+encodeURIComponent(String(subject)));
-    if(withBody && body) inner.push('body='+encodeURIComponent(String(body).replace(/\r?\n/g,'\r\n')));
-    const mailto='mailto:'+emails.join(';')+(inner.length?'?'+inner.join('&'):'');
-    return 'https://maile.gadmriobamba.gob.ec/?path=%2Fmail%2Faction%2Fcompose&mailtouri='+encodeURIComponent(mailto);
-  }
 
-  window.openInstitutionalMailV119X=function(){
-    if(typeof state!=='undefined' && state?.tipoInforme!=='Informe con Observaciones') return;
-    if(typeof collectTop==='function'){ try{collectTop();}catch(_e){} }
-
-    const emails=emailsV64();
-    const invalid=emails.find(v=>!validMailV64(v));
-    if(!emails.length||invalid){
-      if(typeof msg==='function') msg(invalid?`El correo “${invalid}” no tiene un formato válido.`:'Ingrese al menos un correo electrónico antes de notificar.');
-      document.getElementById('correoNotificacionV119X')?.focus();
-      return;
-    }
-
-    if(typeof state!=='undefined'){
-      if(!state.notificacionEgob || typeof state.notificacionEgob!=='object') state.notificacionEgob={};
-      state.notificacionEgob.fechaHoraNotificacion=new Date().toISOString();
-    }
-    if(typeof window.renderNotificationTabV119X==='function'){
-      try{window.renderNotificationTabV119X();}catch(_e){}
-    }
-
-    const data=contentV64();
-    if(!data.body){
-      if(typeof msg==='function') msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
-      return;
-    }
-
-    const copied=copyV64(data.body);
-    const full=composeV64(emails,data.subject,data.body,true);
-    const short=composeV64(emails,data.subject,'',false);
-
-    /* Exchange OWA local suele tolerar alrededor de 4 KB en esta ruta.
-       Si el cuerpo excede ese límite se mantiene el respaldo al portapapeles. */
-    const href=full.length<=3900 ? full : short;
+    const href=buildOwaComposeV66(emails,subject,body);
     const popup=window.open(href,'_blank');
-    if(popup){ try{popup.opener=null;}catch(_e){} } else { window.location.href=href; }
+    if(popup){ try{popup.opener=null;}catch(_e){} }
+    else window.location.href=href;
 
-    if(typeof msg==='function'){
-      if(href===full){
-        msg(copied
-          ? 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados. El cuerpo también quedó copiado como respaldo.'
-          : 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados.',true);
-      }else{
-        msg(copied
-          ? 'El cuerpo de esta notificación supera el tamaño que admite el enlace de Outlook. Se abrió el correo y el cuerpo quedó copiado: péguelo con Ctrl + V.'
-          : 'El cuerpo de esta notificación supera el tamaño que admite el enlace de Outlook. Copie el texto desde la vista previa.',true);
-      }
+    if(typeof window.renderNotificationTabV119X==='function'){
+      setTimeout(()=>window.renderNotificationTabV119X(),0);
     }
   };
 })();
