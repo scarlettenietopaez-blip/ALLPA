@@ -34717,7 +34717,12 @@ window.addEventListener('load',()=>{
     /* Se intenta precargar el cuerpo completo. Para mensajes cuyo enlace
        supere un tamaño seguro, se abre la redacción con destinatarios y asunto
        y se copia el cuerpo para evitar errores del servidor al iniciar sesión. */
-    if(fullHref.length<=1900){
+    /* El cuerpo normal de la notificación supera fácilmente 1.900 caracteres
+       una vez codificado en la URL. Ese límite hacía que ALLPA omitiera siempre
+       el cuerpo y abriera únicamente destinatario + asunto. Exchange OWA admite
+       enlaces más largos en este entorno, por lo que se permite el cuerpo hasta
+       7.000 caracteres de URL antes de usar el modo de respaldo. */
+    if(fullHref.length<=7000){
       const popup=window.open(fullHref,'_blank');
       if(popup){try{popup.opener=null;}catch(_e){}}
       else window.location.href=fullHref;
@@ -34729,8 +34734,8 @@ window.addEventListener('load',()=>{
     openInstitutionalOwaUrlV16(shortHref,popup);
     if(typeof msg==='function'){
       msg(copied
-        ?'El correo institucional se abrió con destinatarios y asunto. El cuerpo de la notificación fue copiado: péguelo con Ctrl + V y adjunte el informe firmado.'
-        :'El correo institucional se abrió con destinatarios y asunto. Copie el cuerpo desde la vista previa y adjunte el informe firmado.',
+        ?'La notificación es demasiado extensa para precargarla de forma segura en el correo institucional. El cuerpo fue copiado: péguelo con Ctrl + V y adjunte el informe firmado.'
+        :'La notificación es demasiado extensa para precargarla de forma segura. Copie el cuerpo desde la vista previa y adjunte el informe firmado.',
         true);
     }
   };
