@@ -37293,51 +37293,68 @@ textarea.evidencia-text,
 })();
 </script>
 
-
-<!-- V74: corrección AISLADA y AUTÓNOMA de NOTIFICAR para correos registrados y manuales -->
+<!-- V75: corrección AISLADA de NOTIFICAR usando el esquema oficial mailtouri para Exchange Server local -->
 <script>
 (function(){
   'use strict';
 
-  function normalizeMailV74(value){
+  function normalizeMailV75(value){
     return String(value == null ? '' : value)
+      .normalize('NFKC')
       .replace(/^\s*mailto\s*:/i,'')
-      .replace(/[\u200B-\u200D\u2060\uFEFF\u00A0\u202F]/g,'')
-      .replace(/[\r\n\t]/g,'')
+      .replace(/[\u0000-\u001F\u007F\u00A0\u200B-\u200D\u202F\u2060\uFEFF]/g,'')
       .replace(/\s+/g,'')
       .trim();
   }
 
-  function validMailV74(value){
-    const email=normalizeMailV74(value);
+  function validMailV75(value){
+    const email=normalizeMailV75(value);
     return /^[^@<>(),;:\s]+@[^@<>(),;:\s]+\.[^@<>(),;:\s]+$/.test(email);
   }
 
-  function collectNotificationEmailsV74(){
-    const raw=[];
+  function collectNotificationEmailsV75(){
+    const values=[];
     const main=document.getElementById('correoNotificacionV119X');
-    if(main) raw.push(main.value);
-    document.querySelectorAll('.extra-email-row-v119x input').forEach(function(input){ raw.push(input.value); });
-
-    const cleaned=raw
-      .flatMap(function(value){ return String(value == null ? '' : value).split(/[;,\n]+/); })
-      .map(normalizeMailV74)
+    if(main) values.push(main.value);
+    document.querySelectorAll('.extra-email-row-v119x input').forEach(function(input){
+      values.push(input.value);
+    });
+    const cleaned=values
+      .flatMap(function(v){ return String(v == null ? '' : v).split(/[;,\n]+/); })
+      .map(normalizeMailV75)
       .filter(Boolean);
-
     return [...new Map(cleaned.map(function(email){ return [email.toLowerCase(),email]; })).values()];
   }
 
-  function notificationContentV74(){
+  function notificationContentV75(){
     const subjectNode=document.getElementById('emailSubjectPreviewV119X');
     const bodyNode=document.getElementById('emailBodyPreviewV119X');
-    const subject=String(subjectNode ? (subjectNode.innerText || subjectNode.textContent || '') : '')
-      .replace(/^\s*Asunto\s*:\s*/i,'').trim();
-    const body=String(bodyNode ? (bodyNode.innerText || bodyNode.textContent || '') : '')
-      .replace(/\r\n?/g,'\n').trim();
-    return {subject:subject,body:body};
+    return {
+      subject:String(subjectNode ? (subjectNode.innerText || subjectNode.textContent || '') : '')
+        .replace(/^\s*Asunto\s*:\s*/i,'').trim(),
+      body:String(bodyNode ? (bodyNode.innerText || bodyNode.textContent || '') : '')
+        .replace(/\r\n?/g,'\n').trim()
+    };
   }
 
-  function copyNotificationBodyV74(text){
+  function buildMailtoV75(emails,subject,body,includeBody){
+    let mailto='mailto:'+emails.join(',');
+    const params=[];
+    if(subject) params.push('subject='+encodeURIComponent(String(subject)));
+    if(includeBody && body){
+      const normalizedBody=String(body).replace(/\r?\n/g,'\r\n');
+      params.push('body='+encodeURIComponent(normalizedBody));
+    }
+    if(params.length) mailto+='?'+params.join('&');
+    return mailto;
+  }
+
+  function institutionalOwaComposeUrlV75(emails,subject,body,includeBody){
+    const mailto=buildMailtoV75(emails,subject,body,includeBody);
+    return 'https://maile.gadmriobamba.gob.ec/?path=/mail/action/compose&mailtouri='+encodeURIComponent(mailto);
+  }
+
+  function copyNotificationBodyV75(text){
     const value=String(text||'');
     let copied=false;
     try{
@@ -37362,38 +37379,11 @@ textarea.evidencia-text,
     return copied;
   }
 
-  function institutionalOwaComposeUrlV74(emails,subject,body,includeBody){
-    const owa=new URL('https://maile.gadmriobamba.gob.ec/');
-    owa.searchParams.set('path','/mail/action/compose');
-    owa.searchParams.set('to',emails.join(';'));
-    if(subject) owa.searchParams.set('subject',String(subject));
-    if(includeBody && body) owa.searchParams.set('body',String(body).replace(/\r?\n/g,'\n'));
-    return owa.toString();
-  }
-
-  /* Normaliza el correo manual al escribirlo, sin tocar el resto del formulario. */
-  const previousUpdateEmailV74=window.updateNotificationEmailV119X;
-  window.updateNotificationEmailV119X=function(value){
-    const clean=normalizeMailV74(value);
-    try{
-      if(typeof state!=='undefined'){
-        if(!state.notificacionEgob || typeof state.notificacionEgob!=='object') state.notificacionEgob={};
-        state.notificacionEgob.correo=clean;
-        state.notificacionEgob.correoManual=true;
-      }
-    }catch(_e){}
-    /* Conserva las actualizaciones visuales del sistema original si existen. */
-    try{
-      if(typeof renderEmailPreviewV119X==='function') renderEmailPreviewV119X();
-      if(typeof renderSientoPreviewV119X==='function') renderSientoPreviewV119X();
-    }catch(_e){}
-  };
-
   window.openInstitutionalMailV119X=function(){
     if(typeof state!=='undefined' && state && state.tipoInforme!=='Informe con Observaciones') return;
 
-    const emails=collectNotificationEmailsV74();
-    const invalid=emails.find(function(email){ return !validMailV74(email); });
+    const emails=collectNotificationEmailsV75();
+    const invalid=emails.find(function(email){ return !validMailV75(email); });
     if(!emails.length || invalid){
       if(typeof msg==='function'){
         msg(invalid ? ('El correo “'+invalid+'” no tiene un formato válido.') : 'Ingrese al menos un correo electrónico antes de notificar.');
@@ -37403,7 +37393,13 @@ textarea.evidencia-text,
       return;
     }
 
-    /* Sin re-renderizar la pestaña: se usa exactamente el correo visible en pantalla. */
+    const data=notificationContentV75();
+    if(!data.body){
+      if(typeof msg==='function') msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
+      return;
+    }
+
+    /* Se actualiza solo el estado de notificación; no se re-renderiza ni se toca ninguna otra sección. */
     try{
       if(typeof state!=='undefined'){
         if(!state.notificacionEgob || typeof state.notificacionEgob!=='object') state.notificacionEgob={};
@@ -37413,23 +37409,12 @@ textarea.evidencia-text,
       }
     }catch(_e){}
 
-    const data=notificationContentV74();
-    if(!data.body){
-      if(typeof msg==='function') msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
-      return;
-    }
+    const fullHref=institutionalOwaComposeUrlV75(emails,data.subject,data.body,true);
+    const shortHref=institutionalOwaComposeUrlV75(emails,data.subject,'',false);
+    const copied=copyNotificationBodyV75(data.body);
 
-    let fullHref='';
-    let shortHref='';
-    try{
-      fullHref=institutionalOwaComposeUrlV74(emails,data.subject,data.body,true);
-      shortHref=institutionalOwaComposeUrlV74(emails,data.subject,'',false);
-    }catch(error){
-      if(typeof msg==='function') msg('No se pudo construir el enlace del correo institucional: '+(error && error.message ? error.message : String(error)));
-      return;
-    }
-
-    const copied=copyNotificationBodyV74(data.body);
+    /* Mantiene el mismo umbral de la versión actual. Si la URL completa fuese excesiva,
+       abre destinatario+asunto y deja el cuerpo copiado como respaldo. */
     const href=fullHref.length<=3900 ? fullHref : shortHref;
     const popup=window.open(href,'_blank');
     if(popup){ try{ popup.opener=null; }catch(_e){} }
