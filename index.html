@@ -31731,7 +31731,7 @@ window.addEventListener('load',()=>{
       state.aprobatorio.anexos.push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});
     }
     state.aprobatorio.anexos=state.aprobatorio.anexos.map(row=>({
-      tipo:String(row?.tipo||'folder').toLowerCase()==='expediente'?'expediente':'folder',
+      tipo:['fojas','expediente'].includes(String(row?.tipo||'folder').toLowerCase())?'fojas':'folder',
       fojas:row?.fojas==null?'':String(row.fojas),
       incluyePlanos:!!row?.incluyePlanos,
       planos:row?.planos==null?'':String(row.planos),
@@ -31741,12 +31741,26 @@ window.addEventListener('load',()=>{
     return state.aprobatorio.anexos;
   }
 
+  function folderNumberV180(rows,index){
+    let n=0;
+    for(let i=0;i<=index;i++){
+      if((rows[i]?.tipo||'folder')==='folder') n++;
+    }
+    return n;
+  }
+
   function annexLineV163(row,index,placeholder=false){
-    const tipo=row.tipo==='expediente'?'expediente':'folder';
+    const rows=ensureAnexosDataV163();
+    const tipo=row.tipo==='fojas'?'fojas':'folder';
     const fojas=String(row.fojas||'').trim() || (placeholder?'…':'');
     const planos=String(row.planos||'').trim() || (placeholder?'…':'');
     const cds=String(row.cds||'').trim() || (placeholder?'…':'');
-    let line=`Carpeta ${index+1} (${tipo}): ${fojas} fojas`;
+    let line='';
+    if(tipo==='folder'){
+      line=`Carpeta ${folderNumberV180(rows,index)} (folder): ${fojas} fojas`;
+    }else{
+      line=`${fojas} fojas`;
+    }
     if(row.incluyePlanos) line+=` incluido ${planos} planos`;
     line+=' en su foliado';
     if(row.incluyeCds) line+=` + ${cds} CDs`;
@@ -31766,9 +31780,10 @@ window.addEventListener('load',()=>{
   function validateAnexosV163(){
     const rows=ensureAnexosDataV163();
     for(let i=0;i<rows.length;i++){
-      if(!String(rows[i].fojas||'').trim()) return `Complete el número de fojas de la Carpeta ${i+1}.`;
-      if(rows[i].incluyePlanos && !String(rows[i].planos||'').trim()) return `Complete el número de planos de la Carpeta ${i+1}.`;
-      if(rows[i].incluyeCds && !String(rows[i].cds||'').trim()) return `Complete el número de CDs de la Carpeta ${i+1}.`;
+      const ref=rows[i].tipo==='folder' ? `Carpeta ${folderNumberV180(rows,i)}` : `fila de fojas ${i+1}`;
+      if(!String(rows[i].fojas||'').trim()) return `Complete el número de fojas de ${ref}.`;
+      if(rows[i].incluyePlanos && !String(rows[i].planos||'').trim()) return `Complete el número de planos de ${ref}.`;
+      if(rows[i].incluyeCds && !String(rows[i].cds||'').trim()) return `Complete el número de CDs de ${ref}.`;
     }
     return '';
   }
@@ -31841,19 +31856,20 @@ window.addEventListener('load',()=>{
   };
 
   window.renderAnexosV163=function(){
-    const form=document.getElementById('aprobatorioForm');
+    const isDes=typeof state!=='undefined' && state?.tipoInforme==='Informe de Desistimiento';
+    const form=document.getElementById(isDes?'desistimientoForm':'aprobatorioForm') || document.getElementById('aprobatorioForm');
     if(!form) return;
     let box=document.getElementById('anexosBoxV163');
     if(!box){
       box=document.createElement('section');
       box.id='anexosBoxV163';
       box.className='anexos-v163 no-print';
-      form.appendChild(box);
     }
+    if(box.parentElement!==form) form.appendChild(box);
     const rows=ensureAnexosDataV163();
     box.innerHTML=`
       <div class="anexos-title-v163">ANEXOS</div>
-      <p class="anexos-help-v163">Esta información no se incluye en el Informe Técnico Aprobatorio. El resultado y el botón “Copiar anexos” se encuentran en Vista del Informe.</p>
+      <p class="anexos-help-v163">Esta información se usa para generar el texto de anexos del Informe Técnico Aprobatorio o del Informe de Desistimiento. El resultado y el botón “Copiar anexos” se encuentran en Vista del Informe.</p>
       <table class="anexos-table-v163">
         <colgroup>
           <col style="width:9%">
@@ -31874,10 +31890,10 @@ window.addEventListener('load',()=>{
           <th>Acción</th>
         </tr></thead>
         <tbody>${rows.map((row,i)=>`<tr>
-          <td>Carpeta ${i+1}</td>
+          <td>${row.tipo==='folder'?`Carpeta ${folderNumberV180(rows,i)}`:'—'}</td>
           <td><select onchange="updateAnexoV163(${i},'tipo',this.value)">
             <option value="folder" ${row.tipo==='folder'?'selected':''}>folder</option>
-            <option value="expediente" ${row.tipo==='expediente'?'selected':''}>expediente</option>
+            <option value="fojas" ${row.tipo==='fojas'?'selected':''}>fojas</option>
           </select></td>
           <td><input type="number" min="0" step="1" inputmode="numeric" value="${typeof esc==='function'?esc(row.fojas):row.fojas}" placeholder="Fojas" oninput="updateAnexoV163(${i},'fojas',this.value)"></td>
           <td><div class="anexos-planos-line-v1"><label class="anexos-check-v163"><input type="checkbox" ${row.incluyePlanos?'checked':''} onchange="updateAnexoV163(${i},'incluyePlanos',this.checked)"> incluido</label><input class="anexos-planos-count-v1" type="number" min="0" step="1" inputmode="numeric" value="${typeof esc==='function'?esc(row.planos):row.planos}" placeholder="N.º" ${row.incluyePlanos?'':'disabled'} oninput="updateAnexoV163(${i},'planos',this.value)"><span>planos</span></div></td>
@@ -31906,8 +31922,10 @@ window.addEventListener('load',()=>{
       else tab.appendChild(box);
     }
     const isAprobatorio=typeof state!=='undefined' && state?.tipoInforme==='Informe Técnico Aprobatorio';
-    box.classList.toggle('visible',isAprobatorio);
-    if(!isAprobatorio){
+    const isDesistimiento=typeof state!=='undefined' && state?.tipoInforme==='Informe de Desistimiento';
+    const showAnexos=isAprobatorio || isDesistimiento;
+    box.classList.toggle('visible',showAnexos);
+    if(!showAnexos){
       box.innerHTML='';
       return;
     }
@@ -31933,6 +31951,16 @@ window.addEventListener('load',()=>{
   if(baseRenderAprobatorioFormV163){
     renderAprobatorioForm=function(){
       const out=baseRenderAprobatorioFormV163.apply(this,arguments);
+      setTimeout(renderAnexosV163,0);
+      return out;
+    };
+  }
+
+
+  const baseRenderDesistimientoFormV180=typeof renderDesistimientoFormV69==='function'?renderDesistimientoFormV69:null;
+  if(baseRenderDesistimientoFormV180){
+    renderDesistimientoFormV69=function(){
+      const out=baseRenderDesistimientoFormV180.apply(this,arguments);
       setTimeout(renderAnexosV163,0);
       return out;
     };
@@ -37305,5 +37333,85 @@ textarea.evidencia-text,
   };
 })();
 </script>
+
+
+<style>
+/* ==========================================================
+   V180 - Formato unificado de Antecedentes / Información General
+   ========================================================== */
+.report table.apr-info-table .apr-info-value.v180-center{
+  text-align:center!important;
+  vertical-align:middle!important;
+}
+@media print{
+  .report table.apr-info-table .apr-info-value.v180-center{
+    text-align:center!important;
+    vertical-align:middle!important;
+  }
+}
+</style>
+<script>
+(function(){
+  function aprOneV180(label,value,center=false){
+    return `<tr><td class="apr-info-label">${esc(label)}</td><td class="apr-info-value${center?' v180-center':''}" colspan="3">${esc(value||'')}</td></tr>`;
+  }
+  function aprTwoV180(l1,v1,l2,v2,c1=false,c2=false){
+    return `<tr><td class="apr-info-label">${esc(l1)}</td><td class="apr-info-value${c1?' v180-center':''}">${esc(v1||'')}</td><td class="apr-info-label">${esc(l2)}</td><td class="apr-info-value${c2?' v180-center':''}">${esc(v2||'')}</td></tr>`;
+  }
+  function valV180(label){
+    if(typeof infoValueForReportV105==='function') return infoValueForReportV105(label);
+    if(typeof infoValue==='function') return infoValue(label);
+    return '';
+  }
+
+  /* Esta misma tabla alimenta Antecedentes del Desistimiento e Información General del Aprobatorio. */
+  aprobatorioInfoTableFromTemplate=function(_text){
+    if(typeof ensurePropietarios==='function') ensurePropietarios();
+    if(typeof syncPropietariosInfo==='function') syncPropietariosInfo();
+
+    const proyecto=valV180('PROYECTO DEFINITIVO');
+    const x=valV180('X:');
+    const y=valV180('Y:');
+    const apod=(state.apoderado && state.apoderado.activo)
+      ? aprTwoV180('APODERADO',state.apoderado.nombre||'','CI/RUC APODERADO',state.apoderado.ci||'',false,false)
+      : '';
+
+    let owners='';
+    if(typeof ownerRowsAprobatorioV119W==='function'){
+      owners=ownerRowsAprobatorioV119W();
+    }else{
+      owners=aprTwoV180('NOMBRE DEL PROPIETARIO',valV180('NOMBRE DEL PROPIETARIO'),'CI/RUC',valV180('CI/RUC'),false,false);
+    }
+
+    return `<table class="apr-info-table"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup><tbody>
+      ${aprOneV180('TRÁMITE E-GOB',state.egob||valV180('TRÁMITE EGOB'),true)}
+      ${owners}
+      ${apod}
+      ${aprOneV180('PROYECTO DEFINITIVO',proyecto,true)}
+      ${aprOneV180('NOMBRE DEL PROYECTO',valV180('NOMBRE DEL PROYECTO'),true)}
+      ${aprTwoV180('USO PRINCIPAL',valV180('USO PRINCIPAL'),'ALTURA EDIFICACIÓN',valV180('ALTURA EDIFICACIÓN')?valV180('ALTURA EDIFICACIÓN')+' pisos':'',true,true)}
+      <tr><td class="apr-info-section" colspan="4">REFERENCIA UBICACIÓN</td></tr>
+      ${aprTwoV180('X',x,'Y',y,true,true)}
+      ${aprOneV180('CLAVE CATASTRAL',valV180('CLAVE CATASTRAL'),true)}
+      ${state.catastral && state.catastral.urbanoRural ? aprOneV180('URBANO / RURAL',state.catastral.urbanoRural,true) : ''}
+      ${aprTwoV180('BARRIO / SECTOR',valV180('BARRIO/SECTOR'),'CÓDIGO PIT',valV180('CÓDIGO PIT'),true,true)}
+      ${aprOneV180('DIRECCIÓN',valV180('DIRECCIÓN'),true)}
+      ${aprOneV180('PROYECTISTA',valV180('PROYECTISTA'),true)}
+      ${aprTwoV180('REG. SENESCYT',valV180('REGISTRO SENESCYT'),'REG. MUNICIPAL',valV180('REGISTRO MUNICIPAL'),false,false)}
+    </tbody></table>`;
+  };
+
+  /* Refresca vistas al cargar sin tocar la lógica de cálculo ni guardado. */
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{
+      try{ if(typeof renderAnexosV163==='function') renderAnexosV163(); }catch(_e){}
+      try{ if(typeof renderAnexosVistaV163==='function') renderAnexosVistaV163(); }catch(_e){}
+      try{ if(typeof renderReport==='function') renderReport(); }catch(_e){}
+      try{ if(typeof renderPreview==='function') renderPreview(); }catch(_e){}
+    },1800);
+  });
+})();
+</script>
+
 </body>
 </html>
