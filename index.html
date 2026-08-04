@@ -32257,6 +32257,19 @@ window.addEventListener('load',()=>{
   }
   function emailDataV119X(){
     const row=templateForV119X(notificationTemplatesV119X);
+
+    // V79: plantilla compacta para Informes con Observaciones.
+    // Se define aquí para que no sea reemplazada por data/notificacion_correo.csv.
+    // Las variables continúan siendo dinámicas y el 2do Informe conserva 5 días hábiles.
+    if(state?.tipoInforme==='Informe con Observaciones'){
+      const compactSubject='Notificación de {{Tipo de Informe}} – E-GOB N.° {{Número de EGOB}} – {{Tipo de Proyecto}}';
+      const compactBody='De mi consideración:\n\nReciba un cordial saludo.\n\nPor medio del presente, se notifica el {{Tipo de Informe}} correspondiente al trámite E-GOB N.° {{Número de EGOB}} de {{Tipo de Proyecto}}, relacionado con el predio de propiedad de los señores {{Propietarios}}.\n\nDe la revisión técnica realizada se determinaron observaciones que deberán ser subsanadas conforme al informe adjunto, por lo que se emite criterio técnico NO FAVORABLE hasta que sean atendidas.\n\nDe conformidad con el artículo 140 del Código Orgánico Administrativo, se concede un plazo de diez (10) días hábiles para presentar la documentación corregida mediante un alcance al trámite. La fecha máxima de subsanación es el {{Fecha Subsanación}}.\n\nSe solicita revisar el informe adjunto y realizar las correcciones pertinentes para continuar con el trámite.\n\nPara asistencia o aclaraciones técnicas, puede acercarse a la Mesa Técnica de la Dirección de Gestión de Planificación, Hábitat y Desarrollo Urbanístico, ubicada en las calles Espejo y Olmedo, edificio del Ex Colegio Salesianos, tercer piso.\n\nParticular que comunico para los fines pertinentes.\n\nAtentamente,\n\n{{Nombre del Técnico Revisor}}\n{{Cargo del Técnico Revisor}}';
+      return {
+        subject:replacePlaceholdersV119X(compactSubject),
+        body:applySecondObservationTermV119X(replacePlaceholdersV119X(compactBody))
+      };
+    }
+
     return {
       subject:replacePlaceholdersV119X(row.Asunto||row.asunto||''),
       body:applySecondObservationTermV119X(replacePlaceholdersV119X(row.Cuerpo||row.cuerpo||row.Texto_Base||''))
@@ -37292,157 +37305,5 @@ textarea.evidencia-text,
   };
 })();
 </script>
-
-
-<!-- V78: DIAGNÓSTICO AISLADO DE NOTIFICAR - NO MODIFICA EL RESTO DE ALLPA -->
-<script>
-(function(){
-  'use strict';
-
-  function diagCleanMailV77(value){
-    return String(value || '')
-      .replace(/^\s*mailto\s*:/i,'')
-      .replace(/[\u200B-\u200D\u2060\uFEFF]/g,'')
-      .replace(/[\u00A0\u202F]/g,' ')
-      .replace(/[\r\n\t]/g,'')
-      .trim();
-  }
-  function diagValidMailV77(value){
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(diagCleanMailV77(value));
-  }
-  function diagVisibleEmailsV77(){
-    const raw=[];
-    const main=document.getElementById('correoNotificacionV119X');
-    if(main) raw.push(main.value);
-    document.querySelectorAll('.extra-email-row-v119x input').forEach(el=>raw.push(el.value));
-    const cleaned=raw.map(diagCleanMailV77).filter(Boolean);
-    return [...new Map(cleaned.map(v=>[v.toLowerCase(),v])).values()];
-  }
-  function diagContentV77(){
-    const subjectNode=document.getElementById('emailSubjectPreviewV119X');
-    const bodyNode=document.getElementById('emailBodyPreviewV119X');
-    const subject=String(subjectNode?.textContent||'').replace(/^\s*Asunto\s*:\s*/i,'').trim();
-    const body=String(bodyNode?.textContent||'').replace(/\r\n?/g,'\n').trim();
-    return {subject,body};
-  }
-  function diagOwaUrlV77(emails,subject,body,includeBody){
-    const owa=new URL('https://maile.gadmriobamba.gob.ec/');
-    owa.searchParams.set('path','/mail/action/compose');
-    owa.searchParams.set('to',emails.join(';'));
-    if(subject) owa.searchParams.set('subject',String(subject));
-    if(includeBody && body) owa.searchParams.set('body',String(body).replace(/\r?\n/g,'\n'));
-    return owa.toString();
-  }
-  function escV77(s){
-    return String(s??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  }
-  function stateDiagV77(){
-    try{
-      const n=(typeof state!=='undefined' && state && state.notificacionEgob && typeof state.notificacionEgob==='object') ? state.notificacionEgob : {};
-      return {
-        correo:String(n.correo||''),
-        correoAuto:String(n.correoAuto||''),
-        correoManual:!!n.correoManual,
-        correosAdicionales:Array.isArray(n.correosAdicionales)?n.correosAdicionales.slice():[]
-      };
-    }catch(_e){
-      return {correo:'[state no accesible]',correoAuto:'',correoManual:false,correosAdicionales:[]};
-    }
-  }
-  async function copyDiagV77(text){
-    try{
-      if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); return true; }
-    }catch(_e){}
-    try{
-      const ta=document.createElement('textarea');
-      ta.value=text; ta.style.position='fixed'; ta.style.left='-9999px';
-      document.body.appendChild(ta); ta.select(); const ok=document.execCommand('copy'); ta.remove(); return !!ok;
-    }catch(_e){ return false; }
-  }
-  function closeDiagV77(){ document.getElementById('allpaDiagNotificarV77')?.remove(); }
-  function showDiagV77(payload){
-    closeDiagV77();
-    const overlay=document.createElement('div');
-    overlay.id='allpaDiagNotificarV77';
-    overlay.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.58);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:18px;';
-    const panel=document.createElement('div');
-    panel.style.cssText='width:min(980px,96vw);max-height:90vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 22px 70px rgba(0,0,0,.35);padding:20px;font:14px/1.45 Arial,sans-serif;color:#172033;';
-    const s=payload.state;
-    panel.innerHTML=`
-      <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:12px">
-        <div><div style="font-size:20px;font-weight:800">Diagnóstico de Notificar</div><div style="color:#64748b;margin-top:3px">Esta ventana no modifica el formulario. Revise los datos y luego abra OWA.</div></div>
-        <button id="diagCloseV77" style="border:0;background:#eef2f7;border-radius:8px;padding:7px 10px;cursor:pointer;font-weight:700">✕</button>
-      </div>
-      <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
-        <tbody>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700;width:230px">Correo visible</td><td style="padding:6px;border:1px solid #d7dee8">${escV77(payload.visibleRaw)}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">Correo final enviado</td><td style="padding:6px;border:1px solid #d7dee8">${escV77(payload.emails.join('; '))}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">state.notificacionEgob.correo</td><td style="padding:6px;border:1px solid #d7dee8">${escV77(s.correo)}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">correoAuto</td><td style="padding:6px;border:1px solid #d7dee8">${escV77(s.correoAuto)}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">correoManual</td><td style="padding:6px;border:1px solid #d7dee8">${s.correoManual?'true':'false'}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">Asunto</td><td style="padding:6px;border:1px solid #d7dee8">${escV77(payload.subject)}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">Caracteres del cuerpo</td><td style="padding:6px;border:1px solid #d7dee8">${payload.body.length}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">Longitud URL completa</td><td style="padding:6px;border:1px solid #d7dee8;font-weight:800">${payload.fullHref.length}</td></tr>
-          <tr><td style="padding:6px;border:1px solid #d7dee8;font-weight:700">Longitud URL sin cuerpo</td><td style="padding:6px;border:1px solid #d7dee8">${payload.shortHref.length}</td></tr>
-        </tbody>
-      </table>
-      <div style="font-weight:800;margin:10px 0 5px">URL exacta generada</div>
-      <textarea id="diagUrlV77" readonly style="width:100%;height:170px;resize:vertical;border:1px solid #cbd5e1;border-radius:8px;padding:9px;font:12px/1.35 Consolas,monospace;box-sizing:border-box">${escV77(payload.fullHref)}</textarea>
-      <div style="display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end;margin-top:14px">
-        <button id="diagCopyV77" style="padding:9px 14px;border:1px solid #94a3b8;background:white;border-radius:8px;cursor:pointer;font-weight:700">Copiar diagnóstico</button>
-        <button id="diagOpenShortV77" style="padding:9px 14px;border:1px solid #94a3b8;background:#f8fafc;border-radius:8px;cursor:pointer;font-weight:700">Abrir sin cuerpo</button>
-        <button id="diagOpenFullV77" style="padding:9px 14px;border:0;background:#0b5f8a;color:white;border-radius:8px;cursor:pointer;font-weight:800">Abrir OWA con cuerpo</button>
-      </div>`;
-    overlay.appendChild(panel); document.body.appendChild(overlay);
-    document.getElementById('diagCloseV77').onclick=closeDiagV77;
-    overlay.addEventListener('click',e=>{if(e.target===overlay)closeDiagV77();});
-    document.getElementById('diagCopyV77').onclick=async()=>{
-      const report=[
-        'ALLPA - Diagnóstico Notificar V77',
-        'Correo visible: '+payload.visibleRaw,
-        'Correo final: '+payload.emails.join('; '),
-        'state.correo: '+s.correo,
-        'correoAuto: '+s.correoAuto,
-        'correoManual: '+s.correoManual,
-        'Adicionales state: '+JSON.stringify(s.correosAdicionales),
-        'Asunto: '+payload.subject,
-        'Caracteres cuerpo: '+payload.body.length,
-        'Longitud URL completa: '+payload.fullHref.length,
-        'Longitud URL sin cuerpo: '+payload.shortHref.length,
-        'URL completa:',payload.fullHref
-      ].join('\n');
-      const ok=await copyDiagV77(report);
-      if(typeof msg==='function') msg(ok?'Diagnóstico copiado al portapapeles.':'No se pudo copiar el diagnóstico.',!!ok);
-    };
-    function openUrl(url){
-      const popup=window.open(url,'_blank');
-      if(popup){try{popup.opener=null;}catch(_e){}} else window.location.href=url;
-    }
-    document.getElementById('diagOpenShortV77').onclick=()=>openUrl(payload.shortHref);
-    document.getElementById('diagOpenFullV77').onclick=()=>openUrl(payload.fullHref);
-  }
-
-  window.openInstitutionalMailV119X=function(){
-    if(typeof state!=='undefined' && state?.tipoInforme!=='Informe con Observaciones') return;
-    const main=document.getElementById('correoNotificacionV119X');
-    const visibleRaw=String(main?.value||'');
-    const emails=diagVisibleEmailsV77();
-    const invalid=emails.find(v=>!diagValidMailV77(v));
-    if(!emails.length || invalid){
-      if(typeof msg==='function') msg(invalid?`El correo “${invalid}” no tiene un formato válido.`:'Ingrese al menos un correo electrónico antes de notificar.');
-      main?.focus(); return;
-    }
-    const data=diagContentV77();
-    if(!data.body){
-      if(typeof msg==='function') msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
-      return;
-    }
-    const fullHref=diagOwaUrlV77(emails,data.subject,data.body,true);
-    const shortHref=diagOwaUrlV77(emails,data.subject,'',false);
-    showDiagV77({visibleRaw,emails,subject:data.subject,body:data.body,fullHref,shortHref,state:stateDiagV77()});
-  };
-})();
-</script>
-
 </body>
 </html>
