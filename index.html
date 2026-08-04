@@ -37292,5 +37292,126 @@ textarea.evidencia-text,
   };
 })();
 </script>
+
+<!-- V73: corrección aislada de NOTIFICAR para correos ingresados manualmente -->
+<script>
+(function(){
+  function normalizeNotificationEmailV73(value){
+    return String(value == null ? '' : value)
+      .replace(/^\s*mailto\s*:/i,'')
+      .replace(/[\u200B-\u200D\u2060\uFEFF\u00A0\u202F]/g,'')
+      .replace(/[\r\n\t]/g,'')
+      .replace(/\s+/g,'')
+      .trim();
+  }
+
+  function validNotificationEmailV73(value){
+    const email=normalizeNotificationEmailV73(value);
+    return /^[^@<>(),;:\s]+@[^@<>(),;:\s]+\.[^@<>(),;:\s]+$/.test(email);
+  }
+
+  function notificationEmailsV73(){
+    const values=[];
+    const main=document.getElementById('correoNotificacionV119X');
+    if(main) values.push(main.value);
+    document.querySelectorAll('.extra-email-row-v119x input').forEach(input=>values.push(input.value));
+    const cleaned=values
+      .flatMap(value=>String(value == null ? '' : value).split(/[;,\n]+/))
+      .map(normalizeNotificationEmailV73)
+      .filter(Boolean);
+    const unique=[...new Map(cleaned.map(email=>[email.toLowerCase(),email])).values()];
+
+    if(typeof state!=='undefined'){
+      if(!state.notificacionEgob || typeof state.notificacionEgob!=='object') state.notificacionEgob={};
+      const n=state.notificacionEgob;
+      n.correo=unique[0]||'';
+      n.correosAdicionales=unique.slice(1);
+    }
+    return unique;
+  }
+
+  window.updateNotificationEmailV119X=function(value){
+    if(typeof ensureNotificationStateV119X!=='function') return;
+    const n=ensureNotificationStateV119X();
+    n.correo=normalizeNotificationEmailV73(value);
+    n.correoManual=true;
+    if(typeof renderEmailPreviewV119X==='function') renderEmailPreviewV119X();
+    if(typeof renderSientoPreviewV119X==='function') renderSientoPreviewV119X();
+  };
+
+  window.updateAdditionalEmailV119X=function(index,value){
+    if(typeof ensureNotificationStateV119X!=='function') return;
+    const n=ensureNotificationStateV119X();
+    while(n.correosAdicionales.length<=index) n.correosAdicionales.push('');
+    n.correosAdicionales[index]=normalizeNotificationEmailV73(value);
+    if(typeof renderSientoPreviewV119X==='function') renderSientoPreviewV119X();
+  };
+
+  window.openInstitutionalMailV119X=function(){
+    if(typeof state!=='undefined' && state?.tipoInforme!=='Informe con Observaciones') return;
+
+    const emails=notificationEmailsV73();
+    const invalid=emails.find(email=>!validNotificationEmailV73(email));
+    if(!emails.length || invalid){
+      if(typeof msg==='function'){
+        msg(invalid
+          ? `El correo “${invalid}” no tiene un formato válido.`
+          : 'Ingrese al menos un correo electrónico antes de notificar.');
+      }
+      document.getElementById('correoNotificacionV119X')?.focus();
+      return;
+    }
+
+    if(typeof state!=='undefined'){
+      if(!state.notificacionEgob || typeof state.notificacionEgob!=='object') state.notificacionEgob={};
+      state.notificacionEgob.fechaHoraNotificacion=new Date().toISOString();
+    }
+
+    const data=(typeof notificationContentV72==='function')
+      ? notificationContentV72()
+      : {
+          subject:String(document.getElementById('emailSubjectPreviewV119X')?.textContent||'').replace(/^\s*Asunto\s*:\s*/i,'').trim(),
+          body:String(document.getElementById('emailBodyPreviewV119X')?.textContent||'').replace(/\r\n?/g,'\n').trim()
+        };
+
+    if(!data.body){
+      if(typeof msg==='function') msg('No se pudo obtener el cuerpo de la notificación. Revise la vista previa del correo.');
+      return;
+    }
+
+    const copied=(typeof copyNotificationBodyV72==='function') ? copyNotificationBodyV72(data.body) : false;
+    const fullHref=(typeof institutionalOwaComposeUrlV72==='function')
+      ? institutionalOwaComposeUrlV72(emails,data.subject,data.body,true)
+      : '';
+    const shortHref=(typeof institutionalOwaComposeUrlV72==='function')
+      ? institutionalOwaComposeUrlV72(emails,data.subject,'',false)
+      : '';
+
+    if(!fullHref){
+      if(typeof msg==='function') msg('No se pudo construir el enlace del correo institucional.');
+      return;
+    }
+
+    const href=fullHref.length<=3900 ? fullHref : shortHref;
+    const popup=window.open(href,'_blank');
+    if(popup){ try{popup.opener=null;}catch(_e){} }
+    else window.location.href=href;
+
+    if(typeof msg==='function'){
+      if(href===fullHref){
+        msg(copied
+          ? 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados. El cuerpo también quedó copiado como respaldo.'
+          : 'El correo institucional se abrió con destinatarios, asunto y cuerpo precargados.',
+          true);
+      }else{
+        msg(copied
+          ? 'El correo institucional se abrió con destinatarios y asunto. El cuerpo fue copiado como respaldo: péguelo con Ctrl + V.'
+          : 'El correo institucional se abrió con destinatarios y asunto. Copie el cuerpo desde la vista previa.',
+          true);
+      }
+    }
+  };
+})();
+</script>
 </body>
 </html>
