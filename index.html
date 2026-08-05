@@ -37470,5 +37470,31 @@ textarea.evidencia-text,
   }
 }
 </style>
+
+<style id="allpa-v182-labels-left-force">
+/* V182 - Fuerza la alineación izquierda de TODOS los títulos/etiquetas
+   de INFORMACIÓN GENERAL / ANTECEDENTES, incluido Informe Técnico Aprobatorio. */
+.report table.apr-info-table td.apr-info-label,
+.report table.apr-info-table th.apr-info-label,
+.report table.apr-info-table td.apr-owner-label-v119w,
+.report table.apr-info-table th.apr-owner-label-v119w,
+#report table.apr-info-table td.apr-info-label,
+#report table.apr-info-table td.apr-owner-label-v119w,
+#preview table.apr-info-table td.apr-info-label,
+#preview table.apr-info-table td.apr-owner-label-v119w {
+  text-align:left !important;
+  justify-content:flex-start !important;
+  vertical-align:middle !important;
+  font-weight:900 !important;
+}
+@media print {
+  body .report table.apr-info-table td.apr-info-label,
+  body .report table.apr-info-table td.apr-owner-label-v119w {
+    text-align:left !important;
+    vertical-align:middle !important;
+    font-weight:900 !important;
+  }
+}
+</style>
 </body>
 </html>
