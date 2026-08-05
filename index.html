@@ -31541,7 +31541,7 @@ window.addEventListener('load',()=>{
      ANEXOS para Informes Técnicos Aprobatorios:
      - Sección independiente al final de la pestaña APROBATORIO.
      - No forma parte de la Vista del Informe ni del PDF.
-     - Filas dinámicas con folder/expediente, fojas, planos y CDs.
+     - Filas dinámicas con folder/carpeta/fojas, planos y CDs.
      - Copia únicamente el texto de anexos para pegar en eGOB.
      ========================================================== -->
 <style>
@@ -31730,40 +31730,54 @@ window.addEventListener('load',()=>{
     if(!state.aprobatorio.anexos.length){
       state.aprobatorio.anexos.push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});
     }
-    state.aprobatorio.anexos=state.aprobatorio.anexos.map(row=>({
-      tipo:['fojas','expediente'].includes(String(row?.tipo||'folder').toLowerCase())?'fojas':'folder',
-      fojas:row?.fojas==null?'':String(row.fojas),
-      incluyePlanos:!!row?.incluyePlanos,
-      planos:row?.planos==null?'':String(row.planos),
-      incluyeCds:!!row?.incluyeCds,
-      cds:row?.cds==null?'':String(row.cds)
-    }));
+    state.aprobatorio.anexos=state.aprobatorio.anexos.map(row=>{
+      const rawTipo=String(row?.tipo||'folder').toLowerCase().trim();
+      const tipo=rawTipo==='carpeta'?'carpeta':(['fojas','expediente'].includes(rawTipo)?'fojas':'folder');
+      return {
+        tipo,
+        fojas:row?.fojas==null?'':String(row.fojas),
+        incluyePlanos:!!row?.incluyePlanos,
+        planos:row?.planos==null?'':String(row.planos),
+        incluyeCds:!!row?.incluyeCds,
+        cds:row?.cds==null?'':String(row.cds)
+      };
+    });
     return state.aprobatorio.anexos;
   }
 
-  function folderNumberV180(rows,index){
+  function typeNumberV183(rows,index,type){
     let n=0;
     for(let i=0;i<=index;i++){
-      if((rows[i]?.tipo||'folder')==='folder') n++;
+      if(String(rows[i]?.tipo||'folder').toLowerCase()===type) n++;
     }
     return n;
   }
 
   function annexLineV163(row,index,placeholder=false){
     const rows=ensureAnexosDataV163();
-    const tipo=row.tipo==='fojas'?'fojas':'folder';
+    const tipo=['folder','carpeta','fojas'].includes(String(row?.tipo||'folder').toLowerCase())
+      ? String(row.tipo).toLowerCase()
+      : 'folder';
     const fojas=String(row.fojas||'').trim() || (placeholder?'…':'');
     const planos=String(row.planos||'').trim() || (placeholder?'…':'');
     const cds=String(row.cds||'').trim() || (placeholder?'…':'');
     let line='';
-    if(tipo==='folder'){
-      line=`Carpeta ${folderNumberV180(rows,index)} (folder): ${fojas} fojas`;
+    if(tipo==='carpeta'){
+      line=`Carpeta ${typeNumberV183(rows,index,'carpeta')}: ${fojas} fojas`;
+    }else if(tipo==='folder'){
+      line=`Folder ${typeNumberV183(rows,index,'folder')}: ${fojas} fojas`;
     }else{
       line=`${fojas} fojas`;
     }
-    if(row.incluyePlanos) line+=` incluido ${planos} planos`;
+    if(row.incluyePlanos){
+      const nPlanos=Number(planos);
+      line+=` incluido ${planos} ${nPlanos===1?'plano':'planos'}`;
+    }
     line+=' en su foliado';
-    if(row.incluyeCds) line+=` + ${cds} CDs`;
+    if(row.incluyeCds){
+      const nCds=Number(cds);
+      line+=` + ${cds} ${nCds===1?'CD':'CDs'}`;
+    }
     return line;
   }
 
@@ -31780,7 +31794,9 @@ window.addEventListener('load',()=>{
   function validateAnexosV163(){
     const rows=ensureAnexosDataV163();
     for(let i=0;i<rows.length;i++){
-      const ref=rows[i].tipo==='folder' ? `Carpeta ${folderNumberV180(rows,i)}` : `fila de fojas ${i+1}`;
+      const ref=rows[i].tipo==='carpeta'
+        ? `Carpeta ${typeNumberV183(rows,i,'carpeta')}`
+        : (rows[i].tipo==='folder' ? `Folder ${typeNumberV183(rows,i,'folder')}` : `fila de fojas ${i+1}`);
       if(!String(rows[i].fojas||'').trim()) return `Complete el número de fojas de ${ref}.`;
       if(rows[i].incluyePlanos && !String(rows[i].planos||'').trim()) return `Complete el número de planos de ${ref}.`;
       if(rows[i].incluyeCds && !String(rows[i].cds||'').trim()) return `Complete el número de CDs de ${ref}.`;
@@ -31881,7 +31897,7 @@ window.addEventListener('load',()=>{
           <col style="width:12%">
         </colgroup>
         <thead><tr>
-          <th>Carpeta</th>
+          <th>Numeración</th>
           <th>Tipo</th>
           <th>N.º de fojas</th>
           <th>Planos incluidos</th>
@@ -31890,9 +31906,12 @@ window.addEventListener('load',()=>{
           <th>Acción</th>
         </tr></thead>
         <tbody>${rows.map((row,i)=>`<tr>
-          <td>${row.tipo==='folder'?`Carpeta ${folderNumberV180(rows,i)}`:'—'}</td>
+          <td>${row.tipo==='carpeta'
+            ? `Carpeta ${typeNumberV183(rows,i,'carpeta')}`
+            : (row.tipo==='folder' ? `Folder ${typeNumberV183(rows,i,'folder')}` : '—')}</td>
           <td><select onchange="updateAnexoV163(${i},'tipo',this.value)">
             <option value="folder" ${row.tipo==='folder'?'selected':''}>folder</option>
+            <option value="carpeta" ${row.tipo==='carpeta'?'selected':''}>carpeta</option>
             <option value="fojas" ${row.tipo==='fojas'?'selected':''}>fojas</option>
           </select></td>
           <td><input type="number" min="0" step="1" inputmode="numeric" value="${typeof esc==='function'?esc(row.fojas):row.fojas}" placeholder="Fojas" oninput="updateAnexoV163(${i},'fojas',this.value)"></td>
