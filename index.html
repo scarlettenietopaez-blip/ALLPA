@@ -3653,7 +3653,7 @@ main{
         <button class="tab-btn" data-tab="tab-vista" onclick="showTab('tab-vista')">Vista del informe</button>
       </div>
       <div id="tab-info" class="tab active card no-print"><h2>Información general</h2><div id="infoForm"></div><div class="buttons"><button class="secondary" onclick="tabAnterior()">Atrás</button><button onclick="guardarYSeguir()" class="success">Guardar y siguiente</button></div></div>
-      <div id="tab-req" class="tab card no-print"><h2>Requisitos</h2><div class="note-box">Los requisitos de esta sección se basan en la Ordenanza 016-2023, Artículo 94.</div><div id="requisitosForm"></div><div class="buttons"><button class="secondary" onclick="tabAnterior()">Atrás</button><button onclick="guardarYSeguir()" class="success">Guardar y siguiente</button></div></div>
+      <div id="tab-req" class="tab card no-print"><h2>Requisitos</h2><div id="reqNormativaNote" class="note-box"></div><div id="requisitosForm"></div><div class="buttons"><button class="secondary" onclick="tabAnterior()">Atrás</button><button onclick="guardarYSeguir()" class="success">Guardar y siguiente</button></div></div>
       <div id="tab-obs" class="tab card no-print"><h2>Observaciones</h2><div id="observacionesForm"></div><div class="buttons"><button class="secondary" onclick="tabAnterior()">Atrás</button><button onclick="guardarYSeguir()" class="success">Guardar y siguiente</button></div></div>
       <div id="tab-apr" class="tab card no-print"><h2>Información complementaria para informe aprobatorio</h2><div id="aprobatorioForm"></div><div class="buttons"><button class="secondary" onclick="tabAnterior()">Atrás</button><button onclick="guardarYSeguir()" class="success">Guardar y siguiente</button></div></div>
       <div id="tab-guardados" class="tab card no-print"><h2>Buscar y recuperar formularios</h2><div class="row"><div class="field"><label>Buscar por Nro. eGOB</label><input id="buscarEgob" placeholder="Ej.: 1157249"></div><div class="field"><label>&nbsp;</label><button onclick="cargarPorBusqueda()">Buscar y cargar</button></div></div><div class="buttons"><button class="secondary" onclick="exportarRespaldo()">Exportar respaldo JSON</button><label class="button-label"><input type="file" id="importFile" accept=".json" style="display:none" onchange="importarRespaldo(event)"><button class="secondary" onclick="document.getElementById('importFile').click()">Importar respaldo JSON</button></label></div><div id="guardadosLista" style="margin-top:12px"></div></div>
@@ -10593,10 +10593,11 @@ function reqObservationHtmlV62(text){
 
 function requisitoObsRows(){
  return requisitosPorEstado('No Cumple').map(r=>{
+   const normaReq=r.normaDefault||allpaNormaTexto('requisitos');
    return {
      id:r.id,
-     articulo:r.normaDefault||'Ordenanza 016-2023, Artículo 94',
-     norma:r.normaDefault||'Ordenanza 016-2023, Artículo 94',
+     articulo:normaReq,
+     norma:normaReq,
      observacion:reqObservationTextV62(r),
      texto:'',
      source:'req'
@@ -33606,7 +33607,7 @@ window.addEventListener('load',()=>{
     const box=document.getElementById('reqPropuestaContentV2');
     if(!box) return;
     const rows=proposalRowsV2();
-    const article=projectV2()==='anteproyecto_edificacion'?'Artículo 84':'Artículo 95';
+    const article=allpaArticuloNormativo('propuesta',projectV2());
     const project=projectV2()==='anteproyecto_edificacion'?'ANTEPROYECTO DE EDIFICACIÓN':'OBRA MAYOR - PROYECTO DEFINITIVO';
 
     const body=rows.map(req=>{
@@ -37756,6 +37757,138 @@ textarea.evidencia-text,
 
   /* Mantener también el identificador global histórico si existe. */
   try{ updEstudio = window.updEstudio; }catch(_e){}
+})();
+
+</script>
+
+<script id="allpa-dep04-normativa-centralizada">
+
+(function(){
+  /* ==========================================================
+     DEPURACIÓN 04 — NORMATIVA CENTRALIZADA
+     Los CSV conservan sus propios textos normativos.
+     Si un requisito tiene normaDefault, esa norma tiene prioridad.
+     ========================================================== */
+
+  const CONFIG=Object.freeze({
+    anteproyecto_edificacion:Object.freeze({
+      requisitos:Object.freeze({
+        articulo:'Artículo 83',
+        norma:'Ordenanza 016-2023, Artículo 83'
+      }),
+      propuesta:Object.freeze({
+        articulo:'Artículo 84',
+        norma:'Ordenanza 016-2023, Artículo 84'
+      })
+    }),
+    obra_mayor_definitivo:Object.freeze({
+      requisitos:Object.freeze({
+        articulo:'Artículo 94',
+        norma:'Ordenanza 016-2023, Artículo 94'
+      }),
+      propuesta:Object.freeze({
+        articulo:'Artículo 95',
+        norma:'Ordenanza 016-2023, Artículo 95'
+      })
+    })
+  });
+
+  window.ALLPA_NORMATIVA=CONFIG;
+
+  window.allpaProyectoNormativo=function(projectId){
+    let id=String(projectId||'').trim();
+
+    if(!id){
+      try{
+        if(typeof projectTypeV123==='function'){
+          id=String(projectTypeV123()||'').trim();
+        }
+      }catch(_e){}
+    }
+
+    if(!id){
+      try{
+        if(typeof state!=='undefined' && state && state.projectType){
+          id=String(state.projectType).trim();
+        }
+      }catch(_e){}
+    }
+
+    return CONFIG[id] ? id : 'obra_mayor_definitivo';
+  };
+
+  window.allpaArticuloNormativo=function(tipo,projectId){
+    const id=window.allpaProyectoNormativo(projectId);
+    const grupo=CONFIG[id]||CONFIG.obra_mayor_definitivo;
+    const item=grupo[tipo]||grupo.requisitos;
+    return item.articulo;
+  };
+
+  window.allpaNormaTexto=function(tipo,projectId){
+    const id=window.allpaProyectoNormativo(projectId);
+    const grupo=CONFIG[id]||CONFIG.obra_mayor_definitivo;
+    const item=grupo[tipo]||grupo.requisitos;
+    return item.norma;
+  };
+
+  window.allpaActualizarNotaNormativaRequisitos=function(){
+    const note=document.getElementById('reqNormativaNote');
+    if(!note) return;
+    note.textContent=
+      'Los requisitos de esta sección se basan en la '+
+      window.allpaNormaTexto('requisitos')+'.';
+  };
+
+  if(typeof renderRequisitosForm==='function'){
+    const base=renderRequisitosForm;
+    renderRequisitosForm=function(){
+      const out=base.apply(this,arguments);
+      setTimeout(window.allpaActualizarNotaNormativaRequisitos,0);
+      return out;
+    };
+  }
+
+  if(typeof showTab==='function'){
+    const base=showTab;
+    showTab=function(id){
+      const out=base.apply(this,arguments);
+      if(id==='tab-req'){
+        setTimeout(window.allpaActualizarNotaNormativaRequisitos,0);
+      }
+      return out;
+    };
+  }
+
+  if(typeof selectProjectV123==='function'){
+    const base=selectProjectV123;
+    selectProjectV123=function(){
+      const out=base.apply(this,arguments);
+      setTimeout(window.allpaActualizarNotaNormativaRequisitos,60);
+      return out;
+    };
+  }
+
+  if(typeof applyProjectRequirementsV128==='function'){
+    const base=applyProjectRequirementsV128;
+    applyProjectRequirementsV128=function(){
+      const out=base.apply(this,arguments);
+      setTimeout(window.allpaActualizarNotaNormativaRequisitos,20);
+      return out;
+    };
+  }
+
+  if(typeof applyStateToUI==='function'){
+    const base=applyStateToUI;
+    applyStateToUI=function(){
+      const out=base.apply(this,arguments);
+      setTimeout(window.allpaActualizarNotaNormativaRequisitos,20);
+      return out;
+    };
+  }
+
+  window.addEventListener('load',function(){
+    setTimeout(window.allpaActualizarNotaNormativaRequisitos,0);
+  });
 })();
 
 </script>
