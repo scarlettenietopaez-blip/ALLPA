@@ -3594,6 +3594,237 @@ main{
 }
 </style>
 
+
+
+
+<style id="allpa-paginador-a4-v2-css">
+/* ==========================================================
+   PAGINADOR A4 V2
+   - Páginas físicas A4 medibles ANTES de imprimir.
+   - Conserva la envolvente/clases de .report.
+   - Divide tablas por filas.
+   - NO repite encabezados.
+   ========================================================== */
+
+#allpaPrintMeasureV2,
+#allpaPrintPagesV2{
+  position:fixed;
+  left:-20000px;
+  top:0;
+  visibility:hidden;
+  pointer-events:none;
+  z-index:-9999;
+}
+
+#allpaPrintPagesV2{
+  display:block;
+}
+
+.allpa-print-page-v2{
+  position:relative;
+  width:210mm;
+  height:297mm;
+  min-height:297mm;
+  max-height:297mm;
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  overflow:hidden;
+  background:#fff;
+}
+
+.allpa-print-page-bg-v2{
+  position:absolute;
+  inset:0;
+  width:210mm;
+  height:297mm;
+  object-fit:fill;
+  z-index:0;
+  pointer-events:none;
+}
+
+.allpa-print-page-content-v2{
+  position:absolute;
+  z-index:1;
+  box-sizing:border-box;
+  overflow:hidden;
+  background:transparent;
+}
+
+.allpa-print-page-v2.with-bg-v2 .allpa-print-page-content-v2{
+  top:30mm;
+  right:22mm;
+  bottom:30mm;
+  left:22mm;
+}
+
+.allpa-print-page-v2.no-bg-v2 .allpa-print-page-content-v2{
+  top:18mm;
+  right:18mm;
+  bottom:18mm;
+  left:18mm;
+}
+
+/* Mantener estilos tipográficos originales de la Vista del Informe. */
+.allpa-print-page-content-v2 > .report,
+.allpa-print-page-content-v2 > .report.report-observaciones,
+.allpa-print-page-content-v2 > .report.report-desistimiento,
+.allpa-print-page-content-v2 > .report.report-aprobatorio{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  margin:0!important;
+  padding:0!important;
+  position:relative!important;
+  left:auto!important;
+  right:auto!important;
+  top:auto!important;
+  transform:none!important;
+  background-color:transparent!important;
+  background-image:none!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  border:none!important;
+  outline:none!important;
+  overflow:visible!important;
+}
+
+.allpa-print-page-content-v2 .report,
+.allpa-print-page-content-v2 .report *{
+  box-sizing:border-box!important;
+}
+
+.allpa-print-page-content-v2 table{
+  width:100%!important;
+  border-collapse:collapse!important;
+  border-spacing:0!important;
+}
+
+@media print{
+  @page{
+    size:A4 portrait;
+    margin:0;
+  }
+
+  html,body{
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:none!important;
+  }
+
+  body.allpa-print-pages-active-v2 > *:not(#allpaPrintPagesV2){
+    display:none!important;
+  }
+
+  body.allpa-print-pages-active-v2 #allpaPrintPagesV2{
+    position:static!important;
+    left:auto!important;
+    top:auto!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+    z-index:auto!important;
+    display:block!important;
+    margin:0!important;
+    padding:0!important;
+  }
+
+  .allpa-print-page-v2{
+    break-after:page!important;
+    page-break-after:always!important;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+
+  .allpa-print-page-v2:last-child{
+    break-after:auto!important;
+    page-break-after:auto!important;
+  }
+
+  .allpa-print-page-bg-v2{
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+
+  .allpa-print-page-content-v2{
+    overflow:hidden!important;
+  }
+
+  body.allpa-print-pages-active-v2
+  .allpa-print-page-content-v2 > .report,
+  body.allpa-print-pages-active-v2
+  .allpa-print-page-content-v2 > .report.report-observaciones,
+  body.allpa-print-pages-active-v2
+  .allpa-print-page-content-v2 > .report.report-desistimiento,
+  body.allpa-print-pages-active-v2
+  .allpa-print-page-content-v2 > .report.report-aprobatorio{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0!important;
+    padding:0!important;
+    left:auto!important;
+    right:auto!important;
+    top:auto!important;
+    background:transparent!important;
+    background-color:transparent!important;
+    background-image:none!important;
+    box-shadow:none!important;
+    border:0!important;
+    outline:0!important;
+    overflow:visible!important;
+  }
+
+  body.allpa-print-pages-active-v2
+  .allpa-print-page-content-v2 table{
+    width:100%!important;
+    max-width:100%!important;
+    table-layout:auto!important;
+  }
+
+  body.allpa-print-pages-active-v2
+  .allpa-print-page-content-v2 th,
+  body.allpa-print-pages-active-v2
+  .allpa-print-page-content-v2 td{
+    max-width:100%!important;
+    overflow-wrap:anywhere!important;
+    word-break:normal!important;
+  }
+
+  .allpa-print-page-content-v2 p,
+  .allpa-print-page-content-v2 h1,
+  .allpa-print-page-content-v2 h2,
+  .allpa-print-page-content-v2 h3,
+  .allpa-print-page-content-v2 h4,
+  .allpa-print-page-content-v2 tr{
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+}
+
+/* Desactivar mecanismos históricos mientras imprime V2. */
+@media print{
+  body.allpa-print-pages-active-v2{
+    background-image:none!important;
+    background-color:#fff!important;
+  }
+
+  body.allpa-print-pages-active-v2 #printBackgroundLayerV119J,
+  body.allpa-print-pages-active-v2 #allpaFondoPreloadV119J,
+  body.allpa-print-pages-active-v2 #allpaPrintBackgroundV119J{
+    display:none!important;
+  }
+}
+</style>
+
 </head>
 <body>
 
@@ -11846,7 +12077,7 @@ async function copiarInformeAprobatorio(){
   return copiarInformeActualV70();
 }
 
-function imprimirInforme(){
+async function imprimirInforme(){
   try{
     const errors=validationErrorsV70('generar el PDF');
     if(errors.length){
@@ -11867,16 +12098,23 @@ function imprimirInforme(){
       return;
     }
 
-    setTimeout(()=>{
-      try{
-        window.print();
-        msg('Se abrió el diálogo de impresión. Si no se genera el PDF, revise que el navegador permita imprimir y seleccione “Guardar como PDF”.', true);
-      }catch(err){
-        showDetailedErrorV70('No se pudo abrir el diálogo para generar PDF.', [err?.message || String(err)]);
-      }
-    },120);
+    if(typeof prepararImpresionFondoV119J === 'function'){
+      await prepararImpresionFondoV119J();
+    }
+
+    if(document.fonts && document.fonts.ready){
+      try{ await document.fonts.ready; }catch(_e){}
+    }
+
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+
+    window.print();
+    msg('Se abrió el diálogo de impresión. Si no se genera el PDF, revise que el navegador permita imprimir y seleccione “Guardar como PDF”.', true);
   }catch(err){
-    showDetailedErrorV70('No se pudo generar el PDF.', [err?.message || String(err)]);
+    showDetailedErrorV70('No se pudo generar el PDF.', [
+      err?.message || String(err),
+      'Si el informe usa fondo institucional, confirme que assets/fondo_institucional.png esté disponible.'
+    ]);
   }
 }
 
@@ -27094,7 +27332,7 @@ function buildClipboardPayloadV154(){
     th,td{border:1px solid #000;padding:4px 5px;font-family:Arial,Helvetica,sans-serif;font-size:8.5pt;line-height:1.2;vertical-align:top;}
     th,.apr-info-label,.apr-info-section,.label-cell,.study-cell{font-weight:900!important;}
   `;
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}
+  const html=`<!DOCTYPE html><head><meta charset="UTF-8"><style>${css}</style></head>${clone.outerHTML}
 <!-- VERSIÓN 5: No Aplica selectivo en Requisitos Propuesta Arquitectónica. -->
 
 <!-- ==========================================================
@@ -27125,7 +27363,7 @@ function buildClipboardPayloadV154(){
 <!-- VERSIÓN 20: eliminado el espacio, línea, nombre y cargo de firma del PDF Siento Razón eGOB. -->
 
 <!-- ALLPA V54: permite descripciones repetidas cuando cambia el Tipo de intervención. -->
-</body></html>`;
+`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
 }
@@ -27660,9 +27898,9 @@ if(typeof buildClipboardPayloadV154==='function'){
       th,td{border:1px solid #000;padding:4px 5px;font-family:Arial,Helvetica,sans-serif;font-size:8.5pt;line-height:1.2;vertical-align:top;}
       th,.apr-info-label,.apr-info-section,.label-cell,.study-cell{font-weight:bold!important;}
     `;
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}
+    const html=`<!DOCTYPE html><head><meta charset="UTF-8"><style>${css}</style></head>${clone.outerHTML}
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
-</body></html>`;
+`;
     const plain=(clone.innerText||clone.textContent||'').trim();
     return {html,plain};
   };
@@ -27829,9 +28067,9 @@ function buildClipboardPayloadV154(){
     th,.apr-info-label,.apr-info-section,.label-cell,.study-cell{font-weight:900!important;}
     span,b,strong,p,div,li{background:transparent!important;text-shadow:none!important;box-shadow:none!important;}
   `;
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${css}</style></head><body>${clone.outerHTML}
+  const html=`<!DOCTYPE html><head><meta charset="UTF-8"><style>${css}</style></head>${clone.outerHTML}
 <!-- VERSIÓN 19: eliminado el botón Actualizar del buscador de informes guardados. -->
-</body></html>`;
+`;
   const plain=(clone.innerText||clone.textContent||'').trim();
   return {html,plain};
 }
@@ -28014,10 +28252,6 @@ document.addEventListener('click',event=>{
 <script>
 window.addEventListener('beforeprint',()=>{
   document.body.classList.add('pdf-print-v160');
-  try{
-    if(typeof renderReport==='function') renderReport();
-    if(typeof showTab==='function') showTab('tab-vista');
-  }catch(_e){}
 });
 window.addEventListener('afterprint',()=>{
   document.body.classList.remove('pdf-print-v160');
@@ -28132,20 +28366,30 @@ window.addEventListener('afterprint',()=>{
 
 <style id="print-fondo-bordes-v119j">
 /* ==========================================================
-   V119J - Fondo institucional por cada hoja impresa
-   - No aparece en Vista del Informe.
-   - No se aplica a Aprobatorio.
-   - Se aplica a Observaciones y Desistimiento.
-   ========================================================== */
+   V119J — PRUEBA CONTROLADA DE BACKGROUND REPETIDO
+   La imagen permanece externa:
+   assets/fondo_institucional.png
 
-#printBackgroundLayerV119J,
-.print-bg-page-v119j{
-  display:none!important;
-}
+   Observaciones y Desistimiento:
+   el body imprime un fondo A4 repetido cada 297 mm.
+
+   Aprobatorio:
+   sin fondo institucional.
+   ========================================================== */
 
 #report,
 .report{
   background-image:none!important;
+}
+
+#allpaFondoPreloadV119J{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  left:-99999px!important;
+  top:-99999px!important;
+  opacity:0!important;
+  pointer-events:none!important;
 }
 
 @media print{
@@ -28154,73 +28398,48 @@ window.addEventListener('afterprint',()=>{
     margin:0;
   }
 
-  html,
+  html{
+    margin:0!important;
+    padding:0!important;
+    width:210mm!important;
+    background:#fff!important;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+    color-adjust:exact!important;
+  }
+
   body{
     margin:0!important;
     padding:0!important;
     width:210mm!important;
     min-width:210mm!important;
     max-width:210mm!important;
-    background-color:#ffffff!important;
+    background-color:#fff!important;
     background-image:none!important;
     -webkit-print-color-adjust:exact!important;
     print-color-adjust:exact!important;
     color-adjust:exact!important;
   }
 
-  /* Por defecto, ningún fondo institucional. Protege el aprobatorio. */
-  #printBackgroundLayerV119J{
-    display:none!important;
-  }
-
-  body.printing-aprobatorio #printBackgroundLayerV119J{
-    display:none!important;
-  }
-
-  /* Solo para Observaciones y Desistimiento:
-     se imprime una imagen por cada página del documento. */
-  body.printing-fondo-institucional-v119j #report{
-    position:relative!important;
-    isolation:isolate!important;
-  }
-
-  body.printing-fondo-institucional-v119j #printBackgroundLayerV119J{
-    display:block!important;
-    position:absolute!important;
-    left:0!important;
-    top:0!important;
-    width:210mm!important;
-    min-height:297mm!important;
-    z-index:0!important;
-    pointer-events:none!important;
-    overflow:visible!important;
-    background:transparent!important;
-    visibility:visible!important;
-  }
-
-  body.printing-fondo-institucional-v119j .print-bg-page-v119j{
-    display:block!important;
-    position:absolute!important;
-    left:0!important;
-    width:210mm!important;
-    height:297mm!important;
-    object-fit:fill!important;
-    z-index:0!important;
-    opacity:1!important;
-    visibility:visible!important;
-    pointer-events:none!important;
+  /* Fondo institucional repetido exactamente cada hoja A4. */
+  body.printing-fondo-institucional-v119j{
+    background-color:#fff!important;
+    background-image:url("assets/fondo_institucional.png")!important;
+    background-size:210mm 297mm!important;
+    background-repeat:repeat-y!important;
+    background-position:0 0!important;
+    background-origin:border-box!important;
+    background-attachment:local!important;
     -webkit-print-color-adjust:exact!important;
     print-color-adjust:exact!important;
     color-adjust:exact!important;
   }
 
-  /* El contenido del informe se coloca sobre las imágenes de fondo. */
-  body.printing-fondo-institucional-v119j #report > *:not(#printBackgroundLayerV119J){
-    position:relative!important;
-    z-index:2!important;
+  body.printing-aprobatorio{
+    background-color:#fff!important;
+    background-image:none!important;
   }
 
-  /* Los contenedores no deben tapar el fondo por página. */
   body.printing-fondo-institucional-v119j main,
   body.printing-fondo-institucional-v119j main > .grid,
   body.printing-fondo-institucional-v119j .grid,
@@ -28241,7 +28460,7 @@ window.addEventListener('afterprint',()=>{
     color-adjust:exact!important;
   }
 
-  /* Márgenes ajustados para que el texto no choque con encabezado ni pie. */
+  /* Mantener área útil del informe. */
   body.printing-fondo-institucional-v119j #report.report-observaciones,
   body.printing-fondo-institucional-v119j .report.report-observaciones,
   body.printing-fondo-institucional-v119j #report.report-desistimiento,
@@ -28251,10 +28470,8 @@ window.addEventListener('afterprint',()=>{
     padding-left:22mm!important;
     padding-right:22mm!important;
     box-sizing:border-box!important;
-    background:transparent!important;
   }
 
-  /* Aprobatorio limpio, sin fondo institucional. */
   body.printing-aprobatorio main,
   body.printing-aprobatorio main > .grid,
   body.printing-aprobatorio .grid,
@@ -28264,11 +28481,10 @@ window.addEventListener('afterprint',()=>{
   body.printing-aprobatorio #report,
   body.printing-aprobatorio .report,
   body.printing-aprobatorio .report.report-aprobatorio{
-    background-color:#ffffff!important;
+    background-color:#fff!important;
     background-image:none!important;
   }
 
-  /* Bordes completos de tablas. */
   #report table,
   .report table,
   #report .apr-info-table,
@@ -28287,19 +28503,7 @@ window.addEventListener('afterprint',()=>{
   #report th,
   #report td,
   .report th,
-  .report td,
-  #report table th,
-  #report table td,
-  .report table th,
-  .report table td,
-  #report .apr-info-table th,
-  #report .apr-info-table td,
-  .report .apr-info-table th,
-  .report .apr-info-table td,
-  #report .informe-table th,
-  #report .informe-table td,
-  .report .informe-table th,
-  .report .informe-table td{
+  .report td{
     border:1px solid #000!important;
     box-shadow:inset 0 0 0 .01px #000!important;
     background-clip:padding-box!important;
@@ -28332,133 +28536,152 @@ window.addEventListener('afterprint',()=>{
    V119J - Inserta fondo_institucional.png una vez por página
    ========================================================== */
 
+window.ALLPA_ASSETS = Object.freeze(Object.assign({}, window.ALLPA_ASSETS || {}, {
+  fondoInstitucional: 'assets/fondo_institucional.png'
+}));
+
+
 function informeUsaFondoInstitucionalV119J(){
   const tipo = String(state?.tipoInforme || '').toUpperCase();
   return tipo.includes('OBSERVACIONES') || tipo.includes('DESISTIMIENTO');
 }
 
-function pxPorMmV119J(){
-  let ruler = document.getElementById('mmRulerV119J');
-  if(!ruler){
-    ruler = document.createElement('div');
-    ruler.id = 'mmRulerV119J';
-    ruler.style.cssText = 'position:absolute;left:-9999px;top:-9999px;width:1mm;height:1mm;visibility:hidden;pointer-events:none;';
-    document.body.appendChild(ruler);
-  }
-  return ruler.getBoundingClientRect().height || 3.7795275591;
-}
+function actualizarClasesImpresionV119J(){
+  const usaFondo=informeUsaFondoInstitucionalV119J();
+  const tipo=String(state?.tipoInforme || '').toUpperCase();
 
-function estimarPaginasReporteV119J(report){
-  const pxmm = pxPorMmV119J();
-  const pageH = 297 * pxmm;
+  document.body.classList.toggle('printing-fondo-institucional-v119j',usaFondo);
+  document.body.classList.toggle('printing-aprobatorio',tipo.includes('APROBATORIO'));
+  document.body.classList.toggle('printing-desistimiento',tipo.includes('DESISTIMIENTO'));
+  document.body.classList.toggle('printing-observaciones',tipo.includes('OBSERVACIONES'));
 
-  // Se calcula sin contar la capa de fondo para evitar que ella aumente el alto.
-  const oldLayer = document.getElementById('printBackgroundLayerV119J');
-  const oldDisplay = oldLayer ? oldLayer.style.display : '';
-  if(oldLayer) oldLayer.style.display='none';
-
-  const h = Math.max(
-    report.scrollHeight || 0,
-    report.offsetHeight || 0,
-    report.getBoundingClientRect().height || 0
-  );
-
-  if(oldLayer) oldLayer.style.display=oldDisplay;
-
-  return Math.max(1, Math.ceil(h / pageH));
-}
-
-function ensurePrintBackgroundLayerV119J(){
-  const report = document.getElementById('report') || document.querySelector('.report');
-  if(!report) return null;
-
-  let layer = document.getElementById('printBackgroundLayerV119J');
-  if(!layer){
-    layer = document.createElement('div');
-    layer.id = 'printBackgroundLayerV119J';
-    layer.setAttribute('aria-hidden','true');
-    report.insertBefore(layer, report.firstChild);
-  }else if(layer.parentElement !== report){
-    report.insertBefore(layer, report.firstChild);
-  }
-
-  return layer;
-}
-
-function construirFondosPorPaginaV119J(){
-  const report = document.getElementById('report') || document.querySelector('.report');
-  if(!report) return;
-
-  const usaFondo = informeUsaFondoInstitucionalV119J();
-  const tipo = String(state?.tipoInforme || '').toUpperCase();
-
-  document.body.classList.toggle('printing-fondo-institucional-v119j', usaFondo);
-  document.body.classList.toggle('printing-aprobatorio', tipo.includes('APROBATORIO'));
-  document.body.classList.toggle('printing-desistimiento', tipo.includes('DESISTIMIENTO'));
-  document.body.classList.toggle('printing-observaciones', tipo.includes('OBSERVACIONES'));
-
-  let layer = ensurePrintBackgroundLayerV119J();
-
-  if(!usaFondo){
-    if(layer) layer.innerHTML='';
-    return;
-  }
-
-  const pages = estimarPaginasReporteV119J(report);
-  const pxmm = pxPorMmV119J();
-  const pageHPx = 297 * pxmm;
-
-  layer.innerHTML = Array.from({length: pages}, (_,i)=>`
-    <img class="print-bg-page-v119j" src="assets/fondo_institucional.png" alt="" style="top:${i*pageHPx}px;">
-  `).join('');
-
-  report.querySelectorAll('table').forEach(tbl=>{
-    tbl.style.borderCollapse='collapse';
-    tbl.style.borderSpacing='0';
-    tbl.style.border='1px solid #000';
-  });
-
-  report.querySelectorAll('th,td').forEach(cell=>{
-    cell.style.border='1px solid #000';
-  });
+  return usaFondo;
 }
 
 function limpiarFondoPantallaV119J(){
-  const report = document.getElementById('report') || document.querySelector('.report');
+  const report=document.getElementById('report') || document.querySelector('.report');
   if(report) report.style.backgroundImage='none';
+}
+
+function ensureFondoPreloadV119J(){
+  let img=document.getElementById('allpaFondoPreloadV119J');
+
+  if(!img){
+    img=document.createElement('img');
+    img.id='allpaFondoPreloadV119J';
+    img.alt='';
+    img.setAttribute('aria-hidden','true');
+    document.body.appendChild(img);
+  }
+
+  const url=window.ALLPA_ASSETS?.fondoInstitucional || 'assets/fondo_institucional.png';
+
+  if(img.getAttribute('src')!==url){
+    img.setAttribute('src',url);
+  }
+
+  return img;
+}
+
+async function esperarImagenFondoV119J(img){
+  if(!img) return;
+
+  if(img.complete){
+    if(!img.naturalWidth){
+      throw new Error(
+        'No se pudo cargar la imagen de fondo institucional: '+
+        (img.currentSrc || img.src || 'ruta desconocida')
+      );
+    }
+
+    if(typeof img.decode==='function'){
+      try{ await img.decode(); }catch(_e){}
+    }
+
+    return;
+  }
+
+  await new Promise((resolve,reject)=>{
+    const cleanup=()=>{
+      img.removeEventListener('load',onLoad);
+      img.removeEventListener('error',onError);
+    };
+
+    const onLoad=()=>{
+      cleanup();
+      resolve();
+    };
+
+    const onError=()=>{
+      cleanup();
+      reject(new Error(
+        'No se pudo cargar la imagen de fondo institucional: '+
+        (img.currentSrc || img.src || 'ruta desconocida')
+      ));
+    };
+
+    img.addEventListener('load',onLoad,{once:true});
+    img.addEventListener('error',onError,{once:true});
+  });
+
+  if(typeof img.decode==='function'){
+    try{ await img.decode(); }catch(_e){}
+  }
+}
+
+async function prepararImpresionFondoV119J(){
+  const usaFondo=actualizarClasesImpresionV119J();
+
+  if(!usaFondo) return;
+
+  /* Precargar el mismo recurso que utiliza background-image.
+     De esta forma, cuando Chromium construye la vista de impresión,
+     el PNG ya está descargado y decodificado. */
+  const img=ensureFondoPreloadV119J();
+  await esperarImagenFondoV119J(img);
+
+  if(document.fonts && document.fonts.ready){
+    try{ await document.fonts.ready; }catch(_e){}
+  }
+
+  await new Promise(resolve=>
+    requestAnimationFrame(()=>
+      requestAnimationFrame(resolve)
+    )
+  );
 }
 
 const _imprimirInforme_base_V119J = typeof imprimirInforme === 'function' ? imprimirInforme : null;
 if(_imprimirInforme_base_V119J){
   imprimirInforme = function(){
-    construirFondosPorPaginaV119J();
-    return _imprimirInforme_base_V119J();
+    return _imprimirInforme_base_V119J.apply(this, arguments);
   };
 }
 
 const _renderReport_base_V119J = typeof renderReport === 'function' ? renderReport : null;
 if(_renderReport_base_V119J){
   renderReport = function(){
-    const out = _renderReport_base_V119J();
-    setTimeout(()=>{
-      construirFondosPorPaginaV119J();
-      limpiarFondoPantallaV119J();
-    },0);
+    const out=_renderReport_base_V119J.apply(this,arguments);
+    limpiarFondoPantallaV119J();
     return out;
   };
 }
 
-window.addEventListener('beforeprint', construirFondosPorPaginaV119J);
-window.addEventListener('afterprint', limpiarFondoPantallaV119J);
+window.addEventListener('beforeprint',()=>{
+  actualizarClasesImpresionV119J();
+});
+
+window.addEventListener('afterprint',()=>{
+  limpiarFondoPantallaV119J();
+});
+
 window.addEventListener('load',()=>{
   setTimeout(()=>{
-    construirFondosPorPaginaV119J();
-    limpiarFondoPantallaV119J();
-  },900);
-  setTimeout(()=>{
-    construirFondosPorPaginaV119J();
-    limpiarFondoPantallaV119J();
-  },1800);
+    try{
+      ensureFondoPreloadV119J();
+      limpiarFondoPantallaV119J();
+    }catch(_e){}
+  },500);
 });
 </script>
 
@@ -37892,5 +38115,754 @@ textarea.evidencia-text,
 })();
 
 </script>
+
+
+
+
+
+<script id="allpa-paginador-a4-v2">
+(function(){
+  /* ==========================================================
+     PAGINADOR A4 V2
+     ========================================================== */
+
+  function usaFondoV2(){
+    const tipo=String(
+      (typeof state!=='undefined' && state && state.tipoInforme) || ''
+    ).toUpperCase();
+    return tipo.includes('OBSERVACIONES') || tipo.includes('DESISTIMIENTO');
+  }
+
+  function fondoUrlV2(){
+    return (
+      window.ALLPA_ASSETS &&
+      window.ALLPA_ASSETS.fondoInstitucional
+    ) || 'assets/fondo_institucional.png';
+  }
+
+  function ensureRootV2(){
+    let root=document.getElementById('allpaPrintPagesV2');
+    if(!root){
+      root=document.createElement('div');
+      root.id='allpaPrintPagesV2';
+      document.body.appendChild(root);
+    }
+    return root;
+  }
+
+  function createPageV2(root,withBg,sourceReport){
+    const page=document.createElement('section');
+    page.className='allpa-print-page-v2 '+(withBg?'with-bg-v2':'no-bg-v2');
+
+    if(withBg){
+      const bg=document.createElement('img');
+      bg.className='allpa-print-page-bg-v2';
+      bg.alt='';
+      bg.setAttribute('aria-hidden','true');
+      bg.src=fondoUrlV2();
+      page.appendChild(bg);
+    }
+
+    const content=document.createElement('div');
+    content.className='allpa-print-page-content-v2';
+
+    const shell=sourceReport.cloneNode(false);
+    shell.removeAttribute('id');
+    shell.removeAttribute('style');
+    shell.classList.add('allpa-report-shell-v2');
+
+    shell.style.width='100%';
+    shell.style.maxWidth='100%';
+    shell.style.minWidth='0';
+    shell.style.height='auto';
+    shell.style.minHeight='0';
+    shell.style.margin='0';
+    shell.style.padding='0';
+    shell.style.background='transparent';
+    shell.style.boxShadow='none';
+    shell.style.border='0';
+    shell.style.overflow='visible';
+
+    content.appendChild(shell);
+    page.appendChild(content);
+    root.appendChild(page);
+
+    return {page,content,shell};
+  }
+
+  function fitsPageV2(pageObj){
+    const c=pageObj.content;
+    return c.scrollHeight <= c.clientHeight + 0.5;
+  }
+
+  function cloneWithoutIdV2(el){
+    const c=el.cloneNode(true);
+    if(c.removeAttribute) c.removeAttribute('id');
+    c.querySelectorAll?.('[id]').forEach(x=>x.removeAttribute('id'));
+    return c;
+  }
+
+  function makeShellV2(el){
+    const c=el.cloneNode(false);
+    if(c.removeAttribute) c.removeAttribute('id');
+    return c;
+  }
+
+  function addWholeBlockV2(el,ctx){
+    const clone=cloneWithoutIdV2(el);
+    ctx.shell.appendChild(clone);
+
+    if(fitsPageV2(ctx.pageObj)) return;
+
+    clone.remove();
+    ctx.newPage();
+    ctx.shell.appendChild(clone);
+  }
+
+  function tableRowsV2(table){
+    return [...table.querySelectorAll(':scope > tbody > tr')];
+  }
+
+  function rowGroupEndV2(rows,start){
+    let end=start;
+    let active=0;
+
+    for(let i=start;i<rows.length;i++){
+      if(i>start && active<=0) break;
+
+      let maxSpan=1;
+      [...rows[i].children].forEach(cell=>{
+        const rs=parseInt(cell.getAttribute('rowspan')||'1',10);
+        if(Number.isFinite(rs) && rs>maxSpan) maxSpan=rs;
+      });
+
+      active=Math.max(active-1,maxSpan-1);
+      end=i;
+    }
+
+    return end;
+  }
+
+  function buildTableFragmentV2(table,includeHeader){
+    const frag=table.cloneNode(false);
+    frag.removeAttribute('id');
+
+    const caption=table.querySelector(':scope > caption');
+    const colgroup=table.querySelector(':scope > colgroup');
+    const thead=table.querySelector(':scope > thead');
+    const tfoot=table.querySelector(':scope > tfoot');
+
+    if(includeHeader && caption) frag.appendChild(caption.cloneNode(true));
+    if(colgroup) frag.appendChild(colgroup.cloneNode(true));
+    if(includeHeader && thead) frag.appendChild(thead.cloneNode(true));
+
+    const tbody=document.createElement('tbody');
+    frag.appendChild(tbody);
+
+    return {table:frag,tbody,tfoot};
+  }
+
+  function addTableV2(table,ctx){
+    const rows=tableRowsV2(table);
+
+    if(!rows.length){
+      addWholeBlockV2(table,ctx);
+      return;
+    }
+
+    let firstFragment=true;
+    let i=0;
+
+    while(i<rows.length){
+      /* IMPORTANTE:
+         se comienza siempre en el espacio restante de la página actual.
+         No se prueba la tabla completa como bloque indivisible. */
+      let frag=buildTableFragmentV2(table,firstFragment);
+      ctx.shell.appendChild(frag.table);
+
+      /* Si ni siquiera el encabezado del primer fragmento cabe,
+         entonces sí pasamos el fragmento a la siguiente página. */
+      if(!fitsPageV2(ctx.pageObj)){
+        frag.table.remove();
+        ctx.newPage();
+        frag=buildTableFragmentV2(table,firstFragment);
+        ctx.shell.appendChild(frag.table);
+      }
+
+      let accepted=0;
+
+      while(i<rows.length){
+        const end=rowGroupEndV2(rows,i);
+        const clones=[];
+
+        for(let j=i;j<=end;j++){
+          const rc=cloneWithoutIdV2(rows[j]);
+          frag.tbody.appendChild(rc);
+          clones.push(rc);
+        }
+
+        if(fitsPageV2(ctx.pageObj)){
+          accepted += clones.length;
+          i=end+1;
+          continue;
+        }
+
+        /* El grupo recién agregado ya no cabe. */
+        clones.forEach(r=>r.remove());
+
+        if(accepted>0){
+          /* Ya aprovechamos todo el espacio útil posible de esta hoja. */
+          break;
+        }
+
+        /* Si el primer grupo no cabe porque la página ya está casi llena,
+           conservar la tabla para la página siguiente. */
+        frag.table.remove();
+        ctx.newPage();
+        frag=buildTableFragmentV2(table,firstFragment);
+        ctx.shell.appendChild(frag.table);
+
+        for(let j=i;j<=end;j++){
+          const rc=cloneWithoutIdV2(rows[j]);
+          frag.tbody.appendChild(rc);
+          clones.push(rc);
+        }
+
+        /* Si el grupo por sí solo supera una hoja, se conserva para evitar
+           pérdida de contenido/bucle infinito. */
+        accepted += (end-i+1);
+        i=end+1;
+      }
+
+      /* Pie de tabla solo al terminar la última parte. */
+      if(frag.tfoot && i>=rows.length){
+        const foot=frag.tfoot.cloneNode(true);
+        frag.table.appendChild(foot);
+
+        /* Si el tfoot provoca overflow, dejarlo en una nueva página,
+           sin repetir encabezado. */
+        if(!fitsPageV2(ctx.pageObj)){
+          foot.remove();
+          ctx.newPage();
+          const lastFrag=buildTableFragmentV2(table,false);
+          lastFrag.table.appendChild(frag.tfoot.cloneNode(true));
+          ctx.shell.appendChild(lastFrag.table);
+        }
+      }
+
+      firstFragment=false;
+
+      if(i<rows.length){
+        ctx.newPage();
+      }
+    }
+  }
+
+  function addListV2(list,ctx){
+    const items=[...list.children].filter(el=>el.tagName && el.tagName.toLowerCase()==='li');
+
+    if(!items.length){
+      addWholeBlockV2(list,ctx);
+      return;
+    }
+
+    let shell=makeShellV2(list);
+    ctx.shell.appendChild(shell);
+
+    /* Si la envolvente vacía ya no entra, comenzar en nueva hoja. */
+    if(!fitsPageV2(ctx.pageObj)){
+      shell.remove();
+      ctx.newPage();
+      shell=makeShellV2(list);
+      ctx.shell.appendChild(shell);
+    }
+
+    for(const item of items){
+      const li=cloneWithoutIdV2(item);
+      shell.appendChild(li);
+
+      if(fitsPageV2(ctx.pageObj)){
+        continue;
+      }
+
+      li.remove();
+
+      /* Si ya había otros LI en esta hoja, continuar la misma lista
+         en una nueva hoja sin repetir ningún título. */
+      ctx.newPage();
+      shell=makeShellV2(list);
+      ctx.shell.appendChild(shell);
+      shell.appendChild(li);
+
+      /* Un LI excepcionalmente alto se conserva completo para no perderlo. */
+    }
+  }
+
+  function minimalPreviewV2(el){
+    if(!el || !(el instanceof Element)) return null;
+
+    const tag=el.tagName.toLowerCase();
+
+    if(tag==='table'){
+      const frag=buildTableFragmentV2(el,true);
+      const rows=tableRowsV2(el);
+
+      if(rows.length){
+        const end=rowGroupEndV2(rows,0);
+        for(let j=0;j<=end;j++){
+          frag.tbody.appendChild(cloneWithoutIdV2(rows[j]));
+        }
+      }
+
+      return frag.table;
+    }
+
+    if(tag==='ul' || tag==='ol'){
+      const shell=makeShellV2(el);
+      const first=[...el.children].find(x=>x.tagName && x.tagName.toLowerCase()==='li');
+      if(first) shell.appendChild(cloneWithoutIdV2(first));
+      return shell;
+    }
+
+    /* Si es un wrapper, bajar hasta su primer hijo significativo para
+       no medir el contenedor completo. */
+    if(
+      ['div','section','article','main','fieldset'].includes(tag) &&
+      el.children.length
+    ){
+      const shell=makeShellV2(el);
+      const firstChild=el.firstElementChild;
+      const inner=minimalPreviewV2(firstChild) || cloneWithoutIdV2(firstChild);
+      if(inner) shell.appendChild(inner);
+      return shell;
+    }
+
+    return cloneWithoutIdV2(el);
+  }
+
+  function addContainerV2(el,ctx){
+    const children=[...el.children];
+
+    if(!children.length){
+      addWholeBlockV2(el,ctx);
+      return;
+    }
+
+    /* IMPORTANTE:
+       No tratar wrappers de un solo hijo como indivisibles.
+       Se conserva la envolvente, pero siempre se recorre su contenido
+       para poder llegar a TABLE / UL / OL aunque estén anidados. */
+    let localShell=makeShellV2(el);
+    ctx.shell.appendChild(localShell);
+
+    if(!fitsPageV2(ctx.pageObj)){
+      localShell.remove();
+      ctx.newPage();
+      localShell=makeShellV2(el);
+      ctx.shell.appendChild(localShell);
+    }
+
+    const parentCtx={
+      get pageObj(){ return ctx.pageObj; },
+      get shell(){ return localShell; },
+      set shell(v){ localShell=v; },
+      newPage(){
+        ctx.newPage();
+        localShell=makeShellV2(el);
+        ctx.shell.appendChild(localShell);
+      }
+    };
+
+    function isLocalHeadingV2(el){
+      if(!el || !el.tagName) return false;
+      const tag=el.tagName.toLowerCase();
+
+      return (
+        ['h1','h2','h3','h4','h5','h6'].includes(tag) ||
+        el.classList.contains('report-section-heading') ||
+        el.classList.contains('section-title') ||
+        el.classList.contains('report-heading')
+      );
+    }
+
+    for(let idx=0;idx<children.length;idx++){
+      const child=children[idx];
+
+      if(isLocalHeadingV2(child) && children[idx+1]){
+        const h=cloneWithoutIdV2(child);
+        const n=minimalPreviewV2(children[idx+1]);
+
+        parentCtx.shell.appendChild(h);
+        if(n) parentCtx.shell.appendChild(n);
+
+        const pairFits=fitsPageV2(parentCtx.pageObj);
+
+        if(n) n.remove();
+        h.remove();
+
+        if(!pairFits){
+          parentCtx.newPage();
+        }
+
+        addWholeBlockV2(child,parentCtx);
+        continue;
+      }
+
+      addNodeV2(child,parentCtx);
+    }
+  }
+
+  function addNodeV2(node,ctx){
+    if(!(node instanceof Element)) return;
+
+    const tag=node.tagName.toLowerCase();
+
+    if(tag==='table'){
+      addTableV2(node,ctx);
+      return;
+    }
+
+    if(tag==='ul' || tag==='ol'){
+      addListV2(node,ctx);
+      return;
+    }
+
+    if(
+      ['div','section','article','main','fieldset'].includes(tag) &&
+      node.children.length>0
+    ){
+      addContainerV2(node,ctx);
+      return;
+    }
+
+    addWholeBlockV2(node,ctx);
+  }
+
+  async function waitImagesV2(root){
+    const imgs=[...root.querySelectorAll('img')];
+
+    await Promise.all(imgs.map(img=>{
+      if(img.complete && img.naturalWidth>0){
+        if(typeof img.decode==='function'){
+          return img.decode().catch(()=>{});
+        }
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve,reject)=>{
+        const cleanup=()=>{
+          img.removeEventListener('load',ok);
+          img.removeEventListener('error',bad);
+        };
+        const ok=()=>{
+          cleanup();
+          if(typeof img.decode==='function'){
+            img.decode().catch(()=>{}).finally(resolve);
+          }else{
+            resolve();
+          }
+        };
+        const bad=()=>{
+          cleanup();
+          reject(new Error(
+            'No se pudo cargar una imagen para impresión: '+
+            (img.currentSrc||img.src||'ruta desconocida')
+          ));
+        };
+
+        img.addEventListener('load',ok,{once:true});
+        img.addEventListener('error',bad,{once:true});
+      });
+    }));
+  }
+
+  function isHeadingElementV2(el){
+    if(!el || !el.tagName) return false;
+    const tag=el.tagName.toLowerCase();
+
+    return (
+      ['h1','h2','h3','h4','h5','h6'].includes(tag) ||
+      el.classList.contains('report-section-heading') ||
+      el.classList.contains('section-title') ||
+      el.classList.contains('report-heading')
+    );
+  }
+
+  function findLastMeaningfulElementV2(root){
+    const all=[...root.querySelectorAll('*')];
+
+    for(let i=all.length-1;i>=0;i--){
+      const el=all[i];
+
+      if(el.closest('table') && el.tagName.toLowerCase()!=='table'){
+        continue;
+      }
+
+      const txt=String(el.textContent||'').trim();
+      const rich=el.matches('table,img,svg,canvas');
+
+      if(txt || rich) return el;
+    }
+
+    return null;
+  }
+
+  function moveOrphanHeadingsV2(root){
+    let pages=[...root.querySelectorAll('.allpa-print-page-v2')];
+
+    for(let i=0;i<pages.length-1;i++){
+      const current=pages[i];
+      const next=pages[i+1];
+
+      const currentShell=current.querySelector('.allpa-report-shell-v2');
+      const nextShell=next.querySelector('.allpa-report-shell-v2');
+
+      if(!currentShell || !nextShell) continue;
+
+      let last=findLastMeaningfulElementV2(currentShell);
+
+      /* Subir por wrappers hasta encontrar un título real si el último
+         elemento está dentro de una envolvente dedicada al encabezado. */
+      let heading=null;
+      let probe=last;
+
+      while(probe && probe!==currentShell){
+        if(isHeadingElementV2(probe)){
+          heading=probe;
+          break;
+        }
+
+        /* Wrapper que contiene únicamente un título. */
+        if(
+          probe.children &&
+          probe.children.length===1 &&
+          isHeadingElementV2(probe.firstElementChild)
+        ){
+          heading=probe.firstElementChild;
+          break;
+        }
+
+        probe=probe.parentElement;
+      }
+
+      if(!heading) continue;
+
+      /* Mover el bloque superior que contiene exclusivamente ese título,
+         para conservar estilos/envolvente. */
+      let moveNode=heading;
+
+      while(
+        moveNode.parentElement &&
+        moveNode.parentElement!==currentShell &&
+        moveNode.parentElement.children.length===1 &&
+        String(moveNode.parentElement.textContent||'').trim()===
+          String(moveNode.textContent||'').trim()
+      ){
+        moveNode=moveNode.parentElement;
+      }
+
+      nextShell.insertBefore(moveNode,nextShell.firstChild);
+    }
+  }
+
+  function removeEmptyLastPageV2(root){
+    const pages=[...root.querySelectorAll('.allpa-print-page-v2')];
+    const last=pages[pages.length-1];
+    if(!last) return;
+
+    const shell=last.querySelector('.allpa-report-shell-v2');
+    if(!shell) return;
+
+    const hasText=String(shell.textContent||'').trim();
+    const hasRich=shell.querySelector('table,img,svg,canvas');
+
+    if(!hasText && !hasRich){
+      last.remove();
+    }
+  }
+
+  async function buildPagesV2(){
+    const report=document.getElementById('report') || document.querySelector('.report');
+
+    if(!report){
+      throw new Error('No se encontró la Vista del Informe.');
+    }
+
+    const root=ensureRootV2();
+    root.innerHTML='';
+
+    const withBg=usaFondoV2();
+
+    let pageObj=createPageV2(root,withBg,report);
+
+    const ctx={
+      get pageObj(){ return pageObj; },
+      get shell(){ return pageObj.shell; },
+      set shell(v){ pageObj.shell=v; },
+      newPage(){
+        pageObj=createPageV2(root,withBg,report);
+      }
+    };
+
+    const source=report.cloneNode(true);
+    const children=[...source.children];
+
+    function isHeadingV2(el){
+      if(!el || !el.tagName) return false;
+      const tag=el.tagName.toLowerCase();
+
+      return (
+        ['h1','h2','h3','h4','h5','h6'].includes(tag) ||
+        el.classList.contains('report-section-heading') ||
+        el.classList.contains('section-title') ||
+        el.classList.contains('report-heading')
+      );
+    }
+
+    for(let idx=0; idx<children.length; idx++){
+      const child=children[idx];
+
+      /* Regla anti-huérfano:
+         si es un título y existe un bloque después, probamos temporalmente
+         título + primer bloque. Si juntos no caben y el título sí quedaría
+         solo, movemos el título antes de paginar el contenido siguiente. */
+      if(isHeadingV2(child) && children[idx+1]){
+        const headingClone=cloneWithoutIdV2(child);
+        const nextClone=minimalPreviewV2(children[idx+1]);
+
+        ctx.shell.appendChild(headingClone);
+        if(nextClone) ctx.shell.appendChild(nextClone);
+
+        const pairFits=fitsPageV2(ctx.pageObj);
+
+        if(nextClone) nextClone.remove();
+        headingClone.remove();
+
+        if(!pairFits){
+          ctx.newPage();
+        }
+
+        addWholeBlockV2(child,ctx);
+        continue;
+      }
+
+      addNodeV2(child,ctx);
+    }
+
+    removeEmptyLastPageV2(root);
+
+    /* Segunda barrera contra títulos huérfanos:
+       corregir casos donde la estructura HTML los dejó aislados. */
+    moveOrphanHeadingsV2(root);
+
+    /* La reubicación puede dejar una última página vacía. */
+    removeEmptyLastPageV2(root);
+
+    await waitImagesV2(root);
+
+    if(document.fonts && document.fonts.ready){
+      try{ await document.fonts.ready; }catch(_e){}
+    }
+
+    await new Promise(resolve=>
+      requestAnimationFrame(()=>
+        requestAnimationFrame(resolve)
+      )
+    );
+
+    return root;
+  }
+
+  function clearPagesV2(){
+    document.body.classList.remove('allpa-print-pages-active-v2');
+    const root=document.getElementById('allpaPrintPagesV2');
+    if(root) root.innerHTML='';
+  }
+
+  window.imprimirInforme=async function(){
+    try{
+      if(typeof validationErrorsV70==='function'){
+        const errors=validationErrorsV70('generar el PDF');
+        if(errors && errors.length){
+          if(typeof showDetailedErrorV70==='function'){
+            showDetailedErrorV70('No se puede generar el PDF todavía.',errors);
+          }
+          return;
+        }
+      }
+
+      if(typeof renderReport==='function'){
+        const html=renderReport();
+        if(!html || !String(html).trim()){
+          throw new Error('La Vista del Informe está vacía.');
+        }
+      }
+
+      if(typeof showTab==='function'){
+        showTab('tab-vista');
+      }
+
+      await buildPagesV2();
+
+      document.body.classList.add('allpa-print-pages-active-v2');
+
+      await new Promise(resolve=>
+        requestAnimationFrame(()=>
+          requestAnimationFrame(resolve)
+        )
+      );
+
+      window.print();
+
+      if(typeof msg==='function'){
+        msg('Se abrió el diálogo de impresión.',true);
+      }
+    }catch(err){
+      clearPagesV2();
+
+      if(typeof showDetailedErrorV70==='function'){
+        showDetailedErrorV70(
+          'No se pudo generar el PDF.',
+          [err?.message || String(err)]
+        );
+      }else{
+        console.error(err);
+        alert('No se pudo generar el PDF: '+(err?.message || String(err)));
+      }
+    }
+  };
+
+  window.addEventListener('afterprint',clearPagesV2);
+})();
+</script>
+
+
+<style id="allpa-paginador-a4-v2-flujo-correccion">
+@media print{
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 table,
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 tbody,
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 tr{
+    break-inside:auto!important;
+    page-break-inside:auto!important;
+  }
+
+  /* Cada fila se mantiene completa; la tabla sí puede continuar en otra hoja. */
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 tr{
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+
+  /* Evitar título aislado por reglas CSS del navegador como refuerzo. */
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 h1,
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 h2,
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 h3,
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 h4,
+  body.allpa-print-pages-active-v2 .allpa-print-page-content-v2 .report-section-heading{
+    break-after:avoid!important;
+    page-break-after:avoid!important;
+  }
+}
+</style>
+
 </body>
 </html>
