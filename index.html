@@ -11780,8 +11780,12 @@ tabsForCurrentReport = function(){
   }else if(state.tipoInforme==='Informe Técnico Aprobatorio'){
     base.push('tab-req','tab-apr');
   }else if(state.tipoInforme==='Informe de Desistimiento'){
-    base.push('tab-des');
+    /* Orden solicitado:
+       Información General → Requisitos → Observaciones → Desistimiento → Vista.
+       Observaciones conserva su condición histórica. */
+    base.push('tab-req');
     if(!isDesPeticionV69()) base.push('tab-obs');
+    base.push('tab-des');
   }else{
     base.push('tab-req');
   }
@@ -38863,6 +38867,51 @@ textarea.evidencia-text,
   }
 }
 </style>
+
+
+<script id="allpa-desistimiento-requisitos-v1">
+(function(){
+  /* ==========================================================
+     DESISTIMIENTO — REQUISITOS EDITABLES
+     Refuerzo visual final: la pestaña Requisitos permanece visible
+     en Informe de Desistimiento, sin reinicializar sus estados.
+     ========================================================== */
+
+  function asegurarRequisitosDesistimientoV1(){
+    const tipo=
+      (document.getElementById('tipoInforme')?.value) ||
+      (typeof state!=='undefined' && state ? state.tipoInforme : '');
+
+    if(tipo!=='Informe de Desistimiento') return;
+
+    document.querySelectorAll('[data-tab="tab-req"]').forEach(btn=>{
+      btn.classList.remove('hidden-tab');
+      btn.hidden=false;
+      btn.style.display='';
+    });
+  }
+
+  document.addEventListener('change',event=>{
+    if(event.target?.id==='tipoInforme'){
+      setTimeout(asegurarRequisitosDesistimientoV1,0);
+      setTimeout(asegurarRequisitosDesistimientoV1,80);
+    }
+  },true);
+
+  document.addEventListener('click',event=>{
+    if(
+      event.target?.closest?.('[data-tab="tab-des"]') ||
+      event.target?.closest?.('[data-tab="tab-req"]')
+    ){
+      setTimeout(asegurarRequisitosDesistimientoV1,0);
+    }
+  },true);
+
+  window.addEventListener('load',()=>{
+    setTimeout(asegurarRequisitosDesistimientoV1,500);
+  });
+})();
+</script>
 
 </body>
 </html>
