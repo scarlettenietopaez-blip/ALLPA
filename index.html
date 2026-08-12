@@ -35208,7 +35208,6 @@ textarea.evidencia-text,
 </script>
 
 
-
 <style id="allpa-mod-clave-antigua-req-apr-css">
 /* MODIFICACIÓN FUNCIONAL — Clave antigua manual */
 #catParroquiaAutoV46.allpa-old-key-manual,
@@ -35416,83 +35415,6 @@ textarea.evidencia-text,
 })();
 </script>
 
-
-<style id="allpa-mod-test-css">
-#allpaModTestBtn{position:fixed;right:18px;bottom:18px;z-index:999999;border:0;border-radius:999px;padding:10px 14px;font:700 13px system-ui;background:#fff;box-shadow:0 4px 18px #0003;cursor:pointer}
-#allpaModTestPanel{display:none;position:fixed;right:18px;bottom:66px;z-index:999999;width:min(760px,calc(100vw - 36px));max-height:80vh;overflow:auto;background:#fff;border:1px solid #ccc;border-radius:12px;padding:14px;box-shadow:0 10px 34px #0004;font:13px/1.45 system-ui}
-#allpaModTestPanel.open{display:block}.modok{color:#177245;font-weight:700}.modfail{color:#b42318;font-weight:700}.modrow{padding:6px 0;border-bottom:1px solid #eee}
-@media print{#allpaModTestBtn,#allpaModTestPanel{display:none!important}}
-</style>
-<script id="allpa-mod-test">
-(function(){
-function C(o){try{return structuredClone(o)}catch(e){return JSON.parse(JSON.stringify(o))}}
-function A(r,n,ok,d){r.push({name:n,ok,detail:String(d||'')})}
-const wait=ms=>new Promise(r=>setTimeout(r,ms));
-async function run(){
-  const R=[],s0=C(state);
-  try{
-    if(!db){await openDB();await wait(60)}
-    const all=await dbAll();
-    const base=(all||[])[0]||s0||{};
-
-    const x=Object.assign(defaultState(),C(base));
-    x.projectType=x.projectType||'obra_mayor_definitivo';
-    x.catastral=x.catastral||{};
-    x.catastral.claveAntiguaActiva=true;
-    x.catastral.claveAntigua=x.catastral.claveAntigua||'ANTIGUA-TEST';
-    x.tipoInforme='Informe Técnico Aprobatorio';
-    state=x;
-    const tipo=document.getElementById('tipoInforme');if(tipo)tipo.value=x.tipoInforme;
-    applyStateToUI();await wait(140);
-    renderInfoForm();await wait(120);
-
-    const p=document.getElementById('catParroquiaAutoV46');
-    const u=document.getElementById('catUrbanoRural');
-    A(R,'Parroquia editable con clave antigua',!!p && !p.readOnly,p?`readonly=${p.readOnly}`:'campo ausente');
-    A(R,'Urbano/Rural editable con clave antigua',!!u && !u.readOnly,u?`readonly=${u.readOnly}`:'campo ausente');
-
-    if(p){
-      p.value='PARROQUIA MANUAL TEST';
-      p.dispatchEvent(new Event('input',{bubbles:true}));
-      await wait(30);
-      const f=(DATA.infoFields||[]).find(f=>String(f.label||'').toUpperCase().includes('PARROQUIA'));
-      A(R,'Parroquia manual → state',String(state.info?.[f?.key]||'').includes('PARROQUIA MANUAL TEST'),state.info?.[f?.key]||'');
-    }
-    if(u){
-      u.value='RURAL MANUAL TEST';
-      u.dispatchEvent(new Event('input',{bubbles:true}));
-      await wait(30);
-      A(R,'Urbano/Rural manual → state',String(state.catastral?.urbanoRural||'').includes('RURAL MANUAL TEST'),state.catastral?.urbanoRural||'');
-    }
-
-    const pending=typeof window.requisitosDocumentalesPendientesMod==='function'
-      ? window.requisitosDocumentalesPendientesMod() : [];
-    A(R,'Validador requisitos Aprobatorio',Array.isArray(pending),`${pending.length} pendiente(s)`);
-
-    const errors=typeof validationErrorsV70==='function'?validationErrorsV70('generar el PDF'):[];
-    const hasReq=errors.some(e=>String(e).includes('Requisitos Documentales'));
-    A(R,'Bloqueo PDF/Copiar por requisitos',pending.length?hasReq:true,pending.length?`${pending.length} pendiente(s)`:'registro actual ya completo');
-
-  }catch(e){A(R,'Prueba modificación',false,e?.stack||e)}
-  finally{state=s0;try{applyStateToUI()}catch(e){}}
-
-  const ok=R.filter(x=>x.ok).length,fail=R.length-ok,p=document.getElementById('allpaModTestPanel');
-  p.innerHTML=`<h3>🧪 PRUEBA MODIFICACIÓN</h3><p><b>OK ${ok} · FAIL ${fail}</b></p>`+
-    R.map(x=>`<div class="modrow"><span class="${x.ok?'modok':'modfail'}">${x.ok?'✅ OK':'❌ FAIL'} | ${x.name}</span><div>${x.detail}</div></div>`).join('')+
-    `<button id="copyModTest">Copiar resultado</button> <button id="closeModTest">Cerrar</button>`;
-  p.classList.add('open');
-  document.getElementById('closeModTest').onclick=()=>p.classList.remove('open');
-  document.getElementById('copyModTest').onclick=async()=>{
-    const s=`ALLPA-MOD-TEST\nOK:${ok} FAIL:${fail}\n`+R.map(x=>`${x.ok?'OK':'FAIL'} | ${x.name} | ${x.detail}`).join('\n');
-    try{await navigator.clipboard.writeText(s)}catch(e){}
-  };
-}
-window.addEventListener('load',()=>setTimeout(()=>{
-  const b=document.createElement('button');b.id='allpaModTestBtn';b.type='button';b.textContent='🧪 PRUEBA MODIFICACIÓN';b.onclick=run;document.body.appendChild(b);
-  const p=document.createElement('div');p.id='allpaModTestPanel';document.body.appendChild(p);
-},1200));
-})();
-</script>
 
 </body>
 </html>
