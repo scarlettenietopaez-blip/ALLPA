@@ -4821,7 +4821,7 @@ const TECNICOS_INFO = [
 const REQUIRED_LABELS = ['TRÁMITE EGOB','NOMBRE DEL PROPIETARIO','CI/RUC','PROYECTISTA','REGISTRO SENESCYT','REGISTRO MUNICIPAL','PROYECTO DEFINITIVO','NOMBRE DEL PROYECTO','USO PRINCIPAL','ALTURA EDIFICACIÓN','PARROQUIA','DIRECCIÓN','CÓDIGO PIT','CLAVE CATASTRAL','ÁREA BRUTA','X:','Y:','BARRIO/SECTOR'];
 
 function defaultState(){
-  return {egob:'', tecnico:'', tipoInforme:'', fechaRevision:today(), fechaSubsanacion:'', fechaSubsanacionManual:false, propietarios:[{nombre:'',ci:''}], info:{}, requisitos:{}, mostrarComplementarios:false, obsSeleccionadas:[], mostrarTextosTecnicos:false, aprobatorio:{anteproyecto:{activo:false, manualToggle:false, documento:'', egob:'', tecnico:'', criterio:'', calculista:'', senescyt:''}, estructural:{}, estudios:[], conclusion:[], anexos:[], adjuntos:[]}, createdAt:null, updatedAt:null};
+  return {egob:'', tecnico:'', tipoInforme:'', fechaRevision:today(), fechaSubsanacion:'', fechaSubsanacionManual:false, propietarios:[{nombre:'',ci:''}], info:{}, requisitos:{}, mostrarComplementarios:false, obsSeleccionadas:[], mostrarTextosTecnicos:true, aprobatorio:{anteproyecto:{activo:false, manualToggle:false, documento:'', egob:'', tecnico:'', criterio:'', calculista:'', senescyt:''}, estructural:{}, estudios:[], conclusion:[], anexos:[], adjuntos:[]}, createdAt:null, updatedAt:null};
 }
 function today(){ return new Date().toISOString().slice(0,10); }
 function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
