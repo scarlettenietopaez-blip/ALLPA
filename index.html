@@ -35416,5 +35416,391 @@ textarea.evidencia-text,
 </script>
 
 
+
+<style id="allpa-multi-apoderados-v2-css">
+.apoderados-table-v2{margin-top:10px}
+.apoderados-title-v2{margin-top:14px}
+</style>
+
+<script id="allpa-multi-apoderados-v2">
+/* ==========================================================
+   MÚLTIPLES APODERADOS V2
+   - Mismo modelo que Propietarios: state.apoderados[]
+   - state.apoderado se conserva solo como puente de compatibilidad
+   - Soporta respaldos antiguos con un solo apoderado
+   ========================================================== */
+(function(){
+  'use strict';
+
+  function cloneApodV2(a){
+    return {
+      nombre:String(a?.nombre||''),
+      ci:String(a?.ci||'')
+    };
+  }
+
+  function syncLegacyApoderadoV2(){
+    const arr=Array.isArray(state?.apoderados) ? state.apoderados : [];
+    const first=arr[0] || null;
+    state.apoderado=first
+      ? {activo:true,nombre:String(first.nombre||''),ci:String(first.ci||'')}
+      : {activo:false,nombre:'',ci:''};
+  }
+
+  function ensureApoderadosV2(){
+    if(!state || typeof state!=='object') return [];
+
+    if(!Array.isArray(state.apoderados)){
+      const legacy=state.apoderado;
+      state.apoderados=(legacy && legacy.activo)
+        ? [cloneApodV2(legacy)]
+        : [];
+    }
+
+    state.apoderados=state.apoderados
+      .filter(x=>x && typeof x==='object')
+      .map(cloneApodV2);
+
+    syncLegacyApoderadoV2();
+    return state.apoderados;
+  }
+  window.ensureApoderadosV2=ensureApoderadosV2;
+
+  /* Integra migración con el inicializador histórico. */
+  if(typeof ensureV36State==='function'){
+    const baseEnsureV36StateV2=ensureV36State;
+    ensureV36State=function(){
+      const out=baseEnsureV36StateV2.apply(this,arguments);
+      ensureApoderadosV2();
+      return out;
+    };
+  }
+
+  function renderApoderadosRowsV2(){
+    const arr=ensureApoderadosV2();
+    if(!arr.length) return '';
+
+    return `<div class="section-title apoderados-title-v2">Apoderados</div>
+      <table class="owners-table apoderados-table-v2">
+        <thead><tr>
+          <th style="width:52%">Nombre del apoderado</th>
+          <th>CI/RUC del apoderado</th>
+          <th style="width:80px">Acción</th>
+        </tr></thead>
+        <tbody>
+          ${arr.map((a,i)=>`<tr data-apoderado-index-v2="${i}">
+            <td><input value="${esc(a.nombre||'')}" oninput="updApoderadoV2(${i},'nombre',this)"></td>
+            <td><input inputmode="numeric" maxlength="13" value="${esc(a.ci||'')}" oninput="updApoderadoV2(${i},'ci',this)"></td>
+            <td><button type="button" class="danger mini-btn" onclick="delApoderadoV2(${i})">Quitar</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  /* Reemplaza únicamente la presentación final de propietarios/apoderados. */
+  propietariosHtml=function(){
+    if(typeof ensureV37State==='function') ensureV37State();
+    if(typeof ensurePropietarios==='function') ensurePropietarios();
+    ensureApoderadosV2();
+
+    return `<div class="section-title">Propietarios</div>
+      <table class="owners-table">
+        <thead><tr>
+          <th style="width:52%">Nombre del propietario *</th>
+          <th>CI/RUC *</th>
+          <th style="width:80px">Acción</th>
+        </tr></thead>
+        <tbody>
+          ${(state.propietarios||[]).map((p,i)=>`<tr>
+            <td><input value="${esc(p.nombre||'')}" oninput="updPropietario(${i},'nombre',this)"></td>
+            <td><input inputmode="numeric" maxlength="13" value="${esc(p.ci||'')}" oninput="updPropietario(${i},'ci',this)"></td>
+            <td><button type="button" class="danger mini-btn" onclick="delPropietario(${i})">Quitar</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+
+      <div class="owner-buttons-v37">
+        <button type="button" class="secondary" onclick="addPropietario()">Agregar propietario</button>
+        <button type="button" class="secondary" onclick="addApoderadoV2()">Agregar apoderado</button>
+      </div>
+
+      ${renderApoderadosRowsV2()}
+      <div class="error-text" id="err_propietarios"></div>`;
+  };
+
+  window.addApoderadoV2=function(){
+    const arr=ensureApoderadosV2();
+    arr.push({nombre:'',ci:''});
+    syncLegacyApoderadoV2();
+    if(typeof renderPropietarios==='function') renderPropietarios();
+    if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
+  };
+
+  window.updApoderadoV2=function(i,k,elOrValue){
+    const arr=ensureApoderadosV2();
+    if(!arr[i]) return;
+
+    let v=(elOrValue && typeof elOrValue==='object') ? elOrValue.value : elOrValue;
+    if(k==='ci'){
+      v=typeof onlyDigits==='function' ? onlyDigits(v,13) : String(v||'').replace(/\D/g,'').slice(0,13);
+    }else{
+      v=typeof smartInputCase==='function' ? smartInputCase(v) : String(v||'');
+    }
+
+    if(elOrValue && typeof elOrValue==='object') elOrValue.value=v;
+    arr[i][k]=v;
+    syncLegacyApoderadoV2();
+
+    if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
+    else{
+      if(typeof renderReport==='function') renderReport();
+      if(typeof renderPreview==='function') renderPreview();
+    }
+  };
+
+  window.delApoderadoV2=function(i){
+    const arr=ensureApoderadosV2();
+    if(i<0 || i>=arr.length) return;
+    arr.splice(i,1);
+    syncLegacyApoderadoV2();
+
+    if(typeof renderPropietarios==='function') renderPropietarios();
+    if(typeof renderReport==='function') renderReport();
+    if(typeof renderPreview==='function') renderPreview();
+  };
+
+  /* Compatibilidad con llamadas históricas. */
+  toggleApoderadoV36=function(val){
+    const arr=ensureApoderadosV2();
+    if(val){
+      if(!arr.length) arr.push({nombre:'',ci:''});
+    }else{
+      arr.splice(0,arr.length);
+    }
+    syncLegacyApoderadoV2();
+    if(typeof renderPropietarios==='function') renderPropietarios();
+    if(typeof renderReport==='function') renderReport();
+    if(typeof renderPreview==='function') renderPreview();
+  };
+
+  updApoderadoV36=function(k,elOrValue){
+    const arr=ensureApoderadosV2();
+    if(!arr.length) arr.push({nombre:'',ci:''});
+    return window.updApoderadoV2(0,k,elOrValue);
+  };
+
+  /* ---------- Tabla de Información General del informe ---------- */
+  function apoderadosRowsInformeV2(aprTwoFn){
+    const arr=ensureApoderadosV2().filter(a=>String(a.nombre||a.ci||'').trim());
+    return arr.map((a,i)=>
+      aprTwoFn(
+        i===0 ? 'APODERADO' : `APODERADO ${i+1}`,
+        a.nombre||'',
+        i===0 ? 'CI/RUC APODERADO' : `CI/RUC APODERADO ${i+1}`,
+        a.ci||''
+      )
+    ).join('');
+  }
+  window.apoderadosRowsInformeV2=apoderadosRowsInformeV2;
+
+  /* Esta es la última tabla activa del index: reproduce V180 y amplía apoderados. */
+  aprobatorioInfoTableFromTemplate=function(_text){
+    if(typeof ensurePropietarios==='function') ensurePropietarios();
+    if(typeof syncPropietariosInfo==='function') syncPropietariosInfo();
+    ensureApoderadosV2();
+
+    const one=(label,value,center=false)=>
+      `<tr><td class="apr-info-label">${esc(label)}</td><td class="apr-info-value${center?' v180-center':''}" colspan="3">${esc(value||'')}</td></tr>`;
+    const two=(l1,v1,l2,v2,c1=false,c2=false)=>
+      `<tr><td class="apr-info-label">${esc(l1)}</td><td class="apr-info-value${c1?' v180-center':''}">${esc(v1||'')}</td><td class="apr-info-label">${esc(l2)}</td><td class="apr-info-value${c2?' v180-center':''}">${esc(v2||'')}</td></tr>`;
+    const val=(label)=>{
+      if(typeof infoValueForReportV105==='function') return infoValueForReportV105(label);
+      if(typeof infoValue==='function') return infoValue(label);
+      return '';
+    };
+
+    let owners='';
+    if(typeof ownerRowsAprobatorioV119W==='function'){
+      owners=ownerRowsAprobatorioV119W();
+    }else{
+      owners=two('NOMBRE DEL PROPIETARIO',val('NOMBRE DEL PROPIETARIO'),'CI/RUC',val('CI/RUC'));
+    }
+
+    const apods=apoderadosRowsInformeV2(two);
+    const proyecto=val('PROYECTO DEFINITIVO');
+    const x=val('X:');
+    const y=val('Y:');
+
+    return `<table class="apr-info-table"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup><tbody>
+      ${one('TRÁMITE E-GOB',state.egob||val('TRÁMITE EGOB'),true)}
+      ${owners}
+      ${apods}
+      ${one('PROYECTO DEFINITIVO',proyecto,true)}
+      ${one('NOMBRE DEL PROYECTO',val('NOMBRE DEL PROYECTO'),true)}
+      ${two('USO PRINCIPAL',val('USO PRINCIPAL'),'ALTURA EDIFICACIÓN',val('ALTURA EDIFICACIÓN')?val('ALTURA EDIFICACIÓN')+' pisos':'',true,true)}
+      <tr><td class="apr-info-section" colspan="4">REFERENCIA UBICACIÓN</td></tr>
+      ${two('X',x,'Y',y,true,true)}
+      ${one('CLAVE CATASTRAL',val('CLAVE CATASTRAL'),true)}
+      ${state.catastral?.urbanoRural ? one('URBANO / RURAL',state.catastral.urbanoRural,true) : ''}
+      ${two('BARRIO / SECTOR',val('BARRIO/SECTOR'),'CÓDIGO PIT',val('CÓDIGO PIT'),true,true)}
+      ${one('DIRECCIÓN',val('DIRECCIÓN'),true)}
+      ${one('PROYECTISTA',val('PROYECTISTA'),true)}
+      ${two('REG. SENESCYT',val('REGISTRO SENESCYT'),'REG. MUNICIPAL',val('REGISTRO MUNICIPAL'),false,false)}
+    </tbody></table>`;
+  };
+
+  /* Informe con Observaciones: el renderer histórico espera un único objeto.
+     Se le entrega temporalmente la lista concatenada sin alterar state.apoderados. */
+  if(typeof renderInformeObservaciones==='function'){
+    const baseRenderInformeObservacionesV2=renderInformeObservaciones;
+    renderInformeObservaciones=function(){
+      const arr=ensureApoderadosV2().filter(a=>String(a.nombre||a.ci||'').trim());
+      const savedLegacy=state.apoderado;
+
+      if(arr.length){
+        state.apoderado={
+          activo:true,
+          nombre:arr.map(a=>a.nombre).filter(Boolean).join(' / '),
+          ci:arr.map(a=>a.ci).filter(Boolean).join(' / ')
+        };
+      }else{
+        state.apoderado={activo:false,nombre:'',ci:''};
+      }
+
+      try{
+        return baseRenderInformeObservacionesV2.apply(this,arguments);
+      }finally{
+        state.apoderado=savedLegacy;
+        syncLegacyApoderadoV2();
+      }
+    };
+  }
+
+  /* Reaplica después de abrir formularios antiguos o reconstruir UI. */
+  if(typeof applyStateToUI==='function'){
+    const baseApplyStateApodV2=applyStateToUI;
+    applyStateToUI=function(){
+      ensureApoderadosV2();
+      const out=baseApplyStateApodV2.apply(this,arguments);
+      ensureApoderadosV2();
+      return out;
+    };
+  }
+
+  window.addEventListener('load',()=>{
+    setTimeout(()=>{
+      ensureApoderadosV2();
+      if(typeof renderPropietarios==='function') renderPropietarios();
+    },900);
+  });
+})();
+</script>
+
+
+<style id="allpa-multi-apoderados-test-v2-css">
+#multiApodTestBtnV2{position:fixed;right:18px;bottom:18px;z-index:999999;border:0;border-radius:999px;padding:10px 14px;font:700 13px system-ui;background:#fff;box-shadow:0 4px 18px #0003;cursor:pointer}
+#multiApodTestPanelV2{display:none;position:fixed;right:18px;bottom:66px;z-index:999999;width:min(820px,calc(100vw - 36px));max-height:82vh;overflow:auto;background:#fff;border:1px solid #ccc;border-radius:12px;padding:14px;box-shadow:0 10px 34px #0004;font:13px/1.45 system-ui}
+#multiApodTestPanelV2.open{display:block}.aok2{color:#177245;font-weight:700}.afail2{color:#b42318;font-weight:700}.arow2{padding:6px 0;border-bottom:1px solid #eee}
+@media print{#multiApodTestBtnV2,#multiApodTestPanelV2{display:none!important}}
+</style>
+<script id="allpa-multi-apoderados-test-v2">
+(function(){
+  function C(o){try{return structuredClone(o)}catch(e){return JSON.parse(JSON.stringify(o))}}
+  function A(r,n,ok,d){r.push({name:n,ok,detail:String(d||'')})}
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+  async function run(){
+    const R=[],s0=C(state);
+    try{
+      state=defaultState();
+      state.apoderado={activo:false,nombre:'',ci:''};
+      state.apoderados=[];
+      ensureApoderadosV2();
+
+      const initial=state.apoderados.length;
+      addApoderadoV2();
+      addApoderadoV2();
+      A(R,'Agregar dos apoderados',state.apoderados.length===initial+2,`${initial} → ${state.apoderados.length}`);
+
+      updApoderadoV2(0,'nombre','APODERADO PRUEBA UNO');
+      updApoderadoV2(0,'ci','0600000001');
+      updApoderadoV2(1,'nombre','APODERADO PRUEBA DOS');
+      updApoderadoV2(1,'ci','0600000002');
+
+      A(R,'Datos independientes',
+        state.apoderados[0]?.nombre==='APODERADO PRUEBA UNO' &&
+        state.apoderados[1]?.nombre==='APODERADO PRUEBA DOS',
+        `${state.apoderados[0]?.nombre||''} / ${state.apoderados[1]?.nombre||''}`);
+
+      renderPropietarios();await wait(40);
+      const visible=document.querySelectorAll('.apoderados-table-v2 tbody tr').length;
+      A(R,'Dos filas visibles',visible===2,`${visible} fila(s)`);
+
+      const html=aprobatorioInfoTableFromTemplate('');
+      A(R,'Informe incluye apoderado 1',html.includes('APODERADO PRUEBA UNO'),'Información General');
+      A(R,'Informe incluye apoderado 2',html.includes('APODERADO PRUEBA DOS'),'Información General');
+
+      delApoderadoV2(0);
+      A(R,'Quitar solo un apoderado',
+        state.apoderados.length===1 && state.apoderados[0]?.nombre==='APODERADO PRUEBA DOS',
+        `${state.apoderados.length} restante(s): ${state.apoderados[0]?.nombre||''}`);
+
+      delApoderadoV2(0);
+      A(R,'Quitar último apoderado',state.apoderados.length===0,`${state.apoderados.length} restante(s)`);
+
+      /* Migración legado */
+      state=defaultState();
+      delete state.apoderados;
+      state.apoderado={activo:true,nombre:'APODERADO LEGADO',ci:'0600000003'};
+      ensureApoderadosV2();
+      A(R,'Migración respaldo antiguo',
+        state.apoderados.length===1 && state.apoderados[0].nombre==='APODERADO LEGADO',
+        state.apoderados[0]?.nombre||'');
+
+      /* Persistencia JSON equivalente al guardado en IndexedDB, sin escribir la BD. */
+      state.apoderados.push({nombre:'APODERADO SEGUNDO GUARDADO',ci:'0600000004'});
+      const saved=JSON.parse(JSON.stringify(state));
+      state=Object.assign(defaultState(),saved);
+      ensureApoderadosV2();
+      A(R,'Persistencia en respaldo/guardado',
+        state.apoderados.length===2 &&
+        state.apoderados[1]?.nombre==='APODERADO SEGUNDO GUARDADO',
+        `${state.apoderados.length} apoderado(s)`);
+
+    }catch(e){
+      A(R,'Prueba múltiples apoderados V2',false,e?.stack||e);
+    }finally{
+      state=s0;
+      try{applyStateToUI()}catch(e){}
+    }
+
+    const ok=R.filter(x=>x.ok).length,fail=R.length-ok;
+    const p=document.getElementById('multiApodTestPanelV2');
+    p.innerHTML=`<h3>🧪 ALLPA MÚLTIPLES APODERADOS V2</h3><p><b>OK ${ok} · FAIL ${fail}</b></p>`+
+      R.map(x=>`<div class="arow2"><span class="${x.ok?'aok2':'afail2'}">${x.ok?'✅ OK':'❌ FAIL'} | ${x.name}</span><div>${x.detail}</div></div>`).join('')+
+      `<button id="copyApodV2">Copiar resultado</button> <button id="closeApodV2">Cerrar</button>`;
+    p.classList.add('open');
+    document.getElementById('closeApodV2').onclick=()=>p.classList.remove('open');
+    document.getElementById('copyApodV2').onclick=async()=>{
+      const s=`ALLPA-MULTI-APODERADOS-V2\nOK:${ok} FAIL:${fail}\n`+R.map(x=>`${x.ok?'OK':'FAIL'} | ${x.name} | ${x.detail}`).join('\n');
+      try{await navigator.clipboard.writeText(s)}catch(e){}
+    };
+  }
+
+  window.addEventListener('load',()=>setTimeout(()=>{
+    const b=document.createElement('button');
+    b.id='multiApodTestBtnV2';
+    b.type='button';
+    b.textContent='🧪 PROBAR APODERADOS V2';
+    b.onclick=run;
+    document.body.appendChild(b);
+
+    const p=document.createElement('div');
+    p.id='multiApodTestPanelV2';
+    document.body.appendChild(p);
+  },1200));
+})();
+</script>
+
 </body>
 </html>
