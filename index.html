@@ -35416,5 +35416,387 @@ textarea.evidencia-text,
 </script>
 
 
+
+<style id="allpa-multi-apoderados-css">
+/* MÚLTIPLES APODERADOS — misma lógica visual que Propietarios */
+.apoderados-table-v1{margin-top:8px}
+.apoderados-title-v1{margin-top:12px}
+</style>
+
+<script id="allpa-multi-apoderados">
+(function(){
+  'use strict';
+
+  function cleanApoderadoV1(a){
+    return {
+      nombre:String(a?.nombre||''),
+      ci:String(a?.ci||'')
+    };
+  }
+
+  /*
+   * Compatibilidad:
+   * - respaldos antiguos: state.apoderado (objeto único)
+   * - versión nueva:      state.apoderados (arreglo)
+   * Se mantiene state.apoderado sincronizado con el primer registro para
+   * no romper módulos históricos que todavía lo consultan.
+   */
+  function ensureApoderadosV1(){
+    if(!Array.isArray(state.apoderados)){
+      const old=state.apoderado;
+      state.apoderados=(old && old.activo && (old.nombre || old.ci))
+        ? [cleanApoderadoV1(old)]
+        : [];
+    }else{
+      state.apoderados=state.apoderados
+        .filter(a=>a && typeof a==='object')
+        .map(cleanApoderadoV1);
+    }
+    syncLegacyApoderadoV1();
+    return state.apoderados;
+  }
+
+  function syncLegacyApoderadoV1(){
+    const arr=Array.isArray(state.apoderados)?state.apoderados:[];
+    const first=arr[0]||{nombre:'',ci:''};
+    state.apoderado={
+      activo:arr.length>0,
+      nombre:String(first.nombre||''),
+      ci:String(first.ci||'')
+    };
+  }
+
+  window.ensureApoderadosV1=ensureApoderadosV1;
+
+  window.addApoderadoV1=function(){
+    ensureApoderadosV1();
+    state.apoderados.push({nombre:'',ci:''});
+    syncLegacyApoderadoV1();
+    if(typeof renderPropietarios==='function') renderPropietarios();
+    if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
+    else{
+      if(typeof renderReport==='function') renderReport();
+      if(typeof renderPreview==='function') renderPreview();
+    }
+  };
+
+  window.delApoderadoV1=function(i){
+    ensureApoderadosV1();
+    if(i<0 || i>=state.apoderados.length) return;
+    state.apoderados.splice(i,1);
+    syncLegacyApoderadoV1();
+    if(typeof renderPropietarios==='function') renderPropietarios();
+    if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
+    else{
+      if(typeof renderReport==='function') renderReport();
+      if(typeof renderPreview==='function') renderPreview();
+    }
+  };
+
+  window.updApoderadoV1=function(i,k,elOrValue){
+    ensureApoderadosV1();
+    if(!state.apoderados[i]) return;
+    let v=(elOrValue && typeof elOrValue==='object') ? elOrValue.value : elOrValue;
+    if(k==='ci'){
+      v=typeof onlyDigits==='function' ? onlyDigits(v,13) : String(v||'').replace(/\D/g,'').slice(0,13);
+    }else{
+      v=typeof smartInputCase==='function' ? smartInputCase(v) : String(v||'').toUpperCase();
+    }
+    if(elOrValue && typeof elOrValue==='object') elOrValue.value=v;
+    state.apoderados[i][k]=v;
+    syncLegacyApoderadoV1();
+    if(typeof scheduleReportUpdate==='function') scheduleReportUpdate();
+    else{
+      if(typeof renderReport==='function') renderReport();
+      if(typeof renderPreview==='function') renderPreview();
+    }
+  };
+
+  /* Compatibilidad con llamadas antiguas. */
+  window.toggleApoderadoV36=function(val){
+    ensureApoderadosV1();
+    if(val){
+      if(!state.apoderados.length) state.apoderados.push({nombre:'',ci:''});
+    }else{
+      state.apoderados=[];
+    }
+    syncLegacyApoderadoV1();
+    if(typeof renderPropietarios==='function') renderPropietarios();
+    if(typeof renderReport==='function') renderReport();
+    if(typeof renderPreview==='function') renderPreview();
+  };
+
+  window.updApoderadoV36=function(k,el){
+    ensureApoderadosV1();
+    if(!state.apoderados.length) state.apoderados.push({nombre:'',ci:''});
+    window.updApoderadoV1(0,k,el);
+  };
+
+  /*
+   * Reemplaza exclusivamente el bloque Propietarios/Apoderados.
+   * Propietarios conserva exactamente su comportamiento actual.
+   */
+  if(typeof propietariosHtml==='function'){
+    propietariosHtml=function(){
+      if(typeof ensureV37State==='function') ensureV37State();
+      if(typeof ensurePropietarios==='function') ensurePropietarios();
+      const apoderados=ensureApoderadosV1();
+
+      const owners=`<div class="section-title">Propietarios</div>
+        <table class="owners-table"><thead><tr>
+          <th style="width:52%">Nombre del propietario *</th>
+          <th>CI/RUC *</th>
+          <th style="width:80px">Acción</th>
+        </tr></thead><tbody>
+          ${(state.propietarios||[]).map((p,i)=>`<tr>
+            <td><input value="${esc(p.nombre||'')}" oninput="updPropietario(${i},'nombre',this)"></td>
+            <td><input inputmode="numeric" maxlength="13" value="${esc(p.ci||'')}" oninput="updPropietario(${i},'ci',this)"></td>
+            <td><button class="danger mini-btn" onclick="delPropietario(${i})">Quitar</button></td>
+          </tr>`).join('')}
+        </tbody></table>`;
+
+      const apod=apoderados.length ? `
+        <div class="section-title apoderados-title-v1">Apoderados</div>
+        <table class="owners-table apoderados-table-v1"><thead><tr>
+          <th style="width:52%">Nombre del apoderado</th>
+          <th>CI/RUC del apoderado</th>
+          <th style="width:80px">Acción</th>
+        </tr></thead><tbody>
+          ${apoderados.map((a,i)=>`<tr>
+            <td><input value="${esc(a.nombre||'')}" oninput="updApoderadoV1(${i},'nombre',this)"></td>
+            <td><input inputmode="numeric" maxlength="13" value="${esc(a.ci||'')}" oninput="updApoderadoV1(${i},'ci',this)"></td>
+            <td><button class="danger mini-btn" onclick="delApoderadoV1(${i})">Quitar</button></td>
+          </tr>`).join('')}
+        </tbody></table>` : '';
+
+      return `${owners}
+        <div class="owner-buttons-v37">
+          <button class="secondary" onclick="addPropietario()">Agregar propietario</button>
+          <button class="secondary" onclick="addApoderadoV1()">Agregar apoderado</button>
+        </div>
+        ${apod}
+        <div class="error-text" id="err_propietarios"></div>`;
+    };
+  }
+
+  function apoderadosValidosV1(){
+    return ensureApoderadosV1().filter(a=>String(a.nombre||a.ci||'').trim());
+  }
+  window.apoderadosValidosV1=apoderadosValidosV1;
+
+  function apoderadosRowsAprobatorioV1(){
+    const arr=apoderadosValidosV1();
+    if(!arr.length) return '';
+
+    if(typeof aprTwoV180==='function'){
+      return arr.map(a=>aprTwoV180(
+        'APODERADO',a.nombre||'',
+        'CI/RUC APODERADO',a.ci||'',
+        false,false
+      )).join('');
+    }
+    if(typeof aprTwo==='function'){
+      return arr.map(a=>aprTwo(
+        'APODERADO',a.nombre||'',
+        'CI/RUC APODERADO',a.ci||''
+      )).join('');
+    }
+    return '';
+  }
+
+  /*
+   * Informe Aprobatorio/Desistimiento:
+   * usa la última plantilla V180, pero imprime una fila por apoderado.
+   */
+  if(typeof aprobatorioInfoTableFromTemplate==='function'){
+    aprobatorioInfoTableFromTemplate=function(_text){
+      if(typeof ensurePropietarios==='function') ensurePropietarios();
+      if(typeof syncPropietariosInfo==='function') syncPropietariosInfo();
+      ensureApoderadosV1();
+
+      const val=(label)=>{
+        if(typeof valV180==='function') return valV180(label);
+        if(typeof infoValue==='function') return infoValue(label);
+        return '';
+      };
+
+      const proyecto=val('PROYECTO DEFINITIVO');
+      const x=val('X:');
+      const y=val('Y:');
+
+      let owners='';
+      if(typeof ownerRowsAprobatorioV119W==='function'){
+        owners=ownerRowsAprobatorioV119W();
+      }else if(typeof aprTwoV180==='function'){
+        owners=aprTwoV180(
+          'NOMBRE DEL PROPIETARIO',val('NOMBRE DEL PROPIETARIO'),
+          'CI/RUC',val('CI/RUC'),false,false
+        );
+      }else if(typeof aprTwo==='function'){
+        owners=aprTwo(
+          'NOMBRE DEL PROPIETARIO',val('NOMBRE DEL PROPIETARIO'),
+          'CI/RUC',val('CI/RUC')
+        );
+      }
+
+      if(typeof aprOneV180==='function' && typeof aprTwoV180==='function'){
+        return `<table class="apr-info-table"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup><tbody>
+          ${aprOneV180('TRÁMITE E-GOB',state.egob||val('TRÁMITE EGOB'),true)}
+          ${owners}
+          ${apoderadosRowsAprobatorioV1()}
+          ${aprOneV180('PROYECTO DEFINITIVO',proyecto,true)}
+          ${aprOneV180('NOMBRE DEL PROYECTO',val('NOMBRE DEL PROYECTO'),true)}
+          ${aprTwoV180('USO PRINCIPAL',val('USO PRINCIPAL'),'ALTURA EDIFICACIÓN',val('ALTURA EDIFICACIÓN')?val('ALTURA EDIFICACIÓN')+' pisos':'',true,true)}
+          <tr><td class="apr-info-section" colspan="4">REFERENCIA UBICACIÓN</td></tr>
+          ${aprTwoV180('X',x,'Y',y,true,true)}
+          ${aprOneV180('CLAVE CATASTRAL',val('CLAVE CATASTRAL'),true)}
+          ${state.catastral && state.catastral.urbanoRural ? aprOneV180('URBANO / RURAL',state.catastral.urbanoRural,true) : ''}
+          ${aprTwoV180('BARRIO / SECTOR',val('BARRIO/SECTOR'),'CÓDIGO PIT',val('CÓDIGO PIT'),true,true)}
+          ${aprOneV180('DIRECCIÓN',val('DIRECCIÓN'),true)}
+          ${aprOneV180('PROYECTISTA',val('PROYECTISTA'),true)}
+          ${aprTwoV180('REG. SENESCYT',val('REGISTRO SENESCYT'),'REG. MUNICIPAL',val('REGISTRO MUNICIPAL'),false,false)}
+        </tbody></table>`;
+      }
+
+      /* Fallback de compatibilidad con plantillas anteriores. */
+      return '';
+    };
+  }
+
+  /*
+   * Informe con Observaciones:
+   * la cadena histórica conoce un solo state.apoderado. Para no reescribir
+   * todo el renderer, durante el render se presenta temporalmente la lista
+   * completa como valores combinados y luego se restaura el puente legado.
+   */
+  if(typeof renderInformeObservaciones==='function'){
+    const baseRenderObsMultiV1=renderInformeObservaciones;
+    renderInformeObservaciones=function(){
+      const arr=apoderadosValidosV1();
+      const legacy=state.apoderado;
+      if(arr.length){
+        state.apoderado={
+          activo:true,
+          nombre:arr.map(a=>String(a.nombre||'').trim()).filter(Boolean).join(' / '),
+          ci:arr.map(a=>String(a.ci||'').trim()).filter(Boolean).join(' / ')
+        };
+      }else{
+        state.apoderado={activo:false,nombre:'',ci:''};
+      }
+      try{
+        return baseRenderObsMultiV1.apply(this,arguments);
+      }finally{
+        state.apoderado=legacy;
+        syncLegacyApoderadoV1();
+      }
+    };
+  }
+
+  /*
+   * Cada reconstrucción de UI garantiza migración y sincronización.
+   */
+  if(typeof applyStateToUI==='function'){
+    const baseApplyStateMultiV1=applyStateToUI;
+    applyStateToUI=function(){
+      ensureApoderadosV1();
+      const out=baseApplyStateMultiV1.apply(this,arguments);
+      ensureApoderadosV1();
+      return out;
+    };
+  }
+
+  window.addEventListener('load',()=>{
+    try{ ensureApoderadosV1(); }catch(_e){}
+  });
+})();
+</script>
+
+
+<style id="allpa-multi-apoderados-test-css">
+#allpaMultiApodTestBtn{position:fixed;right:18px;bottom:18px;z-index:999999;border:0;border-radius:999px;padding:10px 14px;font:700 13px system-ui;background:#fff;box-shadow:0 4px 18px #0003;cursor:pointer}
+#allpaMultiApodTestPanel{display:none;position:fixed;right:18px;bottom:66px;z-index:999999;width:min(780px,calc(100vw - 36px));max-height:82vh;overflow:auto;background:#fff;border:1px solid #ccc;border-radius:12px;padding:14px;box-shadow:0 10px 34px #0004;font:13px/1.45 system-ui}
+#allpaMultiApodTestPanel.open{display:block}.okma{color:#177245;font-weight:700}.failma{color:#b42318;font-weight:700}.rowma{padding:6px 0;border-bottom:1px solid #eee}
+@media print{#allpaMultiApodTestBtn,#allpaMultiApodTestPanel{display:none!important}}
+</style>
+<script id="allpa-multi-apoderados-test">
+(function(){
+function C(o){try{return structuredClone(o)}catch(e){return JSON.parse(JSON.stringify(o))}}
+function A(r,n,ok,d){r.push({name:n,ok,detail:String(d||'')})}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function run(){
+  const R=[],s0=C(state);
+  try{
+    if(!db){await openDB();await wait(60)}
+    const all=await dbAll();
+    const base=(all||[])[0]||s0||defaultState();
+    state=Object.assign(defaultState(),C(base));
+    applyStateToUI();await wait(120);
+
+    ensureApoderadosV1();
+    const oldCount=state.apoderados.length;
+
+    addApoderadoV1();await wait(50);
+    addApoderadoV1();await wait(50);
+    const a=state.apoderados.length;
+    A(R,'Agregar varios apoderados',a===oldCount+2,`${oldCount} → ${a}`);
+
+    const i1=a-2,i2=a-1;
+    updApoderadoV1(i1,'nombre','APODERADO PRUEBA UNO');
+    updApoderadoV1(i1,'ci','0600000001');
+    updApoderadoV1(i2,'nombre','APODERADO PRUEBA DOS');
+    updApoderadoV1(i2,'ci','0600000002');
+    A(R,'Datos independientes',state.apoderados[i1]?.nombre!==state.apoderados[i2]?.nombre,
+      `${state.apoderados[i1]?.nombre} / ${state.apoderados[i2]?.nombre}`);
+
+    renderPropietarios();await wait(50);
+    const rows=document.querySelectorAll('.apoderados-table-v1 tbody tr').length;
+    A(R,'Filas visibles de apoderados',rows===state.apoderados.length,`${rows} fila(s)`);
+
+    const info=aprobatorioInfoTableFromTemplate('');
+    A(R,'Informe incluye apoderado 1',info.includes('APODERADO PRUEBA UNO'),'tabla de Información General');
+    A(R,'Informe incluye apoderado 2',info.includes('APODERADO PRUEBA DOS'),'tabla de Información General');
+
+    delApoderadoV1(i2);await wait(30);
+    A(R,'Quitar apoderado',state.apoderados.length===a-1,`${a} → ${state.apoderados.length}`);
+
+    /* Migración de respaldo antiguo. */
+    state.apoderados=undefined;
+    state.apoderado={activo:true,nombre:'APODERADO LEGADO',ci:'0609999999'};
+    ensureApoderadosV1();
+    A(R,'Migración respaldo antiguo',
+      state.apoderados.length===1 && state.apoderados[0].nombre==='APODERADO LEGADO',
+      state.apoderados[0]?.nombre||'(vacío)');
+
+    A(R,'Puente legado activo',
+      state.apoderado.activo===true && state.apoderado.nombre==='APODERADO LEGADO',
+      state.apoderado.nombre||'(vacío)');
+
+  }catch(e){
+    A(R,'Prueba múltiples apoderados',false,e?.stack||e);
+  }finally{
+    state=s0;
+    try{applyStateToUI()}catch(e){}
+  }
+
+  const ok=R.filter(x=>x.ok).length,fail=R.length-ok,p=document.getElementById('allpaMultiApodTestPanel');
+  p.innerHTML=`<h3>🧪 ALLPA — MÚLTIPLES APODERADOS</h3><p><b>OK ${ok} · FAIL ${fail}</b></p>`+
+    R.map(x=>`<div class="rowma"><span class="${x.ok?'okma':'failma'}">${x.ok?'✅ OK':'❌ FAIL'} | ${x.name}</span><div>${x.detail}</div></div>`).join('')+
+    `<button id="copyMultiApodTest">Copiar resultado</button> <button id="closeMultiApodTest">Cerrar</button>`;
+  p.classList.add('open');
+  document.getElementById('closeMultiApodTest').onclick=()=>p.classList.remove('open');
+  document.getElementById('copyMultiApodTest').onclick=async()=>{
+    const s=`ALLPA-MULTI-APODERADOS\nOK:${ok} FAIL:${fail}\n`+R.map(x=>`${x.ok?'OK':'FAIL'} | ${x.name} | ${x.detail}`).join('\n');
+    try{await navigator.clipboard.writeText(s)}catch(e){}
+  };
+}
+
+window.addEventListener('load',()=>setTimeout(()=>{
+  const b=document.createElement('button');b.id='allpaMultiApodTestBtn';b.type='button';b.textContent='🧪 PROBAR APODERADOS';b.onclick=run;document.body.appendChild(b);
+  const p=document.createElement('div');p.id='allpaMultiApodTestPanel';document.body.appendChild(p);
+},1200));
+})();
+</script>
+
 </body>
 </html>
