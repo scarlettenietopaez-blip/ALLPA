@@ -35645,5 +35645,135 @@ textarea.evidencia-text,
 </script>
 
 
+<style id="allpa-estudio-morfologico-detalle-css">
+/* Estudio Morfológico — usa el mismo patrón visual de IPRUS/Gravámenes */
+.req-detail-morfologico-v1{
+  display:grid;
+  gap:6px;
+}
+</style>
+
+<script id="allpa-estudio-morfologico-detalle">
+/* ==========================================================
+   ESTUDIO MORFOLÓGICO — RESULTADO / DETALLE
+   Aplica a:
+   - Obra Mayor Definitivo: Complementario 6
+   - Anteproyecto de Edificación: Complementario 5
+
+   Persistencia:
+   state.requisitos[req.id].detalle = {
+     nroMorfologico,
+     fechaMorfologico,
+     egobMorfologico
+   }
+   ========================================================== */
+(function(){
+  'use strict';
+
+  function normMorfologicoV1(value){
+    return String(value||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function isEstudioMorfologicoV1(req){
+    if(!req) return false;
+    const id=String(req.id||'').trim().toUpperCase();
+    const txt=normMorfologicoV1(req.texto||'');
+    return id==='REQ_043' ||
+      (txt.includes('ESTUDIO') && txt.includes('MORFOLOGICO'));
+  }
+  window.isEstudioMorfologicoV1=isEstudioMorfologicoV1;
+
+  function ensureMorfologicoObjV1(req){
+    if(typeof ensureReqObjV94==='function'){
+      return ensureReqObjV94(req.id);
+    }
+    if(!state.requisitos) state.requisitos={};
+    if(!state.requisitos[req.id]) state.requisitos[req.id]={};
+    if(!state.requisitos[req.id].detalle) state.requisitos[req.id].detalle={};
+    return state.requisitos[req.id];
+  }
+
+  /* ------------------------------
+     Columna Resultado / detalle
+     ------------------------------ */
+  if(typeof reqDetailInputHtmlV94==='function'){
+    const baseReqDetailMorfologicoV1=reqDetailInputHtmlV94;
+
+    reqDetailInputHtmlV94=function(req){
+      if(isEstudioMorfologicoV1(req)){
+        const val=ensureMorfologicoObjV1(req);
+        const d=val.detalle||{};
+
+        return `<div class="req-detail-v94 req-detail-morfologico-v1">
+          <label>N° Morfológico</label>
+          <input
+            data-req-detail="${esc(req.id)}"
+            data-field="nroMorfologico"
+            value="${esc(d.nroMorfologico||'')}"
+            placeholder="N° Morfológico">
+
+          <label>Fecha</label>
+          <input
+            type="date"
+            data-req-detail="${esc(req.id)}"
+            data-field="fechaMorfologico"
+            value="${esc(d.fechaMorfologico||'')}">
+
+          <label>N° eGOB</label>
+          <input
+            data-req-detail="${esc(req.id)}"
+            data-field="egobMorfologico"
+            value="${esc(d.egobMorfologico||'')}"
+            placeholder="N° eGOB">
+        </div>`;
+      }
+
+      return baseReqDetailMorfologicoV1.apply(this,arguments);
+    };
+  }
+
+  /* ------------------------------
+     Resultado / detalle del informe
+     ------------------------------ */
+  if(typeof reqDefaultDetailV94==='function'){
+    const baseReqDefaultMorfologicoV1=reqDefaultDetailV94;
+
+    reqDefaultDetailV94=function(req){
+      if(isEstudioMorfologicoV1(req)){
+        const d=state.requisitos?.[req.id]?.detalle||{};
+        const lines=[];
+
+        if(d.nroMorfologico){
+          lines.push('N° Morfológico: '+d.nroMorfologico);
+        }
+
+        if(d.fechaMorfologico){
+          const fecha=typeof fmtDateV119W==='function'
+            ? fmtDateV119W(d.fechaMorfologico)
+            : (typeof fmtDate==='function' ? fmtDate(d.fechaMorfologico) : d.fechaMorfologico);
+          lines.push('Fecha: '+fecha);
+        }
+
+        if(d.egobMorfologico){
+          lines.push('N° eGOB: '+d.egobMorfologico);
+        }
+
+        return lines.join('\n') ||
+          String(state.requisitos?.[req.id]?.estado||'').trim();
+      }
+
+      return baseReqDefaultMorfologicoV1.apply(this,arguments);
+    };
+  }
+
+  /* Los inputs usan data-req-detail/data-field, por lo que el binder genérico
+     V94 ya guarda automáticamente estos valores en state y actualiza informe. */
+})();
+</script>
+
 </body>
 </html>
