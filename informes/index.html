@@ -4725,7 +4725,6 @@ function updateCSVStatusV32(){
 async function loadExternalCSVsCoreV32(){
   const files = {
     observaciones:'data/observaciones.csv',
-    tecnicos:'data/tecnicos.csv',
     tecnicosEstructurales:'data/tecnicos_estructurales.csv',
     codigosPit:'data/codigos_pit.csv',
     requisitos:'data/requisitos.csv',
@@ -4755,17 +4754,8 @@ async function loadExternalCSVsCoreV32(){
     changed = true;
   }
 
-  if(loaded.tecnicos.length){
-    const tech = loaded.tecnicos.filter(activeV32);
-    DATA.tecnicos = tech.map(r=>String(r.Nombre||'').trim()).filter(Boolean);
-    if(typeof TECNICOS_INFO !== 'undefined' && Array.isArray(TECNICOS_INFO)){
-      TECNICOS_INFO.splice(0, TECNICOS_INFO.length, ...tech.map(r=>({
-        nombre:String(r.Nombre||'').trim(),
-        cargo:String(r["Cargo para firma"] || r.Cargo || 'TÉCNICO REVISOR').trim() || 'TÉCNICO REVISOR'
-      })).filter(x=>x.nombre));
-    }
-    changed = true;
-  }
+  /* V7.9.15: tecnicos.csv retirado. El técnico actual proviene de phdu_profiles
+     mediante AllpaTecnicoSesionV7914. El catálogo estructural permanece separado. */
 
   if(loaded.tecnicosEstructurales.length && typeof TECNICOS_ESTRUCTURALES !== 'undefined' && Array.isArray(TECNICOS_ESTRUCTURALES)){
     const techE = loaded.tecnicosEstructurales.filter(activeV32);
