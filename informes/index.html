@@ -3880,7 +3880,9 @@ header.no-print{padding-left:82px!important}
       <div class="card">
         <h2>1. Identificación del informe</h2>
         <div class="field"><label>Nro. eGOB Principal *</label><input id="egob" inputmode="numeric" placeholder="Ej.: 1157249" /></div>
-        <div class="field"><label>Técnico revisor *</label><input id="tecnico" list="listaTecnicos" placeholder="Buscar o escribir nombre" /><datalist id="listaTecnicos"></datalist><div class="tools-note mini"></div></div>
+        <!-- V7.9.14: el técnico revisor se obtiene automáticamente del perfil PHDU autenticado. -->
+        <input id="tecnico" type="hidden" />
+        <datalist id="listaTecnicos" hidden></datalist>
         <div class="field" id="fechaIngresoTramiteWrap"><label>Fecha de ingreso del trámite</label><input type="date" id="fechaIngresoTramite" /></div>
         <div class="field"><label>Tipo de informe *</label><select id="tipoInforme"><option value="">Seleccione...</option><option>Informe con Observaciones</option><option>Informe Técnico Aprobatorio</option></select></div>
         <div class="row" id="dateRow">
@@ -9792,12 +9794,15 @@ function reportTypeNameV70(){
 
 /* Validación superior corregida: Desistimiento no requiere fecha máxima de subsanación */
 function validateTop(){
+  try{window.AllpaTecnicoSesionV7914?.sync?.();}catch(_e){}
   collectTop();
   if(!state.egob){msg('No se puede continuar: debe colocar el Nro. eGOB principal.'); return false;}
-  const match=tecnicoCoincidente(state.tecnico);
-  if(!match){msg('No se puede continuar: el técnico debe coincidir con una opción de la hoja Técnicos.'); return false;}
-  state.tecnico=match;
-  const tec=document.getElementById('tecnico'); if(tec) tec.value=match;
+  const perfil=window.AllpaSupabaseCheckV1?.getProfile?.() || null;
+  const rol=String(perfil?.rol||'').trim().toUpperCase();
+  if(!perfil || perfil.activo!==true || !['TECNICO','ADMIN'].includes(rol) || !String(state.tecnico||'').trim()){
+    msg('No se puede continuar: no se pudo identificar al técnico revisor desde la sesión PHDU. Regrese al Portal ALLPA e inicie sesión nuevamente.');
+    return false;
+  }
   if(!state.tipoInforme){msg('No se puede continuar: debe seleccionar el tipo de informe.'); return false;}
   if(!state.fechaRevision){msg(state.tipoInforme==='Informe Técnico Aprobatorio'||state.tipoInforme==='Informe de Desistimiento'?'No se puede continuar: debe colocar la fecha de emisión.':'No se puede continuar: debe colocar la fecha de revisión.'); return false;}
   if(state.tipoInforme!=='Informe Técnico Aprobatorio' && state.tipoInforme!=='Informe de Desistimiento' && !state.fechaSubsanacion){
@@ -9812,8 +9817,12 @@ function validationErrorsV70(context='generar el PDF'){
   collectTop();
 
   if(!state.egob) errors.push('Falta el Nro. eGOB principal.');
-  const match=tecnicoCoincidente(state.tecnico);
-  if(!match) errors.push('El técnico revisor no coincide con la lista de la hoja Técnicos.');
+  try{window.AllpaTecnicoSesionV7914?.sync?.();}catch(_e){}
+  const perfil=window.AllpaSupabaseCheckV1?.getProfile?.() || null;
+  const rol=String(perfil?.rol||'').trim().toUpperCase();
+  if(!perfil || perfil.activo!==true || !['TECNICO','ADMIN'].includes(rol) || !String(state.tecnico||'').trim()){
+    errors.push('No se pudo identificar al técnico revisor desde la sesión PHDU.');
+  }
   if(!state.tipoInforme) errors.push('Falta seleccionar el tipo de informe.');
   if(!state.fechaRevision) errors.push((state.tipoInforme==='Informe Técnico Aprobatorio'||state.tipoInforme==='Informe de Desistimiento')?'Falta la fecha de emisión.':'Falta la fecha de revisión.');
   if(state.tipoInforme!=='Informe Técnico Aprobatorio' && state.tipoInforme!=='Informe de Desistimiento' && !state.fechaSubsanacion) errors.push('Falta la fecha máxima de subsanación.');
@@ -14838,7 +14847,7 @@ function fileToImageDataV113(file){
       const img=new Image();
       img.onload=()=>{
         try{
-          const maxSide=1400;
+          const maxSide=1000; /* V7.9.11: menor peso para copia a eGOB */
           let w=img.naturalWidth || img.width;
           let h=img.naturalHeight || img.height;
 
@@ -14860,7 +14869,7 @@ function fileToImageDataV113(file){
           ctx.fillRect(0,0,cw,ch);
           ctx.drawImage(img,0,0,cw,ch);
 
-          const out=canvas.toDataURL('image/jpeg',0.84);
+          const out=canvas.toDataURL('image/jpeg',0.80); /* V7.9.11 */
           resolve(out || original);
         }catch(e){
           resolve(original);
@@ -34494,7 +34503,12 @@ textarea.evidencia-text,
   }
 
   function format2(value){
-    return (Math.round(Number(value||0)*100)/100).toFixed(2);
+    /* V7.9.11: redondeo decimal estable a 2 cifras para COS/CUS.
+       Evita casos de coma flotante como 1.005 -> 1.00. */
+    const n=Number(value||0);
+    if(!Number.isFinite(n)) return '0.00';
+    const rounded=Math.round((n + Number.EPSILON)*100)/100;
+    return rounded.toFixed(2);
   }
 
   function modeFromRows(rows){
@@ -37089,65 +37103,20 @@ async function saveBase(showMessage=true){
   return true;
 }
 
-function baseEgobForReportV795(value){
-  let out=String(value||'').trim();
-  try{
-    if(typeof obsBaseEgobV119==='function') out=obsBaseEgobV119(out);
-  }catch(_e){}
-  return String(out||'')
-    .replace(/\s+-\s+2do\s+Informe\s+(de|con)\s+Observaciones\s*$/i,'')
-    .replace(/\s+-\s+Informe\s+con\s+Observaciones\s*$/i,'')
-    .trim();
-}
-
-function normalizeReportIdentityBeforeSaveV795(tipo){
-  const t=String(tipo||'').trim();
-  if(t!=='Informe Técnico Aprobatorio' && t!=='Informe de Desistimiento') return;
-
-  const visibleEgob=document.getElementById('egob')?.value || state.egob || state.egobBaseV119 || state.egobBaseV116 || '';
-  const base=baseEgobForReportV795(visibleEgob);
-
-  state.tipoInforme=t;
-  if(base){
-    state.egob=base;
-    state.egobBaseV116=base;
-    state.egobBaseV119=base;
-    try{if(typeof setInfoEgobBaseV119==='function') setInfoEgobBaseV119(state,base)}catch(_e){}
-    const egobInput=document.getElementById('egob');
-    if(egobInput && egobInput.value!==base) egobInput.value=base;
-  }
-
-  /* Un Aprobatorio/Desistimiento nunca puede heredar identidad de 1ra/2da Observación. */
-  state.segundaObservacionV116=false;
-  state.primeraObservacionV119=false;
-  state.fechaSubsanacionCincoDias=false;
-  state._savedKeyV119='';
-
-  /* Si alguna conversión antigua arrastró una llave decorada de Observaciones, se descarta.
-     Las llaves válidas de conversión de proyecto (ANTEPROYECTO/DEFINITIVO) se conservan. */
-  ['_savedKeyV119R','_savedKeyV164'].forEach(k=>{
-    if(/Informe\s+(con\s+Observaciones|de\s+Observaciones)|2do\s+Informe/i.test(String(state[k]||''))) state[k]='';
-  });
-
-  const cb=document.getElementById('calc5DiasSubsanacionV55');
-  if(cb) cb.checked=false;
-}
-
 async function save(showMessage=true){
   if(!state.projectType){
     state.projectType=localStorage.getItem('GADMR_PROJECT_TYPE_V123') || 'obra_mayor_definitivo';
   }
 
-  /* La interfaz visible manda. Se sincroniza ANTES de cualquier ruta especial de guardado. */
-  if(typeof collectTop==='function') collectTop();
-  const initialTipo=String(document.getElementById('tipoInforme')?.value || state.tipoInforme || '').trim();
-  state.tipoInforme=initialTipo;
-  normalizeReportIdentityBeforeSaveV795(initialTipo);
-
   if(typeof H.convertedSave==='function'){
     const special=await H.convertedSave(showMessage);
     if(special?.handled) return !!special.result;
   }
+
+  if(typeof collectTop==='function') collectTop();
+
+  const initialTipo=document.getElementById('tipoInforme')?.value || state.tipoInforme || '';
+  state.tipoInforme=initialTipo;
 
   if(initialTipo==='Informe con Observaciones'){
     if(typeof validateTop==='function' && !validateTop()) return false;
@@ -37164,8 +37133,7 @@ async function save(showMessage=true){
 
   const ok=await saveBase(showMessage);
 
-  /* La Segunda Observación solo puede generarse cuando el tipo seleccionado es Observaciones. */
-  if(ok && initialTipo==='Informe con Observaciones' && state.fechaSubsanacionCincoDias){
+  if(ok && state.tipoInforme==='Informe con Observaciones' && state.fechaSubsanacionCincoDias){
     if(typeof guardarSegundoInformeObservacionesV116==='function'){
       await guardarSegundoInformeObservacionesV116(false);
     }
@@ -37704,9 +37672,13 @@ function validate(context='generar el PDF'){
 
   if(!state.egob)errors.push('Falta el campo: Nro. eGOB principal.');
   try{
-    const match=typeof tecnicoCoincidente==='function'?tecnicoCoincidente(state.tecnico):state.tecnico;
-    if(!match)errors.push('Técnico revisor: debe coincidir con la lista de la hoja Técnicos.');
-  }catch(_e){}
+    window.AllpaTecnicoSesionV7914?.sync?.();
+    const perfil=window.AllpaSupabaseCheckV1?.getProfile?.() || null;
+    const rol=String(perfil?.rol||'').trim().toUpperCase();
+    if(!perfil || perfil.activo!==true || !['TECNICO','ADMIN'].includes(rol) || !String(state.tecnico||'').trim()){
+      errors.push('Técnico revisor: no se pudo identificar desde la sesión PHDU activa.');
+    }
+  }catch(_e){errors.push('Técnico revisor: no se pudo identificar desde la sesión PHDU activa.');}
 
   if(!state.tipoInforme)errors.push('Falta el campo: Tipo de informe.');
   if(!state.fechaRevision){
@@ -42599,56 +42571,631 @@ window.AllpaReglasObraMayorV794=Object.freeze({VERSION,metrics,reqApplies,studyA
 window.addEventListener('load',()=>{normalizeRequirementGroups();setTimeout(()=>{normalizeRequirementGroups();patchRequirementNote();},700)});
 })();
 </script>
-\n<script id="allpa-fix-identidad-informes-v795">
+
+
+<!-- ==========================================================
+     ALLPA V7.9.11 — ESTABILIDAD CUS/COS, IMÁGENES Y AUTOGUARDADO
+     1) Redondeo matemático estable a 2 decimales (ver Core V5).
+     2) Copia enriquecida: imágenes limitadas, comprimidas y con estilos inline.
+     3) Autoguardado local de borradores en IndexedDB, sin exigir completar
+        todos los campos; guarda antes de Nuevo/Abrir/Inicio cuando es posible.
+     ========================================================== -->
+<style id="allpa-v7911-autosave-css">
+#autosaveStatusV7911{
+  margin-top:6px;padding:5px 8px;border-radius:8px;
+  background:#eef6f3;color:#176b4d;font-size:10.5px;font-weight:800;
+  line-height:1.2;text-align:center;
+}
+#autosaveStatusV7911.pending{background:#fff7ed;color:#9a3412}
+#autosaveStatusV7911.error{background:#fff1f2;color:#9f1239}
+</style>
+<script id="allpa-v7911-fixes">
 (function(){
 'use strict';
-const VERSION='7.9.5-report-identity-guard';
-function base(v){
-  let x=String(v||'').trim();
-  try{if(typeof obsBaseEgobV119==='function')x=obsBaseEgobV119(x)}catch(_e){}
-  return x.replace(/\s+-\s+2do\s+Informe\s+(de|con)\s+Observaciones\s*$/i,'')
-          .replace(/\s+-\s+Informe\s+con\s+Observaciones\s*$/i,'').trim();
-}
-function title(record){
-  const raw=String(record?.egob||'').trim();
-  const b=base(raw);
-  const tipo=String(record?.tipoInforme||'').trim();
-  if(tipo==='Informe Técnico Aprobatorio') return `eGOB ${b} - Informe Técnico Aprobatorio`;
-  if(tipo==='Informe de Desistimiento') return `eGOB ${b} - Informe de Desistimiento`;
-  if(/2do\s+Informe\s+(de|con)\s+Observaciones/i.test(raw) || record?.segundaObservacionV116) return `eGOB ${b} - 2do Informe con Observaciones`;
-  if(tipo==='Informe con Observaciones' || /Informe\s+con\s+Observaciones/i.test(raw)) return `eGOB ${b} - Informe con Observaciones`;
-  return tipo?`eGOB ${b} - ${tipo}`:`eGOB ${b}`;
-}
-/* El tipo explícito tiene prioridad absoluta en todas las listas. */
-window.savedTitleV119=title;
-try{savedTitleV119=title}catch(_e){}
+const VERSION='7.9.11';
 
-async function audit(){
-  if(typeof dbAll!=='function' || typeof dbPut!=='function') return;
-  try{
-    const all=await dbAll();
-    let changed=0;
-    for(const item of all||[]){
-      const tipo=String(item?.tipoInforme||'').trim();
-      if(tipo!=='Informe Técnico Aprobatorio' && tipo!=='Informe de Desistimiento') continue;
-      const before=JSON.stringify([item.segundaObservacionV116,item.primeraObservacionV119,item.fechaSubsanacionCincoDias,item._savedKeyV119]);
-      item.segundaObservacionV116=false;
-      item.primeraObservacionV119=false;
-      item.fechaSubsanacionCincoDias=false;
-      item._savedKeyV119='';
-      const after=JSON.stringify([item.segundaObservacionV116,item.primeraObservacionV119,item.fechaSubsanacionCincoDias,item._savedKeyV119]);
-      if(before!==after){await dbPut(item);changed++;}
-    }
-    if(changed){
-      try{if(typeof renderSavedList==='function')await renderSavedList()}catch(_e){}
-      try{if(typeof refreshSavedSearchV131==='function')await refreshSavedSearchV131()}catch(_e){}
-      console.info(`ALLPA ${VERSION}: reparados ${changed} registro(s) con banderas de Observaciones incompatibles.`);
-    }
-  }catch(err){console.warn('ALLPA V7.9.5 auditoría de identidad:',err);}
+/* ----------------------------------------------------------
+   1. IMÁGENES EN COPIA eGOB
+   ---------------------------------------------------------- */
+function dataUrlToOptimizedV7911(src){
+  return new Promise(resolve=>{
+    const raw=String(src||'');
+    if(!raw.startsWith('data:image/')) return resolve(raw);
+    /* Imágenes pequeñas no necesitan recodificación. */
+    if(raw.length<180000) return resolve(raw);
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const w=img.naturalWidth||img.width||0;
+        const h=img.naturalHeight||img.height||0;
+        if(!w||!h) return resolve(raw);
+        const maxW=1000, maxH=720;
+        const scale=Math.min(1,maxW/w,maxH/h);
+        const cw=Math.max(1,Math.round(w*scale));
+        const ch=Math.max(1,Math.round(h*scale));
+        const canvas=document.createElement('canvas');
+        canvas.width=cw; canvas.height=ch;
+        const ctx=canvas.getContext('2d');
+        ctx.fillStyle='#fff'; ctx.fillRect(0,0,cw,ch);
+        ctx.drawImage(img,0,0,cw,ch);
+        resolve(canvas.toDataURL('image/jpeg',0.80)||raw);
+      }catch(_e){ resolve(raw); }
+    };
+    img.onerror=()=>resolve(raw);
+    img.src=raw;
+  });
 }
-window.AllpaReportIdentityGuardV795=Object.freeze({VERSION,title,audit});
-window.addEventListener('load',()=>{setTimeout(audit,1600);setTimeout(audit,5400)});
+
+async function optimizeClipboardHtmlV7911(html){
+  const parser=new DOMParser();
+  const doc=parser.parseFromString(String(html||''),'text/html');
+  const reportImages=[...doc.querySelectorAll(
+    '.sustento-img-v55,.report-tech-img,.report-obs-img,.sustento-img-gallery-v113 img'
+  )];
+
+  for(const img of reportImages){
+    const optimized=await dataUrlToOptimizedV7911(img.getAttribute('src')||'');
+    if(optimized) img.setAttribute('src',optimized);
+    /* Atributo width además del style: muchos editores eGOB eliminan CSS de clases. */
+    img.setAttribute('width','500');
+    img.removeAttribute('height');
+    img.setAttribute('style',[
+      'display:block','width:500px','max-width:100%','height:auto',
+      'max-height:320px','object-fit:contain','margin:6px auto',
+      'border:1px solid #cbd5e1','padding:2px','background:#ffffff'
+    ].join(';'));
+  }
+
+  doc.querySelectorAll('.sustento-img-gallery-v113').forEach(g=>{
+    g.setAttribute('style','display:block!important;width:100%!important;text-align:center!important;page-break-inside:avoid!important;');
+  });
+  doc.querySelectorAll('.sustento-img-row-v55 td').forEach(td=>{
+    td.setAttribute('style',(td.getAttribute('style')||'')+';text-align:center!important;vertical-align:middle!important;');
+  });
+
+  let out='<!DOCTYPE html>'+doc.documentElement.outerHTML;
+  return out;
+}
+
+async function copyCurrentV7911(){
+  try{if(typeof collectTop==='function')collectTop()}catch(_e){}
+
+  if(typeof isCopyEnabledReportV70==='function'&&!isCopyEnabledReportV70()){
+    if(typeof showDetailedErrorV70==='function')showDetailedErrorV70('No se puede copiar este informe.',[
+      'El botón Copiar está habilitado únicamente para Informe Técnico Aprobatorio e Informe de Desistimiento.'
+    ]);
+    return false;
+  }
+
+  const errors=typeof validationErrorsV70==='function'?validationErrorsV70('copiar el informe'):[];
+  if(errors.length){
+    if(typeof showDetailedErrorV70==='function')showDetailedErrorV70('No se pudo copiar el informe.',errors);
+    try{if(typeof focusFirstInvalidFieldV95==='function')focusFirstInvalidFieldV95()}catch(_e){}
+    return false;
+  }
+
+  let payload;
+  try{
+    if(typeof buildClipboardPayloadV154==='function')payload=buildClipboardPayloadV154();
+    else if(typeof buildClipboardPayloadV153==='function')payload=buildClipboardPayloadV153();
+    else throw new Error('No existe el generador de contenido para portapapeles.');
+    payload.html=await optimizeClipboardHtmlV7911(payload.html);
+  }catch(error){
+    if(typeof showDetailedErrorV70==='function')showDetailedErrorV70('No se pudo preparar el informe para copiar.',[error.message||String(error)]);
+    return false;
+  }
+
+  if(!payload?.plain){
+    if(typeof showDetailedErrorV70==='function')showDetailedErrorV70('No se pudo copiar el informe.',['La Vista del Informe está vacía.']);
+    return false;
+  }
+
+  try{
+    if(!navigator.clipboard||!window.ClipboardItem||!window.isSecureContext)throw new Error('Portapapeles enriquecido moderno no disponible.');
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html':new Blob([payload.html],{type:'text/html'}),
+      'text/plain':new Blob([payload.plain],{type:'text/plain'})
+    })]);
+    if(typeof msg==='function')msg('Informe copiado. Las imágenes se ajustaron para eGOB.',true);
+    return true;
+  }catch(firstError){
+    try{
+      if(typeof fallbackCopyRichHtmlV153==='function')fallbackCopyRichHtmlV153(payload.html);
+      else throw firstError;
+      if(typeof msg==='function')msg('Informe copiado con formato mediante el modo compatible.',true);
+      return true;
+    }catch(secondError){
+      try{
+        if(typeof fallbackCopyPlainTextV70==='function')fallbackCopyPlainTextV70(payload.plain);
+        else throw secondError;
+        if(typeof msg==='function')msg('El navegador solo permitió copiar el informe como texto sin formato.',true);
+        return true;
+      }catch(thirdError){
+        if(typeof showDetailedErrorV70==='function')showDetailedErrorV70('No se pudo copiar automáticamente.',[
+          firstError.message||String(firstError),secondError.message||String(secondError),thirdError.message||String(thirdError)
+        ]);
+        return false;
+      }
+    }
+  }
+}
+
+function installCopyV7911(){
+  window.copiarInformeActualV70=copyCurrentV7911;
+  window.copiarInformeAprobatorio=copyCurrentV7911;
+  try{copiarInformeActualV70=copyCurrentV7911}catch(_e){}
+  try{copiarInformeAprobatorio=copyCurrentV7911}catch(_e){}
+  const btn=document.getElementById('btnCopiarAprobatorioVista');
+  if(btn) btn.onclick=copyCurrentV7911;
+}
+
+/* ----------------------------------------------------------
+   2. AUTOGUARDADO LOCAL
+   - No llama validateTop(): un borrador puede estar incompleto.
+   - Requiere eGOB + tipo de informe para tener una llave estable.
+   ---------------------------------------------------------- */
+let dirty=false;
+let timer=null;
+let saving=false;
+let lastSaved=0;
+
+function statusElV7911(){
+  let el=document.getElementById('autosaveStatusV7911');
+  if(el) return el;
+  const actions=document.querySelector('.side-actions');
+  if(!actions) return null;
+  el=document.createElement('div');
+  el.id='autosaveStatusV7911';
+  el.style.gridColumn='1/-1';
+  el.textContent='Autoguardado activo';
+  actions.appendChild(el);
+  return el;
+}
+function setStatusV7911(text,kind=''){
+  const el=statusElV7911(); if(!el)return;
+  el.textContent=text;
+  el.classList.toggle('pending',kind==='pending');
+  el.classList.toggle('error',kind==='error');
+}
+function cloneV7911(v){try{return structuredClone(v)}catch(_e){return JSON.parse(JSON.stringify(v))}}
+function baseEgobV7911(){
+  let raw=String(document.getElementById('egob')?.value||state?.egob||'').trim();
+  try{if(typeof obsBaseEgobV119==='function')raw=obsBaseEgobV119(raw)}catch(_e){}
+  return raw.replace(/\D/g,'');
+}
+function saveKeyAndCloneV7911(){
+  try{if(typeof collectTop==='function')collectTop()}catch(_e){}
+  try{window.AllpaPersistenciaAprobatorioV776?.sync?.()}catch(_e){}
+
+  const base=baseEgobV7911();
+  const tipo=String(state?.tipoInforme||document.getElementById('tipoInforme')?.value||'').trim();
+  if(!base||!tipo) return null;
+
+  const record=cloneV7911(state);
+  record.tipoInforme=tipo;
+  record.projectType=record.projectType||localStorage.getItem('GADMR_PROJECT_TYPE_V123')||'obra_mayor_definitivo';
+  record.updatedAt=new Date().toISOString();
+  if(!record.createdAt) record.createdAt=record.updatedAt;
+
+  if(tipo==='Informe con Observaciones'){
+    let second=false;
+    try{second=typeof obsSegundoActivoV119==='function'&&obsSegundoActivoV119()}catch(_e){}
+    let key=base;
+    try{
+      if(second&&typeof obsSegundoKeyV119==='function')key=obsSegundoKeyV119(base);
+      else if(!second&&typeof obsPrimerKeyV119==='function')key=obsPrimerKeyV119(base);
+    }catch(_e){}
+    record.egob=key;
+    record.egobBaseV116=base;
+    record.egobBaseV119=base;
+    record.segundaObservacionV116=!!second;
+    record.primeraObservacionV119=!second;
+    try{if(typeof setInfoEgobBaseV119==='function')setInfoEgobBaseV119(record,base)}catch(_e){}
+  }else{
+    record.egob=base;
+  }
+  return record;
+}
+
+async function autosaveV7911(force=false){
+  if(saving || (!dirty&&!force)) return false;
+  if(typeof dbPut!=='function' || typeof db==='undefined' || !db) return false;
+  const record=saveKeyAndCloneV7911();
+  if(!record){
+    if(force)setStatusV7911('Autoguardado: falta eGOB o tipo de informe','pending');
+    return false;
+  }
+  saving=true;
+  setStatusV7911('Guardando automáticamente…','pending');
+  try{
+    await dbPut(record);
+    state.updatedAt=record.updatedAt;
+    dirty=false;
+    lastSaved=Date.now();
+    const t=new Date(lastSaved).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    setStatusV7911('Guardado automáticamente · '+t);
+    return true;
+  }catch(e){
+    console.warn('ALLPA V7.9.11 autoguardado:',e);
+    setStatusV7911('No se pudo autoguardar','error');
+    return false;
+  }finally{saving=false;}
+}
+function scheduleAutosaveV7911(delay=900){
+  dirty=true;
+  setStatusV7911('Cambios pendientes…','pending');
+  clearTimeout(timer);
+  timer=setTimeout(()=>autosaveV7911(false),delay);
+}
+
+/* Eventos de edición normales. */
+document.addEventListener('input',()=>scheduleAutosaveV7911(900),false);
+document.addEventListener('change',()=>scheduleAutosaveV7911(700),false);
+document.addEventListener('paste',()=>scheduleAutosaveV7911(1800),false);
+document.addEventListener('click',ev=>{
+  const btn=ev.target?.closest?.('button');
+  if(!btn)return;
+  const code=String(btn.getAttribute('onclick')||'');
+  if(/nuevoFormulario|cargarFormulario|cargarPorBusqueda|copiar|imprimir|guardarFormulario|guardarYSeguir|showTab|tabAnterior/i.test(code))return;
+  scheduleAutosaveV7911(1000);
+},false);
+
+/* Refuerzo periódico por si una función modifica state sin emitir input/change. */
+setInterval(()=>{if(dirty)autosaveV7911(false)},15000);
+
+function installExitGuardsV7911(){
+  const wrapAsync=(name)=>{
+    const current=window[name];
+    if(typeof current!=='function'||current.__v7911Guard)return;
+    const wrapped=async function(){
+      await autosaveV7911(true);
+      return current.apply(this,arguments);
+    };
+    wrapped.__v7911Guard=true;
+    wrapped.__base=current;
+    window[name]=wrapped;
+    try{globalThis[name]=wrapped}catch(_e){}
+    try{if(name==='nuevoFormulario')nuevoFormulario=wrapped}catch(_e){}
+    try{if(name==='cargarFormulario')cargarFormulario=wrapped}catch(_e){}
+    try{if(name==='selectProjectV123')selectProjectV123=wrapped}catch(_e){}
+  };
+  wrapAsync('nuevoFormulario');
+  wrapAsync('cargarFormulario');
+  wrapAsync('selectProjectV123');
+  wrapAsync('openSavedRecordV131');
+  wrapAsync('openSavedRecordV119N');
+  wrapAsync('openSavedDropdownV130');
+}
+
+document.addEventListener('click',async ev=>{
+  const home=ev.target?.closest?.('a.allpa-home-v7');
+  if(!home)return;
+  ev.preventDefault();
+  const href=home.getAttribute('href')||'../index.html';
+  await autosaveV7911(true);
+  window.location.href=href;
+},true);
+
+window.addEventListener('pagehide',()=>{try{autosaveV7911(true)}catch(_e){}});
+window.addEventListener('load',()=>{
+  setTimeout(()=>{statusElV7911();installCopyV7911();installExitGuardsV7911();},800);
+  /* AllpaPublicRoutesV26 reinstala rutas varios segundos después. */
+  setTimeout(()=>{installCopyV7911();installExitGuardsV7911();},5600);
+  setTimeout(()=>{installCopyV7911();installExitGuardsV7911();},6500);
+});
+
+window.AllpaFixesV7911=Object.freeze({VERSION,autosave:autosaveV7911,optimizeClipboardHtml:optimizeClipboardHtmlV7911,installCopy:installCopyV7911});
 })();
-</script>\n
+</script>
+
+
+
+<!-- ==========================================================
+     ALLPA · V7.9.13
+     Navegación de proyectos con estado de pantalla único.
+     Causa corregida: varios timers históricos (V7.3/V123/V125) podían volver
+     a mostrar la portada DESPUÉS del primer clic. El primer clic sí iniciaba
+     la apertura, pero una restauración tardía devolvía la UI a HOME.
+
+     Esta versión:
+     - establece PROJECT antes de cualquier trabajo asíncrono;
+     - bloquea reaperturas históricas de la portada mientras un proyecto está activo;
+     - permite volver a HOME únicamente mediante una acción explícita del usuario;
+     - mantiene un MutationObserver como seguro contra escrituras directas de clases;
+     - no espera al autoguardado para comenzar a abrir el proyecto.
+     ========================================================== -->
+<script id="allpa-v7913-project-screen-state">
+(function(){
+'use strict';
+const VERSION='7.9.13-project-screen-state';
+let screen='HOME';            // HOME | PROJECT
+let navigating=false;
+let navSeq=0;
+
+const rawShow=typeof window.showProjectEntryV123==='function'
+  ? window.showProjectEntryV123
+  : null;
+const rawHide=typeof window.hideProjectEntryV123==='function'
+  ? window.hideProjectEntryV123
+  : null;
+
+function validProjectV7913(projectId){
+  return projectId==='anteproyecto_edificacion'
+    ? 'anteproyecto_edificacion'
+    : 'obra_mayor_definitivo';
+}
+
+function projectFromButtonV7913(btn){
+  const code=String(btn?.getAttribute?.('onclick')||'');
+  const m=code.match(/selectProjectV123\(\s*['\"]([^'\"]+)['\"]\s*\)/i);
+  if(m?.[1]) return validProjectV7913(m[1]);
+  return String(btn?.textContent||'').toUpperCase().includes('ANTEPROYECTO')
+    ? 'anteproyecto_edificacion'
+    : 'obra_mayor_definitivo';
+}
+
+function projectLabelV7913(id){
+  return id==='anteproyecto_edificacion'
+    ? 'Anteproyecto de Edificación'
+    : 'Obra Mayor Definitivo';
+}
+
+function syncHeaderV7913(){
+  try{if(typeof syncProjectHeaderVisibilityV130==='function')syncProjectHeaderVisibilityV130()}catch(_e){}
+  try{if(typeof ensureHeaderProjectControlsV130==='function')ensureHeaderProjectControlsV130()}catch(_e){}
+}
+
+function forceProjectScreenV7913(){
+  screen='PROJECT';
+  try{window.AllpaStartupV779?.leaveHome?.()}catch(_e){}
+  document.body?.classList.remove('allpa-generator-home-v779');
+  const entry=document.getElementById('projectEntryV123');
+  if(entry && !entry.classList.contains('hidden')) entry.classList.add('hidden');
+  syncHeaderV7913();
+}
+
+function forceHomeScreenV7913(){
+  screen='HOME';
+  try{window.AllpaStartupV779?.home?.()}catch(_e){}
+  try{
+    if(typeof ensureProjectEntryV123==='function')ensureProjectEntryV123();
+    const entry=document.getElementById('projectEntryV123');
+    if(entry) entry.classList.remove('hidden');
+  }catch(_e){}
+  syncHeaderV7913();
+}
+
+/* Autoridad única para mostrar la portada. Los timers históricos siguen
+   ejecutándose, pero ya no pueden sacar al usuario de un proyecto abierto. */
+function guardedShowV7913(){
+  if(screen==='PROJECT'){
+    forceProjectScreenV7913();
+    return false;
+  }
+  const out=rawShow ? rawShow.apply(this,arguments) : undefined;
+  forceHomeScreenV7913();
+  return out;
+}
+
+function guardedHideV7913(){
+  const out=rawHide ? rawHide.apply(this,arguments) : undefined;
+  if(screen==='PROJECT') forceProjectScreenV7913();
+  else syncHeaderV7913();
+  return out;
+}
+
+window.showProjectEntryV123=guardedShowV7913;
+window.hideProjectEntryV123=guardedHideV7913;
+try{showProjectEntryV123=window.showProjectEntryV123}catch(_e){}
+try{hideProjectEntryV123=window.hideProjectEntryV123}catch(_e){}
+
+function setProjectButtonsBusyV7913(on){
+  document.querySelectorAll('#projectEntryV123 .project-option-v123').forEach(btn=>{
+    btn.toggleAttribute('disabled',!!on);
+    btn.setAttribute('aria-busy',on?'true':'false');
+  });
+}
+
+function startAutosaveWithoutBlockingV7913(){
+  try{
+    const p=window.AllpaFixesV7911?.autosave?.(true);
+    if(p && typeof p.catch==='function') p.catch(err=>console.warn('ALLPA V7.9.13 autoguardado previo:',err));
+  }catch(err){console.warn('ALLPA V7.9.13 autoguardado previo:',err)}
+}
+
+function routeProjectV7913(id){
+  const route=window.ProjectNavigationV24D?.selectProject
+    || window.RequirementsNavigationV24C?.selectProject;
+  if(typeof route!=='function') throw new Error('No se encontró la ruta consolidada de proyectos.');
+  return route(id);
+}
+
+async function selectProjectFirstClickV7913(projectId){
+  if(navigating) return false;
+  navigating=true;
+  const mySeq=++navSeq;
+  const id=validProjectV7913(projectId);
+  const label=projectLabelV7913(id);
+
+  /* El estado cambia en el MISMO ciclo del clic. Ningún timeout posterior
+     puede volver a HOME mientras screen === PROJECT. */
+  forceProjectScreenV7913();
+  setProjectButtonsBusyV7913(true);
+  try{window.AllpaCleanTransitionV778?.show?.('Preparando '+label+'…')}catch(_e){}
+
+  /* Captura el borrador anterior, pero NO frena la navegación esperando IndexedDB. */
+  startAutosaveWithoutBlockingV7913();
+
+  try{
+    const result=routeProjectV7913(id);
+    if(result && typeof result.then==='function') await result;
+
+    if(mySeq!==navSeq) return false;
+    forceProjectScreenV7913();
+
+    /* Reafirmaciones cortas: cubren renders propios del formulario (80–100 ms),
+       no timers de varios segundos. El guard global se encarga de esos. */
+    requestAnimationFrame(()=>forceProjectScreenV7913());
+    setTimeout(()=>{if(screen==='PROJECT')forceProjectScreenV7913()},120);
+    setTimeout(()=>{if(screen==='PROJECT')forceProjectScreenV7913()},300);
+    return true;
+  }catch(err){
+    console.error('ALLPA V7.9.13 navegación:',err);
+    forceHomeScreenV7913();
+    try{if(typeof window.msg==='function')window.msg('No se pudo abrir '+label+'. Intente nuevamente.')}catch(_e){}
+    return false;
+  }finally{
+    setTimeout(()=>{
+      try{window.AllpaCleanTransitionV778?.hide?.()}catch(_e){}
+      setProjectButtonsBusyV7913(false);
+      navigating=false;
+    },260);
+  }
+}
+
+/* Primer clic de las tarjetas: captura antes del onclick histórico. */
+document.addEventListener('click',function(ev){
+  const btn=ev.target?.closest?.('#projectEntryV123 .project-option-v123');
+  if(!btn) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  selectProjectFirstClickV7913(projectFromButtonV7913(btn));
+},true);
+
+/* Volver a la portada sí es una intención explícita. Esto se ejecuta antes
+   de los handlers históricos que llaman showProjectEntryV123(). */
+document.addEventListener('click',function(ev){
+  const home=ev.target?.closest?.('#homeProjectBtnV124,.change-project-v123,a.allpa-home-v7');
+  if(!home) return;
+  if(screen==='PROJECT') screen='HOME';
+},true);
+
+/* Seguro contra código histórico que modifica directamente la clase del overlay. */
+const observer=new MutationObserver(()=>{
+  if(screen!=='PROJECT') return;
+  const entry=document.getElementById('projectEntryV123');
+  if(entry && !entry.classList.contains('hidden')) forceProjectScreenV7913();
+});
+if(document.body) observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});
+else document.addEventListener('DOMContentLoaded',()=>observer.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']}),{once:true});
+
+function installAliasV7913(){
+  window.selectProjectV123=selectProjectFirstClickV7913;
+  try{selectProjectV123=window.selectProjectV123}catch(_e){}
+}
+installAliasV7913();
+window.addEventListener('load',()=>{
+  /* AllpaPublicRoutesV26 cambia el alias a 3.2/4.2 s. El listener capture y
+     el estado de pantalla ya son suficientes; esto solo mantiene coherencia API. */
+  setTimeout(installAliasV7913,4300);
+  setTimeout(installAliasV7913,5700);
+  setTimeout(installAliasV7913,6700);
+});
+
+window.AllpaNavigationFixV7913=Object.freeze({
+  VERSION,
+  selectProject:selectProjectFirstClickV7913,
+  home:forceHomeScreenV7913,
+  project:forceProjectScreenV7913,
+  isProjectOpen:()=>screen==='PROJECT',
+  screen:()=>screen
+});
+})();
+</script>
+
+
+<script id="allpa-tecnico-sesion-v7914">
+/* ==========================================================
+   ALLPA V7.9.14 · TÉCNICO REVISOR DESDE SESIÓN PHDU
+   - Elimina la selección manual en Identificación del Informe.
+   - Usa firma_nombre/nombre_completo del perfil autenticado.
+   - Usa firma_cargo/cargo para la firma del documento.
+   - Conserva el técnico histórico cuando se abre un informe ya guardado.
+   ========================================================== */
+(function(){
+'use strict';
+const VERSION='7.9.14';
+
+function clean(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
+function norm(v){return clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();}
+function profile(){
+  try{return window.AllpaSupabaseCheckV1?.getProfile?.() || null;}catch(_e){return null;}
+}
+function profileTech(){
+  const p=profile();
+  if(!p || p.activo!==true) return null;
+  const rol=norm(p.rol);
+  if(!['TECNICO','ADMIN'].includes(rol)) return null;
+  const nombre=clean(p.firma_nombre)||clean(p.nombre_completo);
+  if(!nombre) return null;
+  return {
+    nombre,
+    cargo:clean(p.firma_cargo)||clean(p.cargo)||'TÉCNICO REVISOR',
+    rol,
+    id:clean(p.id),
+    correo:clean(p.correo)
+  };
+}
+function sync(options){
+  options=options||{};
+  if(typeof state==='undefined' || !state) return false;
+  const t=profileTech();
+  if(!t) return false;
+
+  /* Un informe histórico conserva el técnico que ya tenía guardado.
+     Un informe nuevo, cuyo técnico está vacío, toma automáticamente la sesión. */
+  if(options.force===true || !clean(state.tecnico)) state.tecnico=t.nombre;
+  state.tecnicoPerfilId=t.id;
+  state.tecnicoPerfilCorreo=t.correo;
+  if(norm(state.tecnico)===norm(t.nombre)) state.tecnicoFirmaCargo=t.cargo;
+
+  const input=document.getElementById('tecnico');
+  if(input) input.value=clean(state.tecnico);
+  return true;
+}
+
+/* collectTop histórico sigue esperando #tecnico. Se conserva como input oculto,
+   pero antes de leerlo se sincroniza desde la sesión. */
+const collectBase=typeof collectTop==='function'?collectTop:null;
+if(collectBase){
+  collectTop=function(){
+    sync();
+    const out=collectBase.apply(this,arguments);
+    sync();
+    return out;
+  };
+  window.collectTop=collectTop;
+}
+
+/* La firma usa el cargo configurado en phdu_profiles cuando el técnico del
+   informe corresponde al usuario autenticado. Para históricos de otro técnico,
+   se conserva el catálogo anterior como respaldo. */
+const tecnicoInfoBase=typeof tecnicoInfo==='function'?tecnicoInfo:null;
+if(tecnicoInfoBase){
+  tecnicoInfo=function(nombre){
+    const t=profileTech();
+    const actual=clean(nombre)||clean(state?.tecnico);
+    if(t && norm(actual)===norm(t.nombre)) return {nombre:t.nombre,cargo:t.cargo};
+    return tecnicoInfoBase.apply(this,arguments);
+  };
+  window.tecnicoInfo=tecnicoInfo;
+}
+
+function syncSoon(){
+  [80,220,500,900,1600,3000].forEach(ms=>setTimeout(()=>{
+    if(sync()){
+      try{if(typeof renderReport==='function')renderReport();}catch(_e){}
+      try{if(typeof renderPreview==='function')renderPreview();}catch(_e){}
+    }
+  },ms));
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',syncSoon,{once:true});
+else syncSoon();
+window.addEventListener('load',syncSoon,{once:true});
+
+window.AllpaTecnicoSesionV7914=Object.freeze({VERSION,profile:profileTech,sync});
+})();
+</script>
+
 </body>
 </html>
