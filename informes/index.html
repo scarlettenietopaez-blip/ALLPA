@@ -5445,7 +5445,23 @@ function renderPreview(){ return; }
 /* función sin referencias retirada Dep10: maximizarPreview */
 
 function tecnicoCoincidente(v){ const u=upper(v); return DATA.tecnicos.find(t=>upper(t)===u) || ''; }
-function validateTop(){ collectTop(); if(!state.egob){msg('Debe colocar el Nro. eGOB principal.'); return false;} const match=tecnicoCoincidente(state.tecnico); if(!match){msg('El técnico debe coincidir con una opción de la hoja Técnicos.'); return false;} state.tecnico=match; document.getElementById('tecnico').value=match; if(!state.tipoInforme){msg('Debe seleccionar el tipo de informe.'); return false;} if(!state.fechaRevision){msg(state.tipoInforme==='Informe Técnico Aprobatorio'?'Debe colocar la fecha de emisión.':'Debe colocar la fecha de revisión.'); return false;} if(state.tipoInforme!=='Informe Técnico Aprobatorio' && !state.fechaSubsanacion){msg('Debe colocar la fecha máxima de subsanación.'); return false;} return true; }
+function validateTop(){
+  collectTop();
+  try{window.AllpaTecnicoSesionV7914?.sync?.();}catch(_e){}
+  if(!state.egob){msg('Debe colocar el Nro. eGOB principal.'); return false;}
+  /* V7.9.16: el Técnico Revisor ya no se valida contra tecnicos.csv.
+     Debe provenir de la sesión PHDU autenticada. */
+  if(!String(state.tecnico||'').trim()){
+    msg('No se pudo identificar al Técnico Revisor desde la sesión PHDU. Regrese al Portal e inicie sesión nuevamente.');
+    return false;
+  }
+  const tecnicoInput=document.getElementById('tecnico');
+  if(tecnicoInput) tecnicoInput.value=String(state.tecnico||'').trim();
+  if(!state.tipoInforme){msg('Debe seleccionar el tipo de informe.'); return false;}
+  if(!state.fechaRevision){msg(state.tipoInforme==='Informe Técnico Aprobatorio'?'Debe colocar la fecha de emisión.':'Debe colocar la fecha de revisión.'); return false;}
+  if(state.tipoInforme!=='Informe Técnico Aprobatorio' && !state.fechaSubsanacion){msg('Debe colocar la fecha máxima de subsanación.'); return false;}
+  return true;
+}
 function validateForPrint(){ if(!validateTop()) return false; if(!validateAllVisibleInfo(true)){msg('Revise los campos obligatorios o con formato incorrecto antes de imprimir.'); showTab('tab-info'); return false;} return true; }
 async function guardarFormulario(showMessage=true){ if(!validateTop()) return false; state.updatedAt=new Date().toISOString(); if(!state.createdAt) state.createdAt=state.updatedAt; await dbPut(JSON.parse(JSON.stringify(state))); if(showMessage) msg('Formulario guardado correctamente con eGOB '+state.egob, true); renderSavedList(); return true; }
 async function cargarFormulario(egob){ const obj=await dbGet(egob); if(!obj){msg('No se encontró un formulario guardado con ese eGOB.'); return;} state=Object.assign(defaultState(),obj); applyStateToUI(); msg('Formulario cargado: '+egob, true); showTab('tab-info'); }
@@ -41071,10 +41087,17 @@ async function finalize(){
     let row=resultRow(data);
     /* V7.9.2: si el RPC terminó pero la respuesta no llegó con el número,
        intentamos recuperarlo por UUID/eGOB antes de declarar un fallo. */
-    if((!row || !row.numero) && isDesV790() && typeof api.recoverRegisteredInforme==='function'){
-      try{ row=await api.recoverRegisteredInforme(payload) || row; }catch(_recoverErr){ console.warn('ALLPA V7.9.2 recuperación de numeración:',_recoverErr); }
+    /* V7.9.16: la recuperación ya no se limita a Desistimiento. Anteproyecto y
+       Obra Mayor también verifican el registro por UUID/eGOB si la respuesta
+       del RPC llega sin la fila numerada. */
+    if((!row || !row.numero) && typeof api.recoverRegisteredInforme==='function'){
+      try{ row=await api.recoverRegisteredInforme(payload) || row; }catch(_recoverErr){ console.warn('ALLPA V7.9.16 recuperación de numeración:',_recoverErr); }
     }
-    if(!row || !row.numero) throw new Error('Supabase no devolvió el número del Informe. Verifique que el SQL 45 de Desistimiento esté ejecutado en Supabase.');
+    if(!row || !row.numero){
+      throw new Error(isDesV790()
+        ? 'Supabase no devolvió el número del Informe de Desistimiento. Verifique que el SQL 45 esté ejecutado en Supabase.'
+        : 'Supabase no devolvió el número del Informe Técnico. No se modificó el ASUNTO.');
+    }
 
     if(isDesV790()){
       state.phduDesistimientoId=String(row.informe_id||state.phduDesistimientoId||payload.id_informe||'');
@@ -41104,6 +41127,7 @@ async function finalize(){
     try{window.refreshAsuntoPreviewV119Y?.();}catch(_e){}
     updateFinalizeUi();
 
+    window.__ALLPA_PHDU_LAST_ERROR__='';
     const prefix=row.ya_existia?'El Informe ya estaba numerado. Se recuperó':'Informe finalizado correctamente. Se asignó';
     setStatus(prefix+' '+officialFormatted()+'. El ASUNTO ya fue generado con el Nro. '+pad3(row.numero)+'.','ok');
 
@@ -41119,10 +41143,13 @@ async function finalize(){
     const detail=String(err?.message||err);
     const missingRpc=/phdu_finalizar_informe_desistimiento_controlado|PGRST202|schema cache|could not find the function/i.test(detail);
     const help=missingRpc?' Verifique o vuelva a ejecutar el SQL 45_DESISTIMIENTO_NUMERACION_Y_RESOLUCION.sql en Supabase.':'';
-    setStatus('No se pudo finalizar el Informe: '+detail+help,'error');
-    if(isDesV790()){
-      try{window.alert('NO SE ASIGNÓ NINGÚN NÚMERO AL INFORME DE DESISTIMIENTO.\n\n'+detail+help);}catch(_e){}
-    }
+    const visibleError='No se pudo finalizar el Informe: '+detail+help;
+    window.__ALLPA_PHDU_LAST_ERROR__=visibleError;
+    setStatus(visibleError,'error');
+    try{window.dispatchEvent(new CustomEvent('allpa:phdu-finalize-error',{detail:{message:visibleError}}));}catch(_e){}
+    /* V7.9.16: el error ya no queda oculto en el modal histórico. Se informa
+       también para Aprobatorios de Obra Mayor y Anteproyecto. */
+    try{window.alert('NO SE ASIGNÓ NINGÚN NÚMERO AL INFORME.\n\n'+detail+help);}catch(_e){}
   }finally{
     busy=false;updateFinalizeUi();
   }
@@ -43184,6 +43211,157 @@ else syncSoon();
 window.addEventListener('load',syncSoon,{once:true});
 
 window.AllpaTecnicoSesionV7914=Object.freeze({VERSION,profile:profileTech,sync});
+})();
+</script>
+
+
+<script id="allpa-anteproyecto-numeracion-v7916">
+/* ==========================================================
+   ALLPA V7.9.16 · NUMERACIÓN ROBUSTA ANTEPROYECTO / OBRA MAYOR
+   - Mantiene visible el control compacto durante la numeración.
+   - Recupera un Informe ya registrado si el RPC no devuelve fila.
+   - Muestra el error real de Supabase en la interfaz visible.
+   - Refresca ASUNTO y Vista inmediatamente después de numerar.
+   ========================================================== */
+(function(){
+'use strict';
+const VERSION='7.9.16';
+
+function nOfficial(){
+  const n=Number(state?.tipoInforme==='Informe de Desistimiento'?state?.phduDesistimientoNumero:state?.phduNumeroInforme);
+  return Number.isInteger(n)&&n>0?n:0;
+}
+function fOfficial(){
+  const n=nOfficial();
+  if(!n)return '';
+  const raw=state?.tipoInforme==='Informe de Desistimiento'?state?.phduDesistimientoNumeroFormateado:state?.phduNumeroFormateado;
+  return String(raw||String(n).padStart(3,'0'));
+}
+function projectLabel(){
+  return state?.projectType==='anteproyecto_edificacion'?'ANTEPROYECTO':'OBRA MAYOR';
+}
+function resultBox(){return document.getElementById('phduCompactResultV72');}
+function metaBox(){return document.getElementById('phduCompactMetaV72');}
+function compactRoot(){return document.getElementById('phduCompactNumberV72');}
+function keepOpen(){
+  const root=compactRoot();
+  if(root){root.classList.add('open');root.setAttribute('aria-hidden','false');}
+}
+function setCompact(text,type='ok'){
+  keepOpen();
+  const box=resultBox();
+  if(box){box.className='v72-result '+type;box.innerHTML=text;}
+  const meta=metaBox();
+  if(meta){
+    const egob=String(state?.egob||'').trim();
+    meta.textContent=[projectLabel(),egob?('eGOB '+egob):'',fOfficial()?('Nro. '+fOfficial()):''].filter(Boolean).join(' · ');
+  }
+}
+function refreshNumberedUi(){
+  try{window.AllpaPhduFinalizeV4?.refresh?.();}catch(_e){}
+  try{window.renderAsuntoVistaV119Z?.();}catch(_e){}
+  try{window.refreshAsuntoPreviewV119Y?.();}catch(_e){}
+  try{window.renderReport?.();}catch(_e){}
+  try{window.renderPreview?.();}catch(_e){}
+  try{window.AllpaAutosaveV7911?.schedule?.();}catch(_e){}
+}
+
+function installWrapper(){
+  const base=window.AllpaPhduFinalizeV4;
+  if(!base || base.__v7916===true) return false;
+  const originalFinalize=base.finalize.bind(base);
+  const originalUpdate=base.updateRegisteredInforme.bind(base);
+  const originalRefresh=base.refresh.bind(base);
+
+  async function finalizeRobust(){
+    window.__ALLPA_PHDU_LAST_ERROR__='';
+    await originalFinalize();
+    if(nOfficial()){
+      refreshNumberedUi();
+      return {ok:true,numero:nOfficial(),numero_formateado:fOfficial()};
+    }
+
+    /* Si el RPC sí alcanzó a registrar el documento pero la respuesta se perdió,
+       se recupera por UUID/eGOB antes de informar un fallo. */
+    try{
+      const api=window.AllpaSupabaseCheckV1;
+      if(api?.recoverRegisteredInforme && api?.buildPayload){
+        const payload=api.buildPayload();
+        const row=await api.recoverRegisteredInforme(payload);
+        if(row?.numero || nOfficial()){
+          refreshNumberedUi();
+          return {ok:true,recovered:true,row,numero:nOfficial(),numero_formateado:fOfficial()};
+        }
+      }
+    }catch(err){
+      console.warn('ALLPA V7.9.16 recuperación posterior:',err);
+      if(!window.__ALLPA_PHDU_LAST_ERROR__) window.__ALLPA_PHDU_LAST_ERROR__=String(err?.message||err);
+    }
+    return {ok:false,error:String(window.__ALLPA_PHDU_LAST_ERROR__||'Supabase no confirmó la asignación del número.')};
+  }
+
+  window.AllpaPhduFinalizeV4=Object.freeze({
+    finalize:finalizeRobust,
+    updateRegisteredInforme:originalUpdate,
+    refresh:originalRefresh,
+    __v7916:true,
+    version:VERSION
+  });
+  return true;
+}
+
+/* El V7.2 cerraba el modal compacto ANTES de ejecutar la numeración. Si el RPC
+   fallaba, el error quedaba escrito en un panel oculto y para el usuario parecía
+   que el botón simplemente no hacía nada. Interceptamos únicamente Finalizar. */
+document.addEventListener('click',async function(ev){
+  const btn=ev.target?.closest?.('#phduCompactFinalizeV72');
+  if(!btn) return;
+  ev.preventDefault();
+  ev.stopImmediatePropagation();
+  if(btn.disabled) return;
+
+  installWrapper();
+  const actions=window.AllpaPhduFinalizeV4;
+  if(!actions){
+    setCompact('<strong>✕ No se encontró el módulo de numeración.</strong>','error');
+    return;
+  }
+
+  const oldText=btn.textContent;
+  btn.disabled=true;
+  btn.textContent='REGISTRANDO…';
+  setCompact('<strong>Registrando Informe en Supabase…</strong><br>Espere la confirmación antes de cerrar esta ventana.','warn');
+  try{
+    const out=await actions.finalize();
+    if(nOfficial()){
+      setCompact('<strong>✓ Número registrado correctamente.</strong><br>Informe <strong>'+fOfficial()+'</strong>. El ASUNTO fue actualizado automáticamente.','ok');
+      btn.textContent='INFORME '+fOfficial()+' YA ASIGNADO';
+      btn.disabled=true;
+      refreshNumberedUi();
+    }else{
+      const detail=String(out?.error||window.__ALLPA_PHDU_LAST_ERROR__||'Supabase no confirmó la asignación del número.');
+      setCompact('<strong>✕ No se asignó el número.</strong><br>'+detail.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}),'error');
+      btn.disabled=false;
+      btn.textContent=oldText||'FINALIZAR INFORME Y ASIGNAR NÚMERO';
+    }
+  }catch(err){
+    const detail=String(err?.message||err);
+    window.__ALLPA_PHDU_LAST_ERROR__=detail;
+    setCompact('<strong>✕ No se asignó el número.</strong><br>'+detail.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}),'error');
+    btn.disabled=false;
+    btn.textContent=oldText||'FINALIZAR INFORME Y ASIGNAR NÚMERO';
+  }
+},true);
+
+window.addEventListener('allpa:phdu-finalize-error',function(ev){
+  const message=String(ev?.detail?.message||'No se pudo finalizar el Informe.');
+  setCompact('<strong>✕ No se asignó el número.</strong><br>'+message.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}),'error');
+});
+
+installWrapper();
+setTimeout(installWrapper,300);
+setTimeout(installWrapper,1200);
+window.AllpaNumeracionV7916=Object.freeze({VERSION,refresh:refreshNumberedUi,official:nOfficial});
 })();
 </script>
 
