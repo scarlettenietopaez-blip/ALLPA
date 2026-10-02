@@ -143,8 +143,8 @@ function cfg(key){return String(TEMPLATE_ROWS.find(r=>r.ID_Bloque===key)?.Texto_
 function getEl(id){return document.getElementById(id);}
 function setStatus(msg,type='info'){const el=getEl('rv5Status');if(!el)return;el.textContent=msg;el.className='rv5-status '+(type==='info'?'':type);}
 function role(){return String(profile?.rol||'').toUpperCase();}
-function canWrite(){return !!profile?.activo && ['ABOGADA','ADMIN'].includes(role());}
-function canRead(){return !!profile?.activo && ['ABOGADA','ADMIN','DIRECCION'].includes(role());}
+function canWrite(){return !!profile?.activo && ['ABOGADO','ABOGADA','ADMIN'].includes(role());}
+function canRead(){return !!profile?.activo && ['ABOGADO','ABOGADA','ADMIN','DIRECCION'].includes(role());}
 function setBusy(v){busy=!!v;document.querySelectorAll('[data-rv5-write]').forEach(b=>b.disabled=busy||!selected||!canWrite()||resolution?.estado==='FINALIZADA'||demoMode);document.querySelectorAll('[data-rv5-update]').forEach(b=>b.disabled=busy||!selected||!canWrite()||resolution?.estado!=='FINALIZADA'||demoMode);}
 function parseCsvSemicolon(text){
   const rows=[];let row=[],field='',quoted=false;
@@ -790,7 +790,7 @@ async function loadTemplate(){
   meta.source=source;
 }
 function cfg(id){return String(rows.find(r=>r.ID_Bloque===id)?.Texto_Base||'').trim()}
-function role(){return norm(profile?.rol)}function canRead(){return !!profile?.activo&&['ABOGADA','ADMIN','DIRECCION'].includes(role())}function canWrite(){return !!profile?.activo&&['ABOGADA','ADMIN'].includes(role())}
+function role(){return norm(profile?.rol)}function canRead(){return !!profile?.activo&&['ABOGADO','ABOGADA','ADMIN','DIRECCION'].includes(role())}function canWrite(){return !!profile?.activo&&['ABOGADO','ABOGADA','ADMIN'].includes(role())}
 function updateHeaderActions(){const enabled=!!selected&&canWrite(),final=resolution?.estado==='FINALIZADA';const s=$('drvHeadSave'),f=$('drvHeadFinalize'),u=$('drvHeadUpdate');if(s)s.disabled=busy||!enabled||final;if(f)f.disabled=busy||!enabled||final;if(u)u.disabled=busy||!enabled||!final;const title=$('drvHeadTitle');if(title){const txt='ALLPA - RESOLUCIÓN DESISTIMIENTO OBRA MAYOR';title.textContent=txt;if($('drvOverlay')?.classList.contains('open'))document.title=txt;}}
 function status(msg,type=''){const e=$('drvStatus');if(e){e.textContent=msg;e.className='drv-status '+type}}
 async function rpc(name,args={}){if(!sb)throw new Error('Supabase no está disponible.');const {data,error}=await sb.rpc(name,args);if(error)throw error;return data}
