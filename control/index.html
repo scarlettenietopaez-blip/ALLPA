@@ -231,9 +231,10 @@ function dedupeRows(rows){
 async function load(){
   setStatus('Consultando CONTROL documental en Supabase…');
 
-  const [approvedRes,extraRes]=await Promise.all([
+  const [approvedRes,extraRes,desistStateRes]=await Promise.all([
     sb.rpc('phdu_listar_control_informes'),
-    sb.rpc('phdu_listar_control_documentos_adicionales')
+    sb.rpc('phdu_listar_control_documentos_adicionales'),
+    sb.rpc('phdu_listar_control_desistimientos_liberacion')
   ]);
 
   if(approvedRes.error){
@@ -254,7 +255,22 @@ async function load(){
   }
 
   const approved=(Array.isArray(approvedRes.data)?approvedRes.data:[]).map(normalizeApproved);
-  const extra=Array.isArray(extraRes.data)?extraRes.data:[];
+  let extra=Array.isArray(extraRes.data)?extraRes.data:[];
+
+  // El RPC adicional solo complementa el estado de liberación de los
+  // Informes de Desistimiento, sin reemplazar el listado documental existente.
+  if(!desistStateRes.error){
+    const desistMap=new Map(
+      (Array.isArray(desistStateRes.data)?desistStateRes.data:[])
+        .map(x=>[String(x.informe_id),x])
+    );
+    extra=extra.map(r=>{
+      if(r.categoria!=='DESISTIMIENTO_OBRA_MAYOR'&&r.categoria!=='DESISTIMIENTO_ANTEPROYECTO')return r;
+      const st=desistMap.get(String(r.informe_id));
+      return st?{...r,...st}:r;
+    });
+  }
+
   allRows=dedupeRows([...approved,...extra]);
 
   populateYears();
@@ -348,15 +364,18 @@ function render(){
       return Number(b.numero||0)-Number(a.numero||0);
     })
     .map(r=>{
-      const activeApproved=
-        (currentCat==='APROBATORIO_OBRA_MAYOR'||currentCat==='APROBATORIO_ANTEPROYECTO') &&
+      const activeReleasable=
+        (currentCat==='APROBATORIO_OBRA_MAYOR'||
+         currentCat==='APROBATORIO_ANTEPROYECTO'||
+         currentCat==='DESISTIMIENTO_OBRA_MAYOR'||
+         currentCat==='DESISTIMIENTO_ANTEPROYECTO') &&
         r.origen!=='MATRIZ_HISTORICA' &&
-        norm(r.registro_estado)==='REGISTRADO';
+        !['ANULADO'].includes(norm(r.registro_estado));
 
       let action='—';
-      if(activeApproved&&r.puede_liberar){
+      if(activeReleasable&&r.puede_liberar){
         action=`<button class="danger" onclick="openAnnul('${esc(r.informe_id)}')">ANULAR Y LIBERAR</button>`;
-      }else if(activeApproved){
+      }else if(activeReleasable){
         action=`<span class="muted" title="${esc(r.motivo_bloqueo||'No puede liberarse')}">No liberable</span>`;
       }else if(norm(r.registro_estado)==='ANULADO'){
         action=`<span class="muted">${esc(r.motivo_anulacion||'Anulado')}</span>`;
@@ -390,7 +409,7 @@ window.openAnnul=function(id){
   const row=allRows.find(r=>
     String(r.informe_id)===String(id) &&
     r.origen!=='MATRIZ_HISTORICA' &&
-    norm(r.registro_estado)==='REGISTRADO'
+    norm(r.registro_estado)!=='ANULADO'
   );
   if(!row)return;
 
@@ -423,7 +442,15 @@ async function confirmAnnul(){
   const btn=$('confirmAnnul');
   btn.disabled=true;
   try{
-    const {data,error}=await sb.rpc('phdu_anular_informe_y_liberar_numero',{
+    const isDesistimiento=
+      pendingAnnul.categoria==='DESISTIMIENTO_OBRA_MAYOR'||
+      pendingAnnul.categoria==='DESISTIMIENTO_ANTEPROYECTO';
+
+    const rpcName=isDesistimiento
+      ?'phdu_anular_informe_desistimiento_y_liberar_numero'
+      :'phdu_anular_informe_y_liberar_numero';
+
+    const {data,error}=await sb.rpc(rpcName,{
       p_informe_id:pendingAnnul.informe_id,
       p_motivo:reason
     });
