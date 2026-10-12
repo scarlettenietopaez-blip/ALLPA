@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="es">
 <head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALLPA · Revisiones Estructurales</title>
@@ -79,8 +82,8 @@ function statusLabel(v){return ({PENDIENTE:'PENDIENTE',EN_REVISION:'EN REVISIÓN
 async function authGuard(){const {data:{session}}=await sb.auth.getSession();if(!session?.user){location.replace('../index.html');return false}const {data,error}=await sb.from('phdu_profiles').select('id,correo,nombre_completo,rol,activo,cargo,firma_nombre,firma_cargo').eq('id',session.user.id).single();if(error)throw error;if(!data?.activo)throw new Error('El perfil PHDU está inactivo.');const role=String(data.rol||'').toUpperCase();if(!['INGENIERO_CIVIL','ADMIN'].includes(role)){location.replace('../index.html');return false}profile=data;return true}
 async function loadRecords(){showError('');$('refreshBtn').disabled=true;$('refreshBtn').textContent='ACTUALIZANDO…';try{const {data,error}=await sb.from('phdu_solicitudes_revision_estructural').select('id,egob,estado_revision,propietarios_texto,nombre_proyecto,uso_proyecto,parroquia,direccion,clave_catastral,area_construccion,pisos,creado_en').order('creado_en',{ascending:false});if(error)throw error;records=Array.isArray(data)?data:[];render()}catch(e){showError('No se pudo cargar la bandeja estructural: '+(e.message||e));records=[];render()}finally{$('refreshBtn').disabled=false;$('refreshBtn').textContent='ACTUALIZAR'}}
 function render(){const q=$('searchInput').value.trim().toLowerCase();const filtered=records.filter(r=>{if(activeStatus!=='TODOS'&&r.estado_revision!==activeStatus)return false;if(!q)return true;return [r.egob,r.propietarios_texto,r.nombre_proyecto,r.uso_proyecto,r.parroquia,r.direccion,r.clave_catastral].some(v=>String(v||'').toLowerCase().includes(q))});$('countText').textContent=filtered.length+' '+(filtered.length===1?'registro':'registros');$('empty').classList.toggle('hidden',filtered.length>0);$('rows').innerHTML=filtered.map(r=>`<tr><td><span class="status-pill ${esc(r.estado_revision)}">${esc(statusLabel(r.estado_revision))}</span></td><td><strong>${esc(r.egob)}</strong></td><td class="owner">${esc(r.propietarios_texto||'—')}</td><td class="project">${esc(r.nombre_proyecto||r.uso_proyecto||'—')}</td><td class="address">${esc([r.parroquia,r.direccion].filter(Boolean).join(' · ')||'—')}</td><td>${esc(r.clave_catastral||'—')}</td><td>${r.area_construccion==null?'—':n(r.area_construccion)+' m²'}</td><td><button class="open-btn" onclick="openRequest('${esc(r.id)}')">ABRIR</button></td></tr>`).join('')}
-function openRequest(id){location.href='informe.html?solicitud='+encodeURIComponent(id)}
-$('searchInput').addEventListener('input',render);$('refreshBtn').addEventListener('click',loadRecords);$('filters').addEventListener('click',e=>{const b=e.target.closest('[data-status]');if(!b)return;activeStatus=b.dataset.status;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));render()});$('newReportBtn').addEventListener('click',()=>location.href='informe.html?nuevo=1');
+function openRequest(id){location.href='informe.html?v=7.9.50&solicitud='+encodeURIComponent(id)}
+$('searchInput').addEventListener('input',render);$('refreshBtn').addEventListener('click',loadRecords);$('filters').addEventListener('click',e=>{const b=e.target.closest('[data-status]');if(!b)return;activeStatus=b.dataset.status;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));render()});$('newReportBtn').addEventListener('click',()=>location.href='informe.html?v=7.9.50&nuevo=1');
 (async()=>{try{if(await authGuard())await loadRecords()}catch(e){showError(e.message||String(e))}})();
 </script>
 </body>
