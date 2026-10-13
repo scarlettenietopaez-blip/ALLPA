@@ -471,7 +471,7 @@ const $=id=>document.getElementById(id);const h=v=>String(v??'').replace(/[&<>"'
 const clean=v=>String(v??'').trim();const upper=v=>clean(v).toUpperCase();const today=()=>new Date().toISOString().slice(0,10);const fmt=v=>{if(!v)return'';const p=String(v).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:v};
 let profile=null,request=null,catalogs={menor:[],mayor:[]},manualMode=false,previousObservationState=null,sharedReport=null;
 const CATALOG_VERSION='7.9.37';
-const ALLPA_STRUCT_VERSION='7.9.57';
+const ALLPA_STRUCT_VERSION='7.9.58';
 let state={tipo:'',tipoEstructura:'',fecha:today(),catalogVersion:CATALOG_VERSION,info:{},requisitos:{MENOR:{},MAYOR:{}},defaultsAplicados:{MENOR:false,MAYOR:false},controles:{sismo:'',otrosElementos:false,losas:[],escalerasMemoria:false,escalerasPlanos:false,mixtaColumnasAcero:false,mixtaVigasAcero:false},obsSeleccionadas:[],obsNota:'',obsConclusiones:'',notificacion:{correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],fechaHoraNotificacion:'',respaldoNombres:[]},recColumnas:false,anexos:[],des:{motivo:'',nota:'',conclusiones:''}};
 function setStatus(t,kind=''){const el=$('status');el.textContent=t;el.style.color=kind==='error'?'#9c2530':kind==='ok'?'#087947':''}
 function splitCSVLine(line,sep=';'){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===sep&&!q){out.push(cur);cur=''}else cur+=c}out.push(cur);return out}
@@ -1020,15 +1020,15 @@ async function init(){
    mergeSharedStateStruct(sharedReport.datos_informe||{});
    $('egobTop').readOnly=!manualMode;
    $('estadoTop').value=request?.estado_revision||sharedReport.estado||'EN_REVISION';
-   $('ingenieroTop').value=sharedReport.ingeniero_nombre||profile.firma_nombre||profile.nombre_completo||profile.correo||'';
+   $('ingenieroTop').value=sharedReport.ingeniero_nombre||profile.nombre_completo||profile.correo||profile.firma_nombre||'';
    await loadPreviousObservationStruct(sharedReport.solicitud_id||request?.id);
   }else if(nuevo){
-   manualMode=true;request={id:'MANUAL',egob:'',estado_revision:'EN_REVISION',datos_solicitud:{origen:'MANUAL_INGENIERIA'},anexos:[]};initState();$('egobTop').readOnly=false;$('estadoTop').value='EN_REVISION';$('ingenieroTop').value=profile.firma_nombre||profile.nombre_completo||profile.correo||'';
+   manualMode=true;request={id:'MANUAL',egob:'',estado_revision:'EN_REVISION',datos_solicitud:{origen:'MANUAL_INGENIERIA'},anexos:[]};initState();$('egobTop').readOnly=false;$('estadoTop').value='EN_REVISION';$('ingenieroTop').value=profile.nombre_completo||profile.correo||profile.firma_nombre||'';
   }else{
    if(!id)throw new Error('No se recibió una solicitud estructural.');
    const {data,error}=await sb.from('phdu_solicitudes_revision_estructural').select('*').eq('id',id).single();if(error)throw error;request=data;
    if(request.estado_revision==='PENDIENTE'){await sb.from('phdu_solicitudes_revision_estructural').update({estado_revision:'EN_REVISION'}).eq('id',request.id);request.estado_revision='EN_REVISION'}
-   initState();$('estadoTop').value=request.estado_revision||'';$('ingenieroTop').value=profile.firma_nombre||profile.nombre_completo||profile.correo||'';await loadPreviousObservationStruct(request.id)
+   initState();$('estadoTop').value=request.estado_revision||'';$('ingenieroTop').value=profile.nombre_completo||profile.correo||profile.firma_nombre||'';await loadPreviousObservationStruct(request.id)
   }
   ensureStructObservationState();
   catalogs.menor=await loadCSV('data/checklist_estructural_hasta_2_pisos_400m2.csv');catalogs.mayor=await loadCSV('data/checklist_estructural_mas_2_pisos_400m2.csv');
@@ -1042,5 +1042,5 @@ async function init(){
 init();
 </script>
 
-<!-- ALLPA V7.9.57 · Guardado compartido en Supabase + apertura cruzada entre INGENIERO_CIVIL para todos los tipos de informe. -->
+<!-- ALLPA V7.9.58 · Autoría usa nombre_completo; firma_nombre queda reservado únicamente para la firma del documento. -->
 </body></html>
