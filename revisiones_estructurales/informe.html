@@ -459,6 +459,16 @@ button{border:0;border-radius:10px;padding:9px 12px;font-weight:800;cursor:point
     </section>
   </div>
 </main>
+<style id="allpa-v7-9-59-output-guard">
+.output-lock-notice{margin:0 0 12px;padding:10px 12px;border:1px solid #e0b04f;border-left:5px solid #c98500;border-radius:10px;background:#fff8e8;color:#694600;font-size:10.5px;line-height:1.4}.output-lock-notice strong{color:#704900}.output-lock-notice.ready{border-color:#9bcab5;border-left-color:#11875a;background:#f2fbf6;color:#185a40}
+#structPrintBlockerStruct{display:none}
+@media print{
+ body.struct-print-blocked> *:not(#structPrintBlockerStruct){display:none!important}
+ body.struct-print-blocked #structPrintBlockerStruct{display:block!important;position:fixed;inset:0;padding:35mm 25mm;background:#fff;color:#111;font-family:Arial,sans-serif;font-size:12pt;line-height:1.45;z-index:2147483647}
+ body.struct-print-blocked #structPrintBlockerStruct h1{font-size:18pt;margin:0 0 8mm;color:#8a1c2d}
+ body.struct-print-blocked #structPrintBlockerStruct ul{margin:6mm 0 0;padding-left:7mm}
+}
+</style>
 <!-- ALLPA V7.9.50 · Criterio Técnico estructural
      - Agrupación visible por PLANOS ESTRUCTURALES / MEMORIA TÉCNICA.
      - Aclaración predeterminada "No Cumple" cuando está vacía.
@@ -471,7 +481,7 @@ const $=id=>document.getElementById(id);const h=v=>String(v??'').replace(/[&<>"'
 const clean=v=>String(v??'').trim();const upper=v=>clean(v).toUpperCase();const today=()=>new Date().toISOString().slice(0,10);const fmt=v=>{if(!v)return'';const p=String(v).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:v};
 let profile=null,request=null,catalogs={menor:[],mayor:[]},manualMode=false,previousObservationState=null,sharedReport=null;
 const CATALOG_VERSION='7.9.37';
-const ALLPA_STRUCT_VERSION='7.9.58';
+const ALLPA_STRUCT_VERSION='7.9.59';
 let state={tipo:'',tipoEstructura:'',fecha:today(),catalogVersion:CATALOG_VERSION,info:{},requisitos:{MENOR:{},MAYOR:{}},defaultsAplicados:{MENOR:false,MAYOR:false},controles:{sismo:'',otrosElementos:false,losas:[],escalerasMemoria:false,escalerasPlanos:false,mixtaColumnasAcero:false,mixtaVigasAcero:false},obsSeleccionadas:[],obsNota:'',obsConclusiones:'',notificacion:{correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],fechaHoraNotificacion:'',respaldoNombres:[]},recColumnas:false,anexos:[],des:{motivo:'',nota:'',conclusiones:''}};
 function setStatus(t,kind=''){const el=$('status');el.textContent=t;el.style.color=kind==='error'?'#9c2530':kind==='ok'?'#087947':''}
 function splitCSVLine(line,sep=';'){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===sep&&!q){out.push(cur);cur=''}else cur+=c}out.push(cur);return out}
@@ -726,7 +736,20 @@ function reportDesistimiento(){
  return body;
 }
 async function richCopy(html,plain){if(navigator.clipboard?.write&&window.ClipboardItem){await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([plain||html.replace(/<[^>]+>/g,' ')],{type:'text/plain'})})]);return}const d=document.createElement('div');d.contentEditable='true';d.style.position='fixed';d.style.left='-9999px';d.innerHTML=html;document.body.appendChild(d);const r=document.createRange();r.selectNodeContents(d);const s=getSelection();s.removeAllRanges();s.addRange(r);document.execCommand('copy');s.removeAllRanges();d.remove()}
-async function copyBlock(kind){try{if(kind==='obs')return await richCopy(reportObservaciones(false),$('printReport')?.innerText||'');if(kind==='aprSub')return await richCopy(`<span style="font-family:Arial;font-size:11pt">${h(aprobatorioSubject())}</span>`,aprobatorioSubject());if(kind==='aprBody')return await richCopy(`<div style="font-family:Arial;font-size:11pt">${aprobatorioBody()}</div>`,'');if(kind==='aprAx')return await richCopy(`<div style="font-family:Arial;font-size:11pt">${annexHtml()}</div>`,'');if(kind==='desSub')return await richCopy(`<span style="font-family:Arial;font-size:11pt">${h(desistSubject())}</span>`,desistSubject());if(kind==='desAx')return await richCopy(`<div style="font-family:Arial;font-size:11pt">${annexHtml()}</div>`,'');if(kind==='desReport')return await richCopy(reportDesistimiento(),$('structReportSourceHost')?.innerText||'');}catch(e){alert('No se pudo copiar: '+e.message)}setStatus('Contenido copiado.', 'ok')}
+async function copyBlock(kind){
+ if(!allowReportOutputStruct('copiar el contenido del Informe'))return;
+ try{
+  if(kind==='obs')await richCopy(reportObservaciones(false),$('printReport')?.innerText||'');
+  else if(kind==='aprSub')await richCopy(`<span style="font-family:Arial;font-size:11pt">${h(aprobatorioSubject())}</span>`,aprobatorioSubject());
+  else if(kind==='aprBody')await richCopy(`<div style="font-family:Arial;font-size:11pt">${aprobatorioBody()}</div>`,'');
+  else if(kind==='aprAx')await richCopy(`<div style="font-family:Arial;font-size:11pt">${annexHtml()}</div>`,'');
+  else if(kind==='desSub')await richCopy(`<span style="font-family:Arial;font-size:11pt">${h(desistSubject())}</span>`,desistSubject());
+  else if(kind==='desAx')await richCopy(`<div style="font-family:Arial;font-size:11pt">${annexHtml()}</div>`,'');
+  else if(kind==='desReport')await richCopy(reportDesistimiento(),$('structReportSourceHost')?.innerText||'');
+  else return;
+  setStatus('Contenido copiado. Campos obligatorios verificados.','ok');
+ }catch(e){alert('No se pudo copiar: '+e.message)}
+}
 window.copyBlock=copyBlock;
 
 const STRUCT_REPORT_BG='../assets/fondo_institucional.png';
@@ -779,10 +802,22 @@ function buildPagedPreviewStruct(){
   }
 }
 async function waitStructBackgrounds(){const imgs=[...document.querySelectorAll('#structPagedPreview .struct-page-bg')];await Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(res=>{img.addEventListener('load',res,{once:true});img.addEventListener('error',res,{once:true})})))}
-async function printObservaciones(){buildPagedPreviewStruct();await waitStructBackgrounds();document.body.classList.add('printing-observaciones');setTimeout(()=>window.print(),80)}
+async function printObservaciones(){
+ if(!allowReportOutputStruct('generar el PDF'))return;
+ buildPagedPreviewStruct();await waitStructBackgrounds();document.body.classList.add('printing-observaciones');setTimeout(()=>window.print(),80)
+}
 
-window.addEventListener('afterprint',()=>document.body.classList.remove('printing-observaciones'));
-function renderVista(){const t=state.tipo;const box=$('vista');if(!t){box.innerHTML='<div class="note">Seleccione el tipo de informe para generar la vista.</div>';return}if(t==='OBSERVACIONES'){box.innerHTML=`<div class="view-toolbar no-print"><button type="button" class="view-mini-btn primary" onclick="copyBlock('obs')"><span class="icon">▣</span><span>COPIAR</span></button><button type="button" class="view-mini-btn" onclick="printObservaciones()"><span>PDF</span></button></div><div id="structPagedPreview" class="struct-paged-preview"></div><div id="structReportSourceHost" class="struct-report-source-host">${reportObservaciones()}</div>`;requestAnimationFrame(()=>buildPagedPreviewStruct());return}if(t==='APROBATORIO'){box.innerHTML=`<div class="memo-panel"><div class="copy-card"><div class="copy-head"><strong>ASUNTO</strong><button class="btn btn-outline" onclick="copyBlock('aprSub')">COPIAR ASUNTO</button></div><div class="copy-body">${h(aprobatorioSubject())}</div></div><div class="copy-card"><div class="copy-head"><strong>CUERPO</strong><button class="btn btn-outline" onclick="copyBlock('aprBody')">COPIAR CUERPO</button></div><div class="copy-body">${aprobatorioBody()}</div></div><div class="copy-card"><div class="copy-head"><strong>ANEXOS</strong><button class="btn btn-outline" onclick="copyBlock('aprAx')">COPIAR ANEXOS</button></div><div class="copy-body">${annexHtml()}</div></div></div>`;return}box.innerHTML=`<div class="des-copy-panel no-print"><div class="copy-card"><div class="copy-head"><strong>ASUNTO</strong><button class="btn btn-outline" onclick="copyBlock('desSub')">COPIAR ASUNTO</button></div><div class="copy-body">${h(desistSubject())}</div></div><div class="copy-card"><div class="copy-head"><strong>ANEXOS</strong><button class="btn btn-outline" onclick="copyBlock('desAx')">COPIAR ANEXOS</button></div><div class="copy-body">${annexHtml()}</div></div></div><div class="view-toolbar no-print"><button type="button" class="view-mini-btn primary" onclick="copyBlock('desReport')"><span class="icon">▣</span><span>COPIAR</span></button><button type="button" class="view-mini-btn" onclick="printObservaciones()"><span>PDF</span></button></div><div id="structPagedPreview" class="struct-paged-preview"></div><div id="structReportSourceHost" class="struct-report-source-host">${reportDesistimiento()}</div>`;requestAnimationFrame(()=>buildPagedPreviewStruct())}
+function setPrintBlockerStruct(errors){
+ let box=$('structPrintBlockerStruct');
+ if(!box){box=document.createElement('section');box.id='structPrintBlockerStruct';document.body.appendChild(box)}
+ const list=(errors||[]).slice(0,20).map(x=>`<li>${h(x)}</li>`).join('');
+ box.innerHTML=`<h1>INFORME INCOMPLETO · PDF BLOQUEADO</h1><p>ALLPA no permite generar o imprimir este Informe porque faltan campos obligatorios.</p><ul>${list}</ul>`;
+ document.body.classList.add('struct-print-blocked');
+}
+window.addEventListener('beforeprint',()=>{const errors=validate();if(errors.length)setPrintBlockerStruct(errors)});
+window.addEventListener('afterprint',()=>{document.body.classList.remove('printing-observaciones','struct-print-blocked');const box=$('structPrintBlockerStruct');if(box)box.innerHTML=''});
+window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&String(e.key||'').toLowerCase()==='p'){const errors=validate();if(errors.length){e.preventDefault();allowReportOutputStruct('generar el PDF')}}});
+function renderVista(){const t=state.tipo;const box=$('vista');if(!t){box.innerHTML='<div class="note">Seleccione el tipo de informe para generar la vista.</div>';return}const guard=outputGuardNoticeStruct();if(t==='OBSERVACIONES'){box.innerHTML=`${guard}<div class="view-toolbar no-print"><button type="button" class="view-mini-btn primary" onclick="copyBlock('obs')"><span class="icon">▣</span><span>COPIAR</span></button><button type="button" class="view-mini-btn" onclick="printObservaciones()"><span>PDF</span></button></div><div id="structPagedPreview" class="struct-paged-preview"></div><div id="structReportSourceHost" class="struct-report-source-host">${reportObservaciones()}</div>`;requestAnimationFrame(()=>buildPagedPreviewStruct());return}if(t==='APROBATORIO'){box.innerHTML=`${guard}<div class="memo-panel"><div class="copy-card"><div class="copy-head"><strong>ASUNTO</strong><button class="btn btn-outline" onclick="copyBlock('aprSub')">COPIAR ASUNTO</button></div><div class="copy-body">${h(aprobatorioSubject())}</div></div><div class="copy-card"><div class="copy-head"><strong>CUERPO</strong><button class="btn btn-outline" onclick="copyBlock('aprBody')">COPIAR CUERPO</button></div><div class="copy-body">${aprobatorioBody()}</div></div><div class="copy-card"><div class="copy-head"><strong>ANEXOS</strong><button class="btn btn-outline" onclick="copyBlock('aprAx')">COPIAR ANEXOS</button></div><div class="copy-body">${annexHtml()}</div></div></div>`;return}box.innerHTML=`${guard}<div class="des-copy-panel no-print"><div class="copy-card"><div class="copy-head"><strong>ASUNTO</strong><button class="btn btn-outline" onclick="copyBlock('desSub')">COPIAR ASUNTO</button></div><div class="copy-body">${h(desistSubject())}</div></div><div class="copy-card"><div class="copy-head"><strong>ANEXOS</strong><button class="btn btn-outline" onclick="copyBlock('desAx')">COPIAR ANEXOS</button></div><div class="copy-body">${annexHtml()}</div></div></div><div class="view-toolbar no-print"><button type="button" class="view-mini-btn primary" onclick="copyBlock('desReport')"><span class="icon">▣</span><span>COPIAR</span></button><button type="button" class="view-mini-btn" onclick="printObservaciones()"><span>PDF</span></button></div><div id="structPagedPreview" class="struct-paged-preview"></div><div id="structReportSourceHost" class="struct-report-source-host">${reportDesistimiento()}</div>`;requestAnimationFrame(()=>buildPagedPreviewStruct())}
 
 function mergeSharedStateStruct(saved){
  if(!saved||typeof saved!=='object')return;
@@ -844,7 +879,55 @@ function applyReadOnlySharedStruct(){
  });
  setStatus(`Informe FINALIZADO · solo consulta · Elaborado por ${sharedReport.ingeniero_nombre||'Ingeniería Civil'} · V${ALLPA_STRUCT_VERSION}`,'ok');
 }
-function validate(){const e=[];if(!state.tipo)e.push('Seleccione el tipo de informe.');if(!clean(state.info.egob))e.push('Falta eGOB.');if(state.tipo==='OBSERVACIONES'){if(!selectedObservations().length)e.push('Registre al menos una observación estructural.');[['Propietario(s)',state.info.propietarios],['CI/RUC',state.info.documentos],['Uso principal',state.info.uso],['Altura/Pisos',state.info.pisos],['Parroquia',state.info.parroquia],['Dirección',state.info.direccion],['Zona de planeamiento / Código PIT',state.info.pit],['Clave catastral',state.info.clave],['Proyectista',state.info.proyectista],['REG. SENESCYT Proyectista',state.info.proyectistaSenescyt],['REG. MUNICIPAL Proyectista',state.info.proyectistaMunicipal],['Fecha máxima de subsanación',state.info.fechaSubsanacion]].forEach(([l,v])=>{if(!clean(v))e.push('Falta '+l+'.')})}if(state.tipo==='APROBATORIO'){[['Memorando de Solicitud',state.info.memorando],['Técnico solicitante',state.info.arquitecto],['Cargo técnico solicitante',state.info.arquitectoCargo],['Propietario(s)',state.info.propietarios],['CI/RUC',state.info.documentos],['Ing. Calculista',state.info.calculista],['REG. SENESCYT Calculista',state.info.calculistaSenescyt]].forEach(([l,v])=>{if(!clean(v))e.push('Falta '+l+'.')});state.anexos.forEach((r,i)=>{if(!clean(r.fojas))e.push(`Falta número de fojas en anexo ${i+1}.`);if(r.incluyePlanos&&!clean(r.planos))e.push(`Falta número de planos en anexo ${i+1}.`);if(r.incluyeCds&&!clean(r.cds))e.push(`Falta número de CDs en anexo ${i+1}.`)})}if(state.tipo==='DESISTIMIENTO'&&!clean(state.des.motivo))e.push('Seleccione el motivo de desistimiento.');return e}
+function validate(){
+ const e=[],i=state.info||{};
+ const need=(label,value)=>{if(!clean(value))e.push(`Falta ${label}.`)};
+ if(!state.tipo)e.push('Seleccione el tipo de informe.');
+ need('eGOB',i.egob);
+ need('Fecha de revisión',i.fechaInforme||state.fecha);
+
+ const owners=ensureOwnerRowsStruct().filter(x=>clean(x.nombre)||clean(x.doc));
+ if(!owners.length)e.push('Registre al menos un propietario.');
+ owners.forEach((p,idx)=>{if(!clean(p.nombre))e.push(`Falta nombre del propietario ${idx+1}.`);if(!clean(p.doc))e.push(`Falta CI/RUC del propietario ${idx+1}.`)});
+ if(i.apoderadoActivo){need('nombre del apoderado',i.apoderado);need('CI/RUC del apoderado',i.apoderadoDocumento)}
+
+ const validateAnnexes=()=>{(Array.isArray(state.anexos)?state.anexos:[]).forEach((r,idx)=>{if(!clean(r.fojas))e.push(`Falta número de fojas en anexo ${idx+1}.`);if(r.incluyePlanos&&!clean(r.planos))e.push(`Falta número de planos en anexo ${idx+1}.`);if(r.incluyeCds&&!clean(r.cds))e.push(`Falta número de CDs en anexo ${idx+1}.`)})};
+
+ if(state.tipo==='OBSERVACIONES'){
+  if(!selectedObservations().length)e.push('Registre al menos una observación estructural.');
+  [['Uso principal',i.uso],['Altura/Pisos',i.pisos],['Parroquia',i.parroquia],['Dirección',i.direccion],['Zona de planeamiento / Código PIT',i.pit],['Clave catastral',i.clave],['Proyectista',i.proyectista],['REG. SENESCYT Proyectista',i.proyectistaSenescyt],['REG. MUNICIPAL Proyectista',i.proyectistaMunicipal],['Fecha máxima de subsanación',i.fechaSubsanacion]].forEach(([l,v])=>need(l,v));
+ }
+ if(state.tipo==='APROBATORIO'){
+  [['Memorando de Solicitud',i.memorando],['Técnico solicitante',i.arquitecto],['Cargo técnico solicitante',i.arquitectoCargo],['Ing. Calculista',i.calculista],['REG. SENESCYT Calculista',i.calculistaSenescyt]].forEach(([l,v])=>need(l,v));
+  validateAnnexes();
+ }
+ if(state.tipo==='DESISTIMIENTO'){
+  need('motivo de desistimiento',state.des?.motivo);
+  [['Tipo de obra / proyecto definitivo',i.tipoObra],['Nombre del proyecto',i.proyecto],['Uso principal',i.uso],['Altura/Pisos',i.pisos],['Coordenada X',i.coordenadaX],['Coordenada Y',i.coordenadaY],['Clave catastral',i.clave],['Urbano / Rural',i.urbanoRural],['Barrio / Sector',i.barrioSector],['Zona de planeamiento / Código PIT',i.pit],['Dirección',i.direccion],['Proyectista',i.proyectista],['REG. SENESCYT Proyectista',i.proyectistaSenescyt],['REG. MUNICIPAL Proyectista',i.proyectistaMunicipal]].forEach(([l,v])=>need(l,v));
+  validateAnnexes();
+ }
+ return [...new Set(e)];
+}
+function outputGuardNoticeStruct(){
+ const errors=validate();
+ if(!errors.length)return '<div class="output-lock-notice ready no-print"><strong>LISTO PARA SALIDA.</strong> Todos los campos obligatorios están completos; se habilita copiar o generar PDF.</div>';
+ return `<div class="output-lock-notice no-print"><strong>COPIAR / PDF BLOQUEADOS.</strong> Faltan <strong>${errors.length}</strong> dato(s) obligatorio(s). Complete la información antes de emitir el Informe.</div>`;
+}
+function validationTabStruct(errors){
+ const txt=(errors||[]).join(' ').toLowerCase();
+ if(txt.includes('observación estructural'))return 'tab-obs';
+ if(txt.includes('anexo')||txt.includes('fojas')||txt.includes('planos')||txt.includes('cds'))return state.tipo==='DESISTIMIENTO'?'tab-des':'tab-apr';
+ if(txt.includes('motivo de desistimiento'))return 'tab-des';
+ return 'tab-info';
+}
+function allowReportOutputStruct(action){
+ const errors=validate();
+ if(!errors.length)return true;
+ setStatus(`Salida bloqueada: faltan ${errors.length} dato(s) obligatorio(s).`,'error');
+ alert(`No se puede ${action} todavía.\n\nComplete todos los campos obligatorios:\n\n- ${errors.join('\n- ')}`);
+ try{showTab(validationTabStruct(errors))}catch(_){ }
+ return false;
+}
 async function ensureManualRequestStruct(){
  if(!manualMode)return request;
  const rows=ensureOwnerRowsStruct().filter(x=>clean(x.nombre)||clean(x.doc));
@@ -1042,5 +1125,5 @@ async function init(){
 init();
 </script>
 
-<!-- ALLPA V7.9.58 · Autoría usa nombre_completo; firma_nombre queda reservado únicamente para la firma del documento. -->
+<!-- ALLPA V7.9.59 · Bloqueo de COPIAR/PDF cuando faltan campos obligatorios. Autoría usa nombre_completo; firma_nombre queda reservado únicamente para la firma del documento. -->
 </body></html>

@@ -85,7 +85,7 @@ main{max-width:1500px;margin:0 auto;padding:22px}
 <script>
 const SUPABASE_URL='https://lfinvpmobnczgtabtwfs.supabase.co';
 const SUPABASE_KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
-const ALLPA_STRUCT_HOME_VERSION='7.9.58';
+const ALLPA_STRUCT_HOME_VERSION='7.9.59';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'allpa-phdu-auth-v1'}});
 let profile=null, records=[], savedReports=[], activeStatus='TODOS';
 const $=id=>document.getElementById(id);
@@ -156,6 +156,6 @@ $('filters').addEventListener('click',e=>{const b=e.target.closest('[data-status
 $('newReportBtn').addEventListener('click',()=>location.href='informe.html?v='+ALLPA_STRUCT_HOME_VERSION+'&nuevo=1');
 (async()=>{try{if(await authGuard())await loadRecords()}catch(e){showError(e.message||String(e))}})();
 </script>
-<!-- ALLPA V7.9.58 · Filtro único para solicitudes e informes estructurales compartidos. -->
+<!-- ALLPA V7.9.59 · Filtro único + cache busting para bloqueo de salida de informes incompletos. -->
 </body>
 </html>
