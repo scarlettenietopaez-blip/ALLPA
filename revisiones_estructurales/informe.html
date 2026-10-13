@@ -388,7 +388,7 @@ button{border:0;border-radius:10px;padding:9px 12px;font-weight:800;cursor:point
     </a>
     <div class="struct-project-pill"><span></span> OBRA MAYOR DEFINITIVO</div>
   </div>
-  <div class="struct-top-right"><div class="struct-allpa">ALLPA</div><button type="button" class="head-icon-btn" onclick="guardarBorradorStruct()" title="Guardar" aria-label="Guardar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 4v6h8V4" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 20v-6h8v6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><button type="button" id="registrarInformeStruct" class="head-register-btn is-hidden" onclick="finalizeReport()">REGISTRAR INFORME</button></div>
+  <div class="struct-top-right"><div class="struct-allpa">ALLPA</div><button type="button" id="saveDraftStruct" class="head-icon-btn" onclick="guardarBorradorStruct()" title="Guardar en Supabase" aria-label="Guardar en Supabase"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h11l3 3v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 4v6h8V4" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 20v-6h8v6" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><button type="button" id="registrarInformeStruct" class="head-register-btn is-hidden" onclick="finalizeReport()">REGISTRAR INFORME</button></div>
 </header>
 <main class="struct-main">
   <div class="struct-layout">
@@ -469,9 +469,9 @@ const SUPABASE_KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'allpa-phdu-auth-v1'}});
 const $=id=>document.getElementById(id);const h=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const clean=v=>String(v??'').trim();const upper=v=>clean(v).toUpperCase();const today=()=>new Date().toISOString().slice(0,10);const fmt=v=>{if(!v)return'';const p=String(v).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:v};
-let profile=null,request=null,catalogs={menor:[],mayor:[]},manualMode=false,previousObservationState=null;
+let profile=null,request=null,catalogs={menor:[],mayor:[]},manualMode=false,previousObservationState=null,sharedReport=null;
 const CATALOG_VERSION='7.9.37';
-const ALLPA_STRUCT_VERSION='7.9.50';
+const ALLPA_STRUCT_VERSION='7.9.57';
 let state={tipo:'',tipoEstructura:'',fecha:today(),catalogVersion:CATALOG_VERSION,info:{},requisitos:{MENOR:{},MAYOR:{}},defaultsAplicados:{MENOR:false,MAYOR:false},controles:{sismo:'',otrosElementos:false,losas:[],escalerasMemoria:false,escalerasPlanos:false,mixtaColumnasAcero:false,mixtaVigasAcero:false},obsSeleccionadas:[],obsNota:'',obsConclusiones:'',notificacion:{correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],fechaHoraNotificacion:'',respaldoNombres:[]},recColumnas:false,anexos:[],des:{motivo:'',nota:'',conclusiones:''}};
 function setStatus(t,kind=''){const el=$('status');el.textContent=t;el.style.color=kind==='error'?'#9c2530':kind==='ok'?'#087947':''}
 function splitCSVLine(line,sep=';'){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===sep&&!q){out.push(cur);cur=''}else cur+=c}out.push(cur);return out}
@@ -492,7 +492,7 @@ function initState(){
  };
  state.anexos=Array.isArray(request?.anexos)&&request.anexos.length?request.anexos:(Array.isArray(ds.anexos_detalle)?ds.anexos_detalle:[]);
  if(!state.anexos.length)state.anexos=[{tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''}];
- restoreLocal();
+ if(!sharedReport)restoreLocal();
  if(!state.des||typeof state.des!=='object')state.des={motivo:'',nota:'',conclusiones:''};
  if(typeof state.des.nota!=='string')state.des.nota='';
  if(state.catalogVersion!==CATALOG_VERSION){state.catalogVersion=CATALOG_VERSION;}
@@ -783,6 +783,67 @@ async function printObservaciones(){buildPagedPreviewStruct();await waitStructBa
 
 window.addEventListener('afterprint',()=>document.body.classList.remove('printing-observaciones'));
 function renderVista(){const t=state.tipo;const box=$('vista');if(!t){box.innerHTML='<div class="note">Seleccione el tipo de informe para generar la vista.</div>';return}if(t==='OBSERVACIONES'){box.innerHTML=`<div class="view-toolbar no-print"><button type="button" class="view-mini-btn primary" onclick="copyBlock('obs')"><span class="icon">▣</span><span>COPIAR</span></button><button type="button" class="view-mini-btn" onclick="printObservaciones()"><span>PDF</span></button></div><div id="structPagedPreview" class="struct-paged-preview"></div><div id="structReportSourceHost" class="struct-report-source-host">${reportObservaciones()}</div>`;requestAnimationFrame(()=>buildPagedPreviewStruct());return}if(t==='APROBATORIO'){box.innerHTML=`<div class="memo-panel"><div class="copy-card"><div class="copy-head"><strong>ASUNTO</strong><button class="btn btn-outline" onclick="copyBlock('aprSub')">COPIAR ASUNTO</button></div><div class="copy-body">${h(aprobatorioSubject())}</div></div><div class="copy-card"><div class="copy-head"><strong>CUERPO</strong><button class="btn btn-outline" onclick="copyBlock('aprBody')">COPIAR CUERPO</button></div><div class="copy-body">${aprobatorioBody()}</div></div><div class="copy-card"><div class="copy-head"><strong>ANEXOS</strong><button class="btn btn-outline" onclick="copyBlock('aprAx')">COPIAR ANEXOS</button></div><div class="copy-body">${annexHtml()}</div></div></div>`;return}box.innerHTML=`<div class="des-copy-panel no-print"><div class="copy-card"><div class="copy-head"><strong>ASUNTO</strong><button class="btn btn-outline" onclick="copyBlock('desSub')">COPIAR ASUNTO</button></div><div class="copy-body">${h(desistSubject())}</div></div><div class="copy-card"><div class="copy-head"><strong>ANEXOS</strong><button class="btn btn-outline" onclick="copyBlock('desAx')">COPIAR ANEXOS</button></div><div class="copy-body">${annexHtml()}</div></div></div><div class="view-toolbar no-print"><button type="button" class="view-mini-btn primary" onclick="copyBlock('desReport')"><span class="icon">▣</span><span>COPIAR</span></button><button type="button" class="view-mini-btn" onclick="printObservaciones()"><span>PDF</span></button></div><div id="structPagedPreview" class="struct-paged-preview"></div><div id="structReportSourceHost" class="struct-report-source-host">${reportDesistimiento()}</div>`;requestAnimationFrame(()=>buildPagedPreviewStruct())}
+
+function mergeSharedStateStruct(saved){
+ if(!saved||typeof saved!=='object')return;
+ state={
+  ...state,...saved,
+  info:{...state.info,...(saved.info||{})},
+  requisitos:{MENOR:{...(state.requisitos?.MENOR||{}),...(saved.requisitos?.MENOR||{})},MAYOR:{...(state.requisitos?.MAYOR||{}),...(saved.requisitos?.MAYOR||{})}},
+  defaultsAplicados:{MENOR:!!saved.defaultsAplicados?.MENOR,MAYOR:!!saved.defaultsAplicados?.MAYOR},
+  controles:{...state.controles,...(saved.controles||{}),losas:Array.isArray(saved.controles?.losas)?saved.controles.losas:(state.controles?.losas||[])},
+  obsSeleccionadas:Array.isArray(saved.obsSeleccionadas)?saved.obsSeleccionadas:(state.obsSeleccionadas||[]),
+  notificacion:{...state.notificacion,...(saved.notificacion||{}),correosAdicionales:Array.isArray(saved.notificacion?.correosAdicionales)?saved.notificacion.correosAdicionales:[],respaldoNombres:Array.isArray(saved.notificacion?.respaldoNombres)?saved.notificacion.respaldoNombres:[]},
+  anexos:Array.isArray(saved.anexos)?saved.anexos:(state.anexos||[]),
+  des:{...state.des,...(saved.des||{})}
+ };
+ if(!state.info.fechaInforme)state.info.fechaInforme=state.fecha||today();
+ state.fecha=state.info.fechaInforme||state.fecha||today();
+ if(!state.info.fechaSubsanacion)state.info.fechaSubsanacion=addBusinessDays(state.fecha,10);
+}
+function renderedSnapshotStruct(){
+ if(state.tipo==='OBSERVACIONES')return{informe_html:reportObservaciones(false)};
+ if(state.tipo==='APROBATORIO')return{asunto:aprobatorioSubject(),cuerpo_html:aprobatorioBody(),anexos_html:annexHtml()};
+ if(state.tipo==='DESISTIMIENTO')return{asunto:desistSubject(),anexos_html:annexHtml(),informe_html:reportDesistimiento()};
+ return{};
+}
+async function persistSharedStruct(estado='BORRADOR',informeRegistradoId=''){
+ if(sharedReport?.estado==='FINALIZADO'&&estado!=='FINALIZADO')throw new Error('El Informe ya está FINALIZADO y se abre en modo de consulta.');
+ saveLocal();
+ await ensureManualRequestStruct();
+ const payload={
+  documento_id:sharedReport?.id||'',
+  solicitud_id:request?.id&&request.id!=='MANUAL'?request.id:'',
+  informe_registrado_id:informeRegistradoId||sharedReport?.informe_registrado_id||'',
+  tipo_informe:state.tipo||'SIN_TIPO',
+  estado,
+  fecha_informe:state.info.fechaInforme||state.fecha||today(),
+  egob:clean(state.info.egob),
+  propietarios_texto:clean(state.info.propietarios),
+  nombre_proyecto:clean(state.info.proyecto),
+  datos_informe:state,
+  bloques_renderizados:renderedSnapshotStruct()
+ };
+ const {data,error}=await sb.rpc('phdu_guardar_informe_estructural_compartido',{p_payload:payload});
+ if(error)throw error;
+ const row=Array.isArray(data)?data[0]:data;
+ if(!row?.id)throw new Error('Supabase no devolvió el identificador del Informe guardado.');
+ sharedReport=row;
+ try{history.replaceState(null,'',`informe.html?v=${ALLPA_STRUCT_VERSION}&informe=${encodeURIComponent(row.id)}`)}catch(_){ }
+ return row;
+}
+function applyReadOnlySharedStruct(){
+ if(sharedReport?.estado!=='FINALIZADO')return;
+ const saveBtn=$('saveDraftStruct'),regBtn=$('registrarInformeStruct');
+ if(saveBtn){saveBtn.disabled=true;saveBtn.title='Informe FINALIZADO · solo consulta';saveBtn.style.opacity='.45'}
+ if(regBtn){regBtn.classList.add('is-hidden');regBtn.disabled=true}
+ document.querySelectorAll('.tab input,.tab textarea,.tab select,.tab button').forEach(el=>{
+  const oc=String(el.getAttribute('onclick')||'');
+  if(/copyBlock|printObservaciones|copiar|print/i.test(oc))return;
+  el.disabled=true;
+ });
+ setStatus(`Informe FINALIZADO · solo consulta · Elaborado por ${sharedReport.ingeniero_nombre||'Ingeniería Civil'} · V${ALLPA_STRUCT_VERSION}`,'ok');
+}
 function validate(){const e=[];if(!state.tipo)e.push('Seleccione el tipo de informe.');if(!clean(state.info.egob))e.push('Falta eGOB.');if(state.tipo==='OBSERVACIONES'){if(!selectedObservations().length)e.push('Registre al menos una observación estructural.');[['Propietario(s)',state.info.propietarios],['CI/RUC',state.info.documentos],['Uso principal',state.info.uso],['Altura/Pisos',state.info.pisos],['Parroquia',state.info.parroquia],['Dirección',state.info.direccion],['Zona de planeamiento / Código PIT',state.info.pit],['Clave catastral',state.info.clave],['Proyectista',state.info.proyectista],['REG. SENESCYT Proyectista',state.info.proyectistaSenescyt],['REG. MUNICIPAL Proyectista',state.info.proyectistaMunicipal],['Fecha máxima de subsanación',state.info.fechaSubsanacion]].forEach(([l,v])=>{if(!clean(v))e.push('Falta '+l+'.')})}if(state.tipo==='APROBATORIO'){[['Memorando de Solicitud',state.info.memorando],['Técnico solicitante',state.info.arquitecto],['Cargo técnico solicitante',state.info.arquitectoCargo],['Propietario(s)',state.info.propietarios],['CI/RUC',state.info.documentos],['Ing. Calculista',state.info.calculista],['REG. SENESCYT Calculista',state.info.calculistaSenescyt]].forEach(([l,v])=>{if(!clean(v))e.push('Falta '+l+'.')});state.anexos.forEach((r,i)=>{if(!clean(r.fojas))e.push(`Falta número de fojas en anexo ${i+1}.`);if(r.incluyePlanos&&!clean(r.planos))e.push(`Falta número de planos en anexo ${i+1}.`);if(r.incluyeCds&&!clean(r.cds))e.push(`Falta número de CDs en anexo ${i+1}.`)})}if(state.tipo==='DESISTIMIENTO'&&!clean(state.des.motivo))e.push('Seleccione el motivo de desistimiento.');return e}
 async function ensureManualRequestStruct(){
  if(!manualMode)return request;
@@ -790,7 +851,30 @@ async function ensureManualRequestStruct(){
  const payload={egob:clean(state.info.egob),propietarios:rows,propietarios_texto:clean(state.info.propietarios),documentos_propietarios:clean(state.info.documentos),proyectista:clean(state.info.proyectista),proyectista_senescyt:clean(state.info.proyectistaSenescyt),proyectista_registro_municipal:clean(state.info.proyectistaMunicipal),nombre_proyecto:clean(state.info.proyecto),uso_proyecto:clean(state.info.uso),tipo_obra:clean(state.info.tipoObra)||'OBRA MAYOR - DEFINITIVO',altura_edificacion:clean(state.info.pisos),parroquia:clean(state.info.parroquia),direccion:clean(state.info.direccion),codigo_pit:clean(state.info.pit),clave_catastral:clean(state.info.clave),barrio_sector:clean(state.info.barrioSector),area_construccion:(numberValue(state.info.areaConstruccion)||''),pisos:(numberValue(state.info.pisos)?Math.trunc(numberValue(state.info.pisos)):''),calculista:clean(state.info.calculista),calculista_senescyt:clean(state.info.calculistaSenescyt),anexos_detalle:Array.isArray(state.anexos)?state.anexos:[],fecha_ingreso_tramite:clean(state.info.fechaIngresoTramite),urbano_rural:clean(state.info.urbanoRural),coordenada_x:clean(state.info.coordenadaX),coordenada_y:clean(state.info.coordenadaY),origen:'MANUAL_INGENIERIA'};
  const {data,error}=await sb.rpc('phdu_crear_revision_estructural_manual',{p_payload:payload});if(error)throw error;const row=Array.isArray(data)?data[0]:data;if(!row?.solicitud_id)throw new Error('No se pudo crear el registro estructural manual.');request={...request,id:row.solicitud_id,egob:row.egob,estado_revision:row.estado_revision||'EN_REVISION'};manualMode=false;return request;
 }
-async function finalizeReport(){const e=validate();if(e.length)return alert('No se puede registrar todavía:\n\n- '+e.join('\n- '));if(!confirm('¿Registrar este Informe Estructural como FINALIZADO?'))return;try{await ensureManualRequestStruct()}catch(err){setStatus(err.message||String(err),'error');return alert('No se pudo crear el registro estructural manual: '+(err.message||err))}const rendered=state.tipo==='OBSERVACIONES'?{informe_html:reportObservaciones(false)}:(state.tipo==='APROBATORIO'?{asunto:aprobatorioSubject(),cuerpo_html:aprobatorioBody(),anexos_html:annexHtml()}:{asunto:desistSubject(),anexos_html:annexHtml(),informe_html:reportDesistimiento()});const payload={solicitud_id:request.id,tipo_informe:state.tipo,estado:'FINALIZADO',fecha_informe:state.fecha,memorando_solicitud:state.info.memorando||'',calculista:state.info.calculista||'',calculista_senescyt:state.info.calculistaSenescyt||'',anexos:state.anexos,datos_informe:state,bloques_renderizados:rendered};setStatus('Registrando informe estructural...');const {data,error}=await sb.rpc('phdu_guardar_informe_estructural',{p_payload:payload});if(error){setStatus(error.message||String(error),'error');return alert(error.message||error)}const row=Array.isArray(data)?data[0]:data;setStatus(`Informe registrado. Estado estructural: ${row?.estado_revision||''}`,'ok');$('estadoTop').value=row?.estado_revision||$('estadoTop').value;try{localStorage.removeItem('allpa-struct-manual');localStorage.removeItem('allpa-struct-'+request.id)}catch(_){ }setTimeout(()=>location.href='index.html',700)}
+async function finalizeReport(){
+ const e=validate();if(e.length)return alert('No se puede registrar todavía:\n\n- '+e.join('\n- '));
+ if(sharedReport?.estado==='FINALIZADO')return alert('Este Informe ya está FINALIZADO y se encuentra en modo de consulta.');
+ if(!confirm('¿Registrar este Informe Estructural como FINALIZADO?'))return;
+ try{
+  setStatus('Guardando respaldo compartido en Supabase...');
+  await persistSharedStruct('BORRADOR');
+ }catch(err){
+  setStatus(err.message||String(err),'error');
+  return alert('No se pudo guardar el respaldo compartido del Informe: '+(err.message||err));
+ }
+ const rendered=renderedSnapshotStruct();
+ const payload={solicitud_id:request.id,tipo_informe:state.tipo,estado:'FINALIZADO',fecha_informe:state.fecha,memorando_solicitud:state.info.memorando||'',calculista:state.info.calculista||'',calculista_senescyt:state.info.calculistaSenescyt||'',anexos:state.anexos,datos_informe:state,bloques_renderizados:rendered};
+ setStatus('Registrando informe estructural...');
+ const {data,error}=await sb.rpc('phdu_guardar_informe_estructural',{p_payload:payload});
+ if(error){setStatus(error.message||String(error),'error');return alert(error.message||error)}
+ const row=Array.isArray(data)?data[0]:data;
+ const registeredId=row?.informe_id||row?.id||row?.informe_estructural_id||'';
+ try{await persistSharedStruct('FINALIZADO',registeredId)}catch(syncErr){console.warn('Informe registrado; no se pudo actualizar el índice compartido',syncErr)}
+ setStatus(`Informe registrado y compartido. Estado estructural: ${row?.estado_revision||''}`,'ok');
+ $('estadoTop').value=row?.estado_revision||$('estadoTop').value;
+ try{localStorage.removeItem('allpa-struct-manual');localStorage.removeItem('allpa-struct-'+request.id)}catch(_){ }
+ setTimeout(()=>location.href='index.html?v='+ALLPA_STRUCT_VERSION,700)
+}
 window.finalizeReport=finalizeReport;
 
 /* ===== ALLPA V7.9.30 · Observaciones estructurales por catálogo ===== */
@@ -854,11 +938,22 @@ function syncSidebarStruct(){
  $('egobTop').value=state.info.egob||request?.egob||'';$('fechaIngresoTop').value=state.info.fechaIngresoTramite||'';$('tipoInforme').value=state.tipo||'';$('fechaRevisionTop').value=state.info.fechaInforme||state.fecha||today();$('fechaSubsanacionTop').value=state.info.fechaSubsanacion||'';
  const isObs=state.tipo==='OBSERVACIONES';$('subsanacionSideWrap').classList.toggle('hidden',!isObs);
 }
-window.guardarBorradorStruct=function(){saveLocal();setStatus('Borrador guardado en este navegador.','ok')}
+window.guardarBorradorStruct=async function(){
+ if(sharedReport?.estado==='FINALIZADO'){setStatus('El Informe está FINALIZADO y se encuentra en modo de consulta.','ok');return false}
+ const btn=$('saveDraftStruct');if(btn)btn.disabled=true;
+ try{
+  setStatus('Guardando Informe en Supabase...');
+  const row=await persistSharedStruct('BORRADOR');
+  setStatus(`Informe guardado en Supabase y disponible para todos los Ingenieros Civiles · ${row?.tipo_informe==='SIN_TIPO'?'SIN TIPO':row?.tipo_informe||''}`,'ok');
+  return true;
+ }catch(e){
+  saveLocal();setStatus('No se pudo guardar en Supabase: '+(e.message||e),'error');alert('No se pudo guardar el Informe en Supabase.\n\n'+(e.message||e));return false;
+ }finally{if(btn&&sharedReport?.estado!=='FINALIZADO')btn.disabled=false}
+}
 function tabsStruct(){if(state.tipo==='OBSERVACIONES')return['tab-info','tab-obs','tab-vista','tab-notif'];if(state.tipo==='APROBATORIO')return['tab-info','tab-apr','tab-vista'];if(state.tipo==='DESISTIMIENTO')return['tab-info','tab-des','tab-vista'];return['tab-info','tab-vista']}
 window.tabAnteriorStruct=function(){const a=tabsStruct(),cur=document.querySelector('.tab.active')?.id||a[0],i=Math.max(0,a.indexOf(cur));showTab(a[Math.max(0,i-1)])}
 window.tabSiguienteStruct=function(){const a=tabsStruct(),cur=document.querySelector('.tab.active')?.id||a[0],i=Math.max(0,a.indexOf(cur));showTab(a[Math.min(a.length-1,i+1)])}
-window.guardarYSeguirStruct=function(){guardarBorradorStruct();tabSiguienteStruct()}
+window.guardarYSeguirStruct=async function(){const ok=await guardarBorradorStruct();if(ok!==false)tabSiguienteStruct()}
 
 function ensureNotificationStruct(){ensureStructObservationState();return state.notificacion}
 function validEmailStruct(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||'').trim())}
@@ -906,9 +1001,46 @@ $('obsNota').addEventListener('input',()=>{state.obsNota=$('obsNota').value;save
 $('desMotivo').addEventListener('change',()=>{state.des.motivo=normalizeDesMotivoStruct($('desMotivo').value);if(state.des.motivo==='Petición del Administrado')state.des.conclusiones='';$('desMotivo').value=state.des.motivo;$('desConclusiones').value=state.des.conclusiones||'';saveLocal();renderDesObservationInfo();renderVista()});$('desNota').addEventListener('input',()=>{state.des.nota=$('desNota').value;saveLocal();renderVista()});$('desConclusiones').addEventListener('input',()=>{state.des.conclusiones=$('desConclusiones').value;saveLocal();renderVista()});$('egobTop').addEventListener('input',()=>{if(!manualMode)return;state.info.egob=$('egobTop').value.replace(/\D/g,'');$('egobTop').value=state.info.egob;saveLocal();renderInfo();renderVista()});
 async function auth(){const {data:{session}}=await sb.auth.getSession();if(!session?.user){location.replace('../index.html');return false}const {data,error}=await sb.from('phdu_profiles').select('id,correo,nombre_completo,rol,activo,cargo,firma_nombre,firma_cargo').eq('id',session.user.id).single();if(error)throw error;const role=upper(data?.rol);if(!data?.activo||!['INGENIERO_CIVIL','ADMIN'].includes(role)){location.replace('../index.html');return false}profile=data;return true}
 async function loadPreviousObservationStruct(solicitudId){previousObservationState=null;if(!solicitudId||solicitudId==='MANUAL')return;try{const {data,error}=await sb.from('phdu_informes_estructurales').select('datos_informe,fecha_informe,creado_en,finalizado_en').eq('solicitud_id',solicitudId).eq('tipo_informe','OBSERVACIONES').eq('estado','FINALIZADO').order('finalizado_en',{ascending:false,nullsFirst:false}).order('creado_en',{ascending:false}).limit(1).maybeSingle();if(error)throw error;if(data?.datos_informe&&typeof data.datos_informe==='object')previousObservationState=data.datos_informe}catch(e){console.warn('No se pudo recuperar el último informe de observaciones estructurales',e)}}
-async function init(){try{if(!await auth())return;const params=new URLSearchParams(location.search),id=params.get('solicitud'),nuevo=params.get('nuevo')==='1';if(nuevo){manualMode=true;request={id:'MANUAL',egob:'',estado_revision:'EN_REVISION',datos_solicitud:{origen:'MANUAL_INGENIERIA'},anexos:[]};initState();$('egobTop').readOnly=false;$('estadoTop').value='EN_REVISION';$('ingenieroTop').value=profile.firma_nombre||profile.nombre_completo||profile.correo||''}else{if(!id)throw new Error('No se recibió una solicitud estructural.');const {data,error}=await sb.from('phdu_solicitudes_revision_estructural').select('*').eq('id',id).single();if(error)throw error;request=data;if(request.estado_revision==='PENDIENTE'){await sb.from('phdu_solicitudes_revision_estructural').update({estado_revision:'EN_REVISION'}).eq('id',request.id);request.estado_revision='EN_REVISION'}initState();$('estadoTop').value=request.estado_revision||'';$('ingenieroTop').value=profile.firma_nombre||profile.nombre_completo||profile.correo||'';await loadPreviousObservationStruct(request.id)}ensureStructObservationState();catalogs.menor=await loadCSV('data/checklist_estructural_hasta_2_pisos_400m2.csv');catalogs.mayor=await loadCSV('data/checklist_estructural_mas_2_pisos_400m2.csv');migrateOldReqObservationsStruct();renderInfo();syncSidebarStruct();renderStructCatalog();renderStructSelected();renderAprFields();$('obsNota').value=state.obsNota||'';state.des.motivo=normalizeDesMotivoStruct(state.des.motivo||'');$('desMotivo').value=state.des.motivo||'';$('desNota').value=state.des.nota||'';$('desConclusiones').value=state.des.conclusiones||'';updateTabs();renderDesObservationInfo();setStatus((manualMode?'Nuevo informe estructural listo para completar.':'Solicitud cargada correctamente.')+' · V'+ALLPA_STRUCT_VERSION,'ok');loadProfessionalEmailsStruct().then(()=>{const n=ensureNotificationStruct(),found=lookupProjectEmailStruct();if(found&&!n.correo){n.correo=found;n.correoAuto=found;n.correoManual=false;saveLocal();renderNotificationStruct()}}).catch(()=>{})}catch(e){setStatus(e.message||String(e),'error');console.error(e)}}
+async function init(){
+ try{
+  if(!await auth())return;
+  const params=new URLSearchParams(location.search),savedId=params.get('informe'),id=params.get('solicitud'),nuevo=params.get('nuevo')==='1';
+  if(savedId){
+   const {data,error}=await sb.rpc('phdu_obtener_informe_estructural_compartido',{p_documento_id:savedId});
+   if(error)throw error;
+   sharedReport=Array.isArray(data)?data[0]:data;
+   if(!sharedReport?.id)throw new Error('No se encontró el Informe Estructural guardado.');
+   request=sharedReport.solicitud||null;
+   if(!request){
+    const d=sharedReport.datos_informe||{},i=d.info||{};
+    request={id:sharedReport.solicitud_id||'MANUAL',egob:sharedReport.egob||i.egob||'',estado_revision:sharedReport.estado==='FINALIZADO'?'FINALIZADO':'EN_REVISION',propietarios_texto:sharedReport.propietarios_texto||i.propietarios||'',nombre_proyecto:sharedReport.nombre_proyecto||i.proyecto||'',datos_solicitud:{origen:'INFORME_COMPARTIDO'}};
+   }
+   manualMode=!request?.id||request.id==='MANUAL';
+   initState();
+   mergeSharedStateStruct(sharedReport.datos_informe||{});
+   $('egobTop').readOnly=!manualMode;
+   $('estadoTop').value=request?.estado_revision||sharedReport.estado||'EN_REVISION';
+   $('ingenieroTop').value=sharedReport.ingeniero_nombre||profile.firma_nombre||profile.nombre_completo||profile.correo||'';
+   await loadPreviousObservationStruct(sharedReport.solicitud_id||request?.id);
+  }else if(nuevo){
+   manualMode=true;request={id:'MANUAL',egob:'',estado_revision:'EN_REVISION',datos_solicitud:{origen:'MANUAL_INGENIERIA'},anexos:[]};initState();$('egobTop').readOnly=false;$('estadoTop').value='EN_REVISION';$('ingenieroTop').value=profile.firma_nombre||profile.nombre_completo||profile.correo||'';
+  }else{
+   if(!id)throw new Error('No se recibió una solicitud estructural.');
+   const {data,error}=await sb.from('phdu_solicitudes_revision_estructural').select('*').eq('id',id).single();if(error)throw error;request=data;
+   if(request.estado_revision==='PENDIENTE'){await sb.from('phdu_solicitudes_revision_estructural').update({estado_revision:'EN_REVISION'}).eq('id',request.id);request.estado_revision='EN_REVISION'}
+   initState();$('estadoTop').value=request.estado_revision||'';$('ingenieroTop').value=profile.firma_nombre||profile.nombre_completo||profile.correo||'';await loadPreviousObservationStruct(request.id)
+  }
+  ensureStructObservationState();
+  catalogs.menor=await loadCSV('data/checklist_estructural_hasta_2_pisos_400m2.csv');catalogs.mayor=await loadCSV('data/checklist_estructural_mas_2_pisos_400m2.csv');
+  migrateOldReqObservationsStruct();renderInfo();syncSidebarStruct();renderStructCatalog();renderStructSelected();renderAprFields();
+  $('obsNota').value=state.obsNota||'';state.des.motivo=normalizeDesMotivoStruct(state.des.motivo||'');$('desMotivo').value=state.des.motivo||'';$('desNota').value=state.des.nota||'';$('desConclusiones').value=state.des.conclusiones||'';updateTabs();renderDesObservationInfo();
+  if(sharedReport){setStatus(`Informe ${sharedReport.estado==='FINALIZADO'?'FINALIZADO':'guardado'} cargado desde Supabase · Elaborado por ${sharedReport.ingeniero_nombre||'Ingeniería Civil'} · V${ALLPA_STRUCT_VERSION}`,'ok')}else{setStatus((manualMode?'Nuevo informe estructural listo para completar.':'Solicitud cargada correctamente.')+' · V'+ALLPA_STRUCT_VERSION,'ok')}
+  loadProfessionalEmailsStruct().then(()=>{const n=ensureNotificationStruct(),found=lookupProjectEmailStruct();if(found&&!n.correo){n.correo=found;n.correoAuto=found;n.correoManual=false;saveLocal();renderNotificationStruct()}}).catch(()=>{});
+  if(sharedReport?.estado==='FINALIZADO')setTimeout(applyReadOnlySharedStruct,0);
+ }catch(e){setStatus(e.message||String(e),'error');console.error(e)}
+}
 init();
 </script>
 
-<!-- ALLPA V7.9.49 · El botón REGISTRAR INFORME se muestra para OBSERVACIONES, APROBATORIO y DESISTIMIENTO; se oculta únicamente mientras no se haya seleccionado tipo de informe. -->
+<!-- ALLPA V7.9.57 · Guardado compartido en Supabase + apertura cruzada entre INGENIERO_CIVIL para todos los tipos de informe. -->
 </body></html>

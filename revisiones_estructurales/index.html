@@ -19,7 +19,7 @@ main{max-width:1500px;margin:0 auto;padding:22px}
 .search-card{background:#fff;border:1px solid var(--line);border-left:5px solid var(--red);border-radius:15px;padding:16px 17px;box-shadow:0 8px 22px rgba(20,62,91,.06)}
 .search-card h2{font-size:13px;margin:0 0 11px;color:#062f55}.search-grid{display:grid;grid-template-columns:minmax(280px,1fr) auto;gap:10px;align-items:end}.field label{display:block;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:6px}.field input{width:100%;height:44px;border:1px solid #b9cbd9;border-radius:11px;padding:0 13px;font-size:13px;outline:none}.field input:focus{border-color:#0a6796;box-shadow:0 0 0 2px rgba(10,103,150,.10)}
 .filters{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0}.filter{border:1px solid #b9cbd9;background:#fff;color:#31526c;border-radius:999px;padding:7px 11px;font-size:9px;font-weight:900;cursor:pointer}.filter.active{background:#0b5e89;color:#fff;border-color:#0b5e89}
-.table-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 22px rgba(20,62,91,.05)}.table-title{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}.table-title strong{font-size:12px}.count{font-size:10px;color:var(--muted)}.table-scroll{overflow:auto;max-height:calc(100vh - 310px)}table{width:100%;min-width:1050px;border-collapse:collapse;font-size:10px}th{position:sticky;top:0;z-index:2;background:#e8f1f6;color:#16354e;text-align:left;padding:10px 9px;border-bottom:1px solid #cbd8e2;font-size:9px;text-transform:uppercase;white-space:nowrap}td{padding:10px 9px;border-bottom:1px solid #e2e9ee;vertical-align:middle}tbody tr:hover td{background:#f8fbfd}.project{min-width:230px;font-weight:700}.owner{min-width:220px}.address{min-width:180px}.status-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:6px 9px;font-weight:900;font-size:8px;white-space:nowrap}.PENDIENTE{background:var(--amber);color:#694d00}.EN_REVISION{background:#deedf7;color:#0c527a}.OBSERVADO{background:#ffe6cf;color:#8c4300}.APROBADO{background:var(--ok);color:#14623e}.DESISTIMIENTO{background:var(--danger);color:#8d241f}.open-btn{background:#075b87;color:#fff;border:0;border-radius:8px;padding:8px 11px;font-size:9px;font-weight:900;cursor:pointer}.empty{padding:38px;text-align:center;color:var(--muted);font-size:12px}.error{padding:14px;background:#fff0f0;color:#8d241f;border:1px solid #f2c7c7;border-radius:10px;margin-top:12px;font-size:11px}.hidden{display:none!important}
+.table-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 22px rgba(20,62,91,.05)}.table-title{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}.table-title strong{font-size:12px}.count{font-size:10px;color:var(--muted)}.table-scroll{overflow:auto;max-height:calc(100vh - 310px)}table{width:100%;min-width:1050px;border-collapse:collapse;font-size:10px}th{position:sticky;top:0;z-index:2;background:#e8f1f6;color:#16354e;text-align:left;padding:10px 9px;border-bottom:1px solid #cbd8e2;font-size:9px;text-transform:uppercase;white-space:nowrap}td{padding:10px 9px;border-bottom:1px solid #e2e9ee;vertical-align:middle}tbody tr:hover td{background:#f8fbfd}.project{min-width:230px;font-weight:700}.owner{min-width:220px}.address{min-width:180px}.status-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:6px 9px;font-weight:900;font-size:8px;white-space:nowrap}.PENDIENTE{background:var(--amber);color:#694d00}.EN_REVISION{background:#deedf7;color:#0c527a}.OBSERVADO{background:#ffe6cf;color:#8c4300}.APROBADO{background:var(--ok);color:#14623e}.DESISTIMIENTO{background:var(--danger);color:#8d241f}.BORRADOR{background:#fff0c9;color:#765300}.FINALIZADO{background:#dff3e9;color:#14623e}.type-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 8px;background:#edf4f8;color:#174965;font-weight:900;font-size:8px;white-space:nowrap}.shared-note{font-size:9px;color:var(--muted);font-weight:400}.report-filters{display:flex;gap:6px;flex-wrap:wrap;padding:10px 15px;border-bottom:1px solid var(--line);background:#fbfdfe}.open-btn{background:#075b87;color:#fff;border:0;border-radius:8px;padding:8px 11px;font-size:9px;font-weight:900;cursor:pointer}.empty{padding:38px;text-align:center;color:var(--muted);font-size:12px}.error{padding:14px;background:#fff0f0;color:#8d241f;border:1px solid #f2c7c7;border-radius:10px;margin-top:12px;font-size:11px}.hidden{display:none!important}
 @media(max-width:760px){header{padding:0 10px}main{padding:13px}.hero{display:block}.search-grid{grid-template-columns:1fr}.table-scroll{max-height:none}}
 </style>
 
@@ -59,6 +59,25 @@ main{max-width:1500px;margin:0 auto;padding:22px}
   <div id="errorBox" class="error hidden"></div>
 
   <section class="table-card" style="margin-top:14px">
+    <div class="table-title"><div><strong>INFORMES ESTRUCTURALES GUARDADOS</strong><div class="shared-note">Compartidos entre todos los usuarios INGENIERO_CIVIL y ADMIN.</div></div><span class="count" id="savedCountText">0 informes</span></div>
+    <div class="report-filters" id="reportFilters">
+      <button class="filter active" data-report-filter="TODOS">TODOS</button>
+      <button class="filter" data-report-filter="BORRADOR">BORRADORES</button>
+      <button class="filter" data-report-filter="OBSERVACIONES">OBSERVACIONES</button>
+      <button class="filter" data-report-filter="APROBATORIO">APROBATORIOS</button>
+      <button class="filter" data-report-filter="DESISTIMIENTO">DESISTIMIENTOS</button>
+      <button class="filter" data-report-filter="FINALIZADO">FINALIZADOS</button>
+    </div>
+    <div class="table-scroll" style="max-height:360px">
+      <table>
+        <thead><tr><th>Estado</th><th>Tipo</th><th>eGOB</th><th>Propietario(s)</th><th>Proyecto</th><th>Elaborado por</th><th>Última actualización</th><th>Acción</th></tr></thead>
+        <tbody id="savedRows"></tbody>
+      </table>
+      <div id="savedEmpty" class="empty">No existen informes estructurales guardados.</div>
+    </div>
+  </section>
+
+  <section class="table-card" style="margin-top:14px">
     <div class="table-title"><strong>SOLICITUDES REGISTRADAS</strong><span class="count" id="countText">0 registros</span></div>
     <div class="table-scroll">
       <table>
@@ -72,18 +91,56 @@ main{max-width:1500px;margin:0 auto;padding:22px}
 <script>
 const SUPABASE_URL='https://lfinvpmobnczgtabtwfs.supabase.co';
 const SUPABASE_KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
+const ALLPA_STRUCT_HOME_VERSION='7.9.57';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'allpa-phdu-auth-v1'}});
-let profile=null, records=[], activeStatus='TODOS';
+let profile=null, records=[], savedReports=[], activeStatus='TODOS', activeReportFilter='TODOS';
 const $=id=>document.getElementById(id);
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function n(v){const x=Number(v);return Number.isFinite(x)?new Intl.NumberFormat('es-EC',{maximumFractionDigits:2}).format(x):'—'}
 function showError(msg=''){const el=$('errorBox');if(!msg){el.classList.add('hidden');el.textContent='';return}el.textContent=msg;el.classList.remove('hidden')}
-function statusLabel(v){return ({PENDIENTE:'PENDIENTE',EN_REVISION:'EN REVISIÓN',OBSERVADO:'OBSERVADO',APROBADO:'APROBADO',DESISTIMIENTO:'DESISTIMIENTO'})[v]||v||'—'}
+function statusLabel(v){return ({PENDIENTE:'PENDIENTE',EN_REVISION:'EN REVISIÓN',OBSERVADO:'OBSERVADO',APROBADO:'APROBADO',DESISTIMIENTO:'DESISTIMIENTO',BORRADOR:'BORRADOR',FINALIZADO:'FINALIZADO'})[v]||v||'—'}
+function tipoLabel(v){return ({SIN_TIPO:'SIN TIPO',OBSERVACIONES:'OBSERVACIONES',APROBATORIO:'APROBATORIO',DESISTIMIENTO:'DESISTIMIENTO'})[String(v||'').toUpperCase()]||v||'SIN TIPO'}
+function fmtDateTime(v){if(!v)return'—';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):new Intl.DateTimeFormat('es-EC',{dateStyle:'short',timeStyle:'short'}).format(d)}
 async function authGuard(){const {data:{session}}=await sb.auth.getSession();if(!session?.user){location.replace('../index.html');return false}const {data,error}=await sb.from('phdu_profiles').select('id,correo,nombre_completo,rol,activo,cargo,firma_nombre,firma_cargo').eq('id',session.user.id).single();if(error)throw error;if(!data?.activo)throw new Error('El perfil PHDU está inactivo.');const role=String(data.rol||'').toUpperCase();if(!['INGENIERO_CIVIL','ADMIN'].includes(role)){location.replace('../index.html');return false}profile=data;return true}
-async function loadRecords(){showError('');$('refreshBtn').disabled=true;$('refreshBtn').textContent='ACTUALIZANDO…';try{const {data,error}=await sb.from('phdu_solicitudes_revision_estructural').select('id,egob,estado_revision,propietarios_texto,nombre_proyecto,uso_proyecto,parroquia,direccion,clave_catastral,area_construccion,pisos,creado_en').order('creado_en',{ascending:false});if(error)throw error;records=Array.isArray(data)?data:[];render()}catch(e){showError('No se pudo cargar la bandeja estructural: '+(e.message||e));records=[];render()}finally{$('refreshBtn').disabled=false;$('refreshBtn').textContent='ACTUALIZAR'}}
-function render(){const q=$('searchInput').value.trim().toLowerCase();const filtered=records.filter(r=>{if(activeStatus!=='TODOS'&&r.estado_revision!==activeStatus)return false;if(!q)return true;return [r.egob,r.propietarios_texto,r.nombre_proyecto,r.uso_proyecto,r.parroquia,r.direccion,r.clave_catastral].some(v=>String(v||'').toLowerCase().includes(q))});$('countText').textContent=filtered.length+' '+(filtered.length===1?'registro':'registros');$('empty').classList.toggle('hidden',filtered.length>0);$('rows').innerHTML=filtered.map(r=>`<tr><td><span class="status-pill ${esc(r.estado_revision)}">${esc(statusLabel(r.estado_revision))}</span></td><td><strong>${esc(r.egob)}</strong></td><td class="owner">${esc(r.propietarios_texto||'—')}</td><td class="project">${esc(r.nombre_proyecto||r.uso_proyecto||'—')}</td><td class="address">${esc([r.parroquia,r.direccion].filter(Boolean).join(' · ')||'—')}</td><td>${esc(r.clave_catastral||'—')}</td><td>${r.area_construccion==null?'—':n(r.area_construccion)+' m²'}</td><td><button class="open-btn" onclick="openRequest('${esc(r.id)}')">ABRIR</button></td></tr>`).join('')}
-function openRequest(id){location.href='informe.html?v=7.9.50&solicitud='+encodeURIComponent(id)}
-$('searchInput').addEventListener('input',render);$('refreshBtn').addEventListener('click',loadRecords);$('filters').addEventListener('click',e=>{const b=e.target.closest('[data-status]');if(!b)return;activeStatus=b.dataset.status;document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x===b));render()});$('newReportBtn').addEventListener('click',()=>location.href='informe.html?v=7.9.50&nuevo=1');
+async function loadRecords(){
+ showError('');$('refreshBtn').disabled=true;$('refreshBtn').textContent='ACTUALIZANDO…';
+ try{
+  const [requestsResult,reportsResult]=await Promise.allSettled([
+   sb.from('phdu_solicitudes_revision_estructural').select('id,egob,estado_revision,propietarios_texto,nombre_proyecto,uso_proyecto,parroquia,direccion,clave_catastral,area_construccion,pisos,creado_en').order('creado_en',{ascending:false}),
+   sb.rpc('phdu_listar_informes_estructurales_compartidos')
+  ]);
+  const warnings=[];
+  if(requestsResult.status==='fulfilled'&&!requestsResult.value.error){records=Array.isArray(requestsResult.value.data)?requestsResult.value.data:[]}else{records=[];warnings.push('Solicitudes: '+(requestsResult.value?.error?.message||requestsResult.reason?.message||'no disponibles'))}
+  if(reportsResult.status==='fulfilled'&&!reportsResult.value.error){savedReports=Array.isArray(reportsResult.value.data)?reportsResult.value.data:[]}else{savedReports=[];warnings.push('Informes guardados: '+(reportsResult.value?.error?.message||reportsResult.reason?.message||'ejecute el SQL V7.9.57 en Supabase'))}
+  if(warnings.length)showError(warnings.join(' · '));
+  render();renderSavedReports();
+ }catch(e){showError('No se pudo cargar la bandeja estructural: '+(e.message||e));records=[];savedReports=[];render();renderSavedReports()}
+ finally{$('refreshBtn').disabled=false;$('refreshBtn').textContent='ACTUALIZAR'}
+}
+function currentQuery(){return $('searchInput').value.trim().toLowerCase()}
+function render(){const q=currentQuery();const filtered=records.filter(r=>{if(activeStatus!=='TODOS'&&r.estado_revision!==activeStatus)return false;if(!q)return true;return [r.egob,r.propietarios_texto,r.nombre_proyecto,r.uso_proyecto,r.parroquia,r.direccion,r.clave_catastral].some(v=>String(v||'').toLowerCase().includes(q))});$('countText').textContent=filtered.length+' '+(filtered.length===1?'registro':'registros');$('empty').classList.toggle('hidden',filtered.length>0);$('rows').innerHTML=filtered.map(r=>`<tr><td><span class="status-pill ${esc(r.estado_revision)}">${esc(statusLabel(r.estado_revision))}</span></td><td><strong>${esc(r.egob)}</strong></td><td class="owner">${esc(r.propietarios_texto||'—')}</td><td class="project">${esc(r.nombre_proyecto||r.uso_proyecto||'—')}</td><td class="address">${esc([r.parroquia,r.direccion].filter(Boolean).join(' · ')||'—')}</td><td>${esc(r.clave_catastral||'—')}</td><td>${r.area_construccion==null?'—':n(r.area_construccion)+' m²'}</td><td><button class="open-btn" onclick="openRequest('${esc(r.id)}')">ABRIR</button></td></tr>`).join('')}
+function renderSavedReports(){
+ const q=currentQuery();
+ const filtered=savedReports.filter(r=>{
+  const f=activeReportFilter;
+  if(f!=='TODOS'){
+   if(f==='BORRADOR'||f==='FINALIZADO'){if(String(r.estado||'').toUpperCase()!==f)return false}
+   else if(String(r.tipo_informe||'').toUpperCase()!==f)return false;
+  }
+  if(!q)return true;
+  return [r.egob,r.propietarios_texto,r.nombre_proyecto,r.ingeniero_nombre,r.actualizado_por_nombre,r.tipo_informe,r.estado].some(v=>String(v||'').toLowerCase().includes(q));
+ });
+ $('savedCountText').textContent=filtered.length+' '+(filtered.length===1?'informe':'informes');
+ $('savedEmpty').classList.toggle('hidden',filtered.length>0);
+ $('savedRows').innerHTML=filtered.map(r=>`<tr><td><span class="status-pill ${esc(String(r.estado||'').toUpperCase())}">${esc(statusLabel(String(r.estado||'').toUpperCase()))}</span></td><td><span class="type-pill">${esc(tipoLabel(r.tipo_informe))}</span></td><td><strong>${esc(r.egob||'—')}</strong></td><td class="owner">${esc(r.propietarios_texto||'—')}</td><td class="project">${esc(r.nombre_proyecto||'—')}</td><td>${esc(r.ingeniero_nombre||'—')}${r.actualizado_por_nombre&&r.actualizado_por_nombre!==r.ingeniero_nombre?`<div class="shared-note">Último cambio: ${esc(r.actualizado_por_nombre)}</div>`:''}</td><td>${esc(fmtDateTime(r.actualizado_en||r.creado_en))}</td><td><button class="open-btn" onclick="openSavedReport('${esc(r.id)}')">ABRIR</button></td></tr>`).join('');
+}
+function openRequest(id){location.href='informe.html?v='+ALLPA_STRUCT_HOME_VERSION+'&solicitud='+encodeURIComponent(id)}
+function openSavedReport(id){location.href='informe.html?v='+ALLPA_STRUCT_HOME_VERSION+'&informe='+encodeURIComponent(id)}
+$('searchInput').addEventListener('input',()=>{render();renderSavedReports()});
+$('refreshBtn').addEventListener('click',loadRecords);
+$('filters').addEventListener('click',e=>{const b=e.target.closest('[data-status]');if(!b)return;activeStatus=b.dataset.status;document.querySelectorAll('#filters .filter').forEach(x=>x.classList.toggle('active',x===b));render()});
+$('reportFilters').addEventListener('click',e=>{const b=e.target.closest('[data-report-filter]');if(!b)return;activeReportFilter=b.dataset.reportFilter;document.querySelectorAll('#reportFilters .filter').forEach(x=>x.classList.toggle('active',x===b));renderSavedReports()});
+$('newReportBtn').addEventListener('click',()=>location.href='informe.html?v='+ALLPA_STRUCT_HOME_VERSION+'&nuevo=1');
 (async()=>{try{if(await authGuard())await loadRecords()}catch(e){showError(e.message||String(e))}})();
 </script>
 </body>
