@@ -128,11 +128,12 @@ button{cursor:pointer}
   </div></div>
 </div>
 
+<!-- ALLPA V7.9.55 · Resoluciones: lectura de Informe Técnico mediante RPC V2 para rol ABOGADO -->
 <noscript>ALLPA Resoluciones requiere JavaScript habilitado.</noscript>
 <script id="allpa-resoluciones-v5-script">
 (function(){
 'use strict';
-const VERSION='8.2.0-resoluciones-obra-mayor-numeracion-manual';
+const VERSION='8.2.1-resoluciones-rpc-lectura-abogado-v2';
 const SUPABASE_URL='https://lfinvpmobnczgtabtwfs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
 let TEMPLATE_ROWS=[];
@@ -485,7 +486,43 @@ function rv5FilterCategory(st){st=String(st||'SIN_RESOLUCION');return st==='FINA
 function rv5UpdateFilterLabel(){const s=rv5SelectedFilters(),el=getEl('rv5FilterLabel');if(!el)return;const labels=[];if(s.has('PENDIENTES'))labels.push('Pendientes');if(s.has('BORRADORES'))labels.push('Borradores');if(s.has('FINALIZADOS'))labels.push('Finalizados');el.textContent=labels.length===3?'Todos':labels.join(' + ')||'Pendientes';}
 function filteredReports(){const q=norm(getEl('rv5Search')?.value||''),filters=rv5SelectedFilters();return reports.filter(r=>{const st=String(r.estado_resolucion||'SIN_RESOLUCION');if(!filters.has(rv5FilterCategory(st)))return false;if(!q)return true;return norm([r.numero_formateado,r.egob,r.propietario,r.nombre_proyecto,r.tecnico_nombre,r.numero_resolucion].join(' ')).includes(q);});}
 function renderList(){const el=getEl('rv5ReportList');if(!el)return;const arr=filteredReports();if(!arr.length){el.innerHTML='<div class="rv5-mini" style="padding:10px">No hay Informes que coincidan con el filtro.</div>';return;}el.innerHTML=arr.map(r=>{const st=String(r.estado_resolucion||'SIN_RESOLUCION'),cls=st==='FINALIZADA'?'final':st==='BORRADOR'?'draft':'none',label=st==='FINALIZADA'?(r.numero_resolucion||'FINALIZADA'):st==='BORRADOR'?'BORRADOR':'SIN RESOLUCIÓN';return `<button type="button" class="rv5-report-item ${selected?.informe_id===r.informe_id?'active':''}" onclick="window.AllpaResolucionesV5.selectInforme('${esc(r.informe_id)}')"><div class="rv5-report-top"><span class="rv5-report-num">Informe ${esc(r.numero_formateado||r.numero||'—')}</span><span class="rv5-badge ${cls}">${esc(label)}</span></div><div class="rv5-report-meta">eGOB ${esc(r.egob||'—')} · ${esc(r.propietario||'—')}</div><div class="rv5-report-meta">${esc(r.nombre_proyecto||'')} · ${esc(r.fecha_informe||'')}</div></button>`;}).join('');}
-async function selectInforme(id){if(!canRead()){setStatus('Inicie sesión con un perfil autorizado.','error');return;}setStatus('Cargando Informe '+id+'…');try{const data=await rpc('phdu_obtener_informe_para_resolucion',{p_informe_id:id});let coords=null;try{coords=await rpc('phdu_obtener_coordenadas_informe',{p_informe_id:id});}catch(e){console.warn('Coordenadas del Informe no disponibles:',e);}selected={...(data||{}),coordenadas:coords||data?.coordenadas||null};resolution=data?.resolucion||null;demoMode=false;applyReportCorrections();renderList();renderWorkspace();setStatus('Informe '+(selected.numero_informe_formateado||'')+' cargado para Resolución.','ok');}catch(err){setStatus('No se pudo cargar el Informe: '+String(err?.message||err),'error');}}
+async function selectInforme(id){
+  if(!canRead()){setStatus('Inicie sesión con un perfil autorizado.','error');return;}
+  setStatus('Cargando Informe '+id+'…');
+  try{
+    let data=null;
+    let rpcUsada='phdu_obtener_informe_para_resolucion_v2';
+    try{
+      data=await rpc(rpcUsada,{p_informe_id:id});
+    }catch(v2err){
+      /* Compatibilidad temporal: si el SQL V7.9.55 aún no fue instalado,
+         se intenta la RPC histórica. Cuando V2 existe, NO dependemos de la
+         validación defectuosa que impedía abrir el Informe con rol ABOGADO. */
+      const msg=String(v2err?.message||v2err||'');
+      const missing=/function|schema cache|could not find|does not exist|404|PGRST202/i.test(msg);
+      if(!missing) throw v2err;
+      console.warn('RPC V2 todavía no disponible; se usa compatibilidad histórica:',v2err);
+      rpcUsada='phdu_obtener_informe_para_resolucion';
+      data=await rpc(rpcUsada,{p_informe_id:id});
+    }
+    let coords=null;
+    try{coords=await rpc('phdu_obtener_coordenadas_informe',{p_informe_id:id});}
+    catch(e){console.warn('Coordenadas del Informe no disponibles:',e);}
+    selected={...(data||{}),coordenadas:coords||data?.coordenadas||null};
+    resolution=data?.resolucion||null;
+    demoMode=false;
+    applyReportCorrections();
+    renderList();
+    renderWorkspace();
+    console.info('ALLPA Resoluciones · Informe cargado mediante',rpcUsada,id);
+    setStatus('Informe '+(selected.numero_informe_formateado||'')+' cargado para Resolución.','ok');
+  }catch(err){
+    console.error('ALLPA Resoluciones · error al cargar Informe',id,err);
+    const code=String(err?.code||'').trim();
+    const detail=String(err?.details||err?.hint||'').trim();
+    setStatus('No se pudo cargar el Informe'+(code?' ['+code+']':'')+': '+String(err?.message||err)+(detail?' · '+detail:''),'error');
+  }
+}
 function kv(k,v,span=''){return `<div class="rv5-kv ${span}"><div class="k">${esc(k)}</div><div class="v">${String(v??'').trim()?esc(v):'—'}</div></div>`;}
 function renderSidebarSummary(){
   const host=getEl('rv5SelectedSummary');if(!host)return;
