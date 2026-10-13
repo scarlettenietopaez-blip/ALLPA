@@ -383,7 +383,7 @@ button{border:0;border-radius:10px;padding:9px 12px;font-weight:800;cursor:point
 <body>
 <header class="struct-topbar no-print">
   <div class="struct-top-left">
-    <a class="struct-home" href="index.html" title="Volver a Revisiones Estructurales" aria-label="Volver a Revisiones Estructurales">
+    <a class="struct-home" id="structHomeLink" href="index.html?v=7.9.60" title="Volver a Revisiones Estructurales" aria-label="Volver a Revisiones Estructurales">
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 10.8 12 3l9 7.8v9.2a1 1 0 0 1-1 1h-5.3v-6.2H9.3V21H4a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
     </a>
     <div class="struct-project-pill"><span></span> OBRA MAYOR DEFINITIVO</div>
@@ -481,34 +481,61 @@ const $=id=>document.getElementById(id);const h=v=>String(v??'').replace(/[&<>"'
 const clean=v=>String(v??'').trim();const upper=v=>clean(v).toUpperCase();const today=()=>new Date().toISOString().slice(0,10);const fmt=v=>{if(!v)return'';const p=String(v).split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:v};
 let profile=null,request=null,catalogs={menor:[],mayor:[]},manualMode=false,previousObservationState=null,sharedReport=null;
 const CATALOG_VERSION='7.9.37';
-const ALLPA_STRUCT_VERSION='7.9.59';
-let state={tipo:'',tipoEstructura:'',fecha:today(),catalogVersion:CATALOG_VERSION,info:{},requisitos:{MENOR:{},MAYOR:{}},defaultsAplicados:{MENOR:false,MAYOR:false},controles:{sismo:'',otrosElementos:false,losas:[],escalerasMemoria:false,escalerasPlanos:false,mixtaColumnasAcero:false,mixtaVigasAcero:false},obsSeleccionadas:[],obsNota:'',obsConclusiones:'',notificacion:{correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],fechaHoraNotificacion:'',respaldoNombres:[]},recColumnas:false,anexos:[],des:{motivo:'',nota:'',conclusiones:''}};
+const ALLPA_STRUCT_VERSION='7.9.60';
+let freshNewStruct=false,structDirty=false,structAllowLeave=false,structInitializing=true;
+const structNewSessionId=(crypto?.randomUUID?.()||String(Date.now()));
+let structLastDraftKey='';
+function emptyStructState(dateValue=today()){return{tipo:'',tipoEstructura:'',fecha:dateValue,catalogVersion:CATALOG_VERSION,info:{},requisitos:{MENOR:{},MAYOR:{}},defaultsAplicados:{MENOR:false,MAYOR:false},controles:{sismo:'',otrosElementos:false,losas:[],escalerasMemoria:false,escalerasPlanos:false,mixtaColumnasAcero:false,mixtaVigasAcero:false},obsSeleccionadas:[],obsNota:'',obsConclusiones:'',notificacion:{correo:'',correoAuto:'',correoManual:false,correosAdicionales:[],fechaHoraNotificacion:'',respaldoNombres:[]},recColumnas:false,anexos:[],des:{motivo:'',nota:'',conclusiones:''}}}
+let state=emptyStructState(today());
 function setStatus(t,kind=''){const el=$('status');el.textContent=t;el.style.color=kind==='error'?'#9c2530':kind==='ok'?'#087947':''}
 function splitCSVLine(line,sep=';'){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===sep&&!q){out.push(cur);cur=''}else cur+=c}out.push(cur);return out}
 function parseCSV(txt){const lines=String(txt||'').replace(/^\ufeff/,'').split(/\r?\n/).filter(x=>x.trim());if(!lines.length)return[];const sep=lines[0].includes(';')?';':',';const head=splitCSVLine(lines[0],sep).map(clean);return lines.slice(1).map(l=>{const cells=splitCSVLine(l,sep),o={};head.forEach((k,i)=>o[k]=clean(cells[i]||''));return o}).filter(o=>Object.values(o).some(Boolean))}
 async function loadCSV(path){try{const r=await fetch(path,{cache:'no-store'});if(!r.ok)throw new Error(r.status);return parseCSV(await r.text())}catch(e){console.warn('Catálogo no cargado',path,e);return[]}}
-function draftKeyStruct(){return manualMode?'allpa-struct-manual':('allpa-struct-'+(request?.id||'sin-id'))}
-function saveLocal(){try{localStorage.setItem(draftKeyStruct(),JSON.stringify(state))}catch(e){}}
-function restoreLocal(){try{const x=JSON.parse(localStorage.getItem(draftKeyStruct())||'null');if(x&&typeof x==='object')state={...state,...x,info:{...state.info,...(x.info||{})},requisitos:{MENOR:{...(state.requisitos?.MENOR||{}),...(x.requisitos?.MENOR||{})},MAYOR:{...(state.requisitos?.MAYOR||{}),...(x.requisitos?.MAYOR||{})}},defaultsAplicados:{MENOR:!!x.defaultsAplicados?.MENOR,MAYOR:!!x.defaultsAplicados?.MAYOR},controles:{...state.controles,...(x.controles||{}),losas:Array.isArray(x.controles?.losas)?x.controles.losas:[]},anexos:Array.isArray(x.anexos)?x.anexos:[],des:{...state.des,...(x.des||{})}}}catch(e){}}
+function draftKeyStruct(){
+ const egob=String(state?.info?.egob||request?.egob||'').replace(/\D/g,'');
+ const tipo=upper(state?.tipo||'');
+ if(egob&&tipo)return `allpa-struct-draft-${egob}-${tipo}`;
+ if(request?.id&&request.id!=='MANUAL')return `allpa-struct-solicitud-${request.id}-${tipo||'SIN_TIPO'}`;
+ return `allpa-struct-new-${structNewSessionId}`;
+}
+function markDirtyStruct(){if(!structInitializing&&sharedReport?.estado!=='FINALIZADO')structDirty=true}
+function saveLocal(mark=true){
+ try{
+  const key=draftKeyStruct();
+  if(structLastDraftKey&&structLastDraftKey!==key&&structLastDraftKey.startsWith('allpa-struct-new-'))localStorage.removeItem(structLastDraftKey);
+  localStorage.setItem(key,JSON.stringify(state));structLastDraftKey=key;
+ }catch(e){}
+ if(mark)markDirtyStruct();
+}
+function restoreLocal(){
+ try{
+  const keys=[draftKeyStruct()];
+  if(request?.id&&request.id!=='MANUAL')keys.push('allpa-struct-'+request.id);
+  let x=null;
+  for(const k of keys){x=JSON.parse(localStorage.getItem(k)||'null');if(x&&typeof x==='object'){structLastDraftKey=k;break}}
+  if(x&&typeof x==='object')state={...state,...x,info:{...state.info,...(x.info||{})},requisitos:{MENOR:{...(state.requisitos?.MENOR||{}),...(x.requisitos?.MENOR||{})},MAYOR:{...(state.requisitos?.MAYOR||{}),...(x.requisitos?.MAYOR||{})}},defaultsAplicados:{MENOR:!!x.defaultsAplicados?.MENOR,MAYOR:!!x.defaultsAplicados?.MAYOR},controles:{...state.controles,...(x.controles||{}),losas:Array.isArray(x.controles?.losas)?x.controles.losas:[]},anexos:Array.isArray(x.anexos)?x.anexos:[],des:{...state.des,...(x.des||{})}};
+ }catch(e){}
+}
 function ownerText(){return clean(state.info.propietarios)}function ciText(){return clean(state.info.documentos)}
 function addBusinessDays(dateStr,days=10){const d=dateStr?new Date(dateStr+'T12:00:00'):new Date();let left=Number(days)||0;while(left>0){d.setDate(d.getDate()+1);const wd=d.getDay();if(wd!==0&&wd!==6)left--;}return d.toISOString().slice(0,10)}
 function pisosInforme(){const raw=clean(state.info.pisos);if(!raw)return'';if(/piso/i.test(raw))return raw;const n=Number(String(raw).replace(',','.'));return Number.isFinite(n)?`${raw} ${n===1?'piso':'pisos'}`:raw}
 function claveInforme(){const d=String(state.info.clave||'').replace(/\D/g,'');if(d.length===27){const sizes=[2,2,2,3,3,3,3,3,3,3];let pos=0;return sizes.map(n=>{const x=d.slice(pos,pos+n);pos+=n;return x}).join(' ')}return clean(state.info.clave)}
 function registroMunicipalInforme(){const raw=clean(state.info.proyectistaMunicipal);if(!raw)return'';return /R\.?\s*M\.?/i.test(raw)?raw:`R.M. ${raw}`}
-function initState(){
+function initState(opts={}){
+ const fresh=!!opts.fresh;
  const ds=request?.datos_solicitud||{};const apObj=(ds.apoderado&&typeof ds.apoderado==='object')?ds.apoderado:{};
  state.info={
-  egob:request?.egob||'',fechaIngresoTramite:request?.fecha_ingreso_tramite||ds.fecha_ingreso_tramite||ds.fecha_ingreso||String(request?.created_at||request?.creado_en||'').slice(0,10)||'',propietarios:request?.propietarios_texto||ds.propietarios_texto||'',documentos:request?.documentos_propietarios||ds.documentos_propietarios||'',proyecto:request?.nombre_proyecto||ds.nombre_proyecto||'',uso:request?.uso_proyecto||ds.uso_proyecto||'',tipoObra:request?.tipo_obra||ds.tipo_obra||'OBRA MAYOR - DEFINITIVO',pisos:request?.pisos??request?.altura_edificacion??ds.pisos??ds.altura_edificacion??'',areaConstruccion:request?.area_construccion??ds.area_construccion??'',parroquia:request?.parroquia||ds.parroquia||'',direccion:request?.direccion||ds.direccion||'',pit:request?.codigo_pit||ds.codigo_pit||'',clave:request?.clave_catastral||ds.clave_catastral||'',barrioSector:request?.barrio_sector||ds.barrio_sector||'',urbanoRural:ds.urbano_rural||ds.tipo_suelo||'',coordenadaX:ds.coordenada_x||ds.x||'',coordenadaY:ds.coordenada_y||ds.y||'',proyectista:request?.proyectista||ds.proyectista||'',proyectistaSenescyt:request?.proyectista_senescyt||ds.proyectista_senescyt||'',proyectistaMunicipal:ds.proyectista_registro_municipal||ds.registro_municipal||'',apoderado:ds.apoderados_texto||ds.apoderado_nombre||apObj.nombre||'',apoderadoDocumento:ds.documentos_apoderados||ds.apoderado_documento||apObj.ci||'',arquitecto:request?.arquitecto_nombre||ds.arquitecto_nombre||'',arquitectoCargo:request?.arquitecto_cargo||ds.arquitecto_cargo||'',memorando:request?.memorando_solicitud||ds.memorando_solicitud||'',calculista:request?.calculista||ds.calculista||'',calculistaSenescyt:request?.calculista_senescyt||ds.calculista_senescyt||'',fechaInforme:state.fecha||today(),fechaSubsanacion:ds.fecha_subsanacion||addBusinessDays(state.fecha||today(),10)
+  egob:request?.egob||'',fechaIngresoTramite:request?.fecha_ingreso_tramite||ds.fecha_ingreso_tramite||ds.fecha_ingreso||String(request?.created_at||request?.creado_en||'').slice(0,10)||'',propietarios:request?.propietarios_texto||ds.propietarios_texto||'',documentos:request?.documentos_propietarios||ds.documentos_propietarios||'',proyecto:request?.nombre_proyecto||ds.nombre_proyecto||'',uso:request?.uso_proyecto||ds.uso_proyecto||'',tipoObra:request?.tipo_obra||ds.tipo_obra||(fresh?'':'OBRA MAYOR - DEFINITIVO'),pisos:request?.pisos??request?.altura_edificacion??ds.pisos??ds.altura_edificacion??'',areaConstruccion:request?.area_construccion??ds.area_construccion??'',parroquia:request?.parroquia||ds.parroquia||'',direccion:request?.direccion||ds.direccion||'',pit:request?.codigo_pit||ds.codigo_pit||'',clave:request?.clave_catastral||ds.clave_catastral||'',barrioSector:request?.barrio_sector||ds.barrio_sector||'',urbanoRural:ds.urbano_rural||ds.tipo_suelo||'',coordenadaX:ds.coordenada_x||ds.x||'',coordenadaY:ds.coordenada_y||ds.y||'',proyectista:request?.proyectista||ds.proyectista||'',proyectistaSenescyt:request?.proyectista_senescyt||ds.proyectista_senescyt||'',proyectistaMunicipal:ds.proyectista_registro_municipal||ds.registro_municipal||'',apoderado:ds.apoderados_texto||ds.apoderado_nombre||apObj.nombre||'',apoderadoDocumento:ds.documentos_apoderados||ds.apoderado_documento||apObj.ci||'',arquitecto:request?.arquitecto_nombre||ds.arquitecto_nombre||'',arquitectoCargo:request?.arquitecto_cargo||ds.arquitecto_cargo||'',memorando:request?.memorando_solicitud||ds.memorando_solicitud||'',calculista:request?.calculista||ds.calculista||'',calculistaSenescyt:request?.calculista_senescyt||ds.calculista_senescyt||'',fechaInforme:fresh?'':(state.fecha||today()),fechaSubsanacion:fresh?'':(ds.fecha_subsanacion||addBusinessDays(state.fecha||today(),10))
  };
  state.anexos=Array.isArray(request?.anexos)&&request.anexos.length?request.anexos:(Array.isArray(ds.anexos_detalle)?ds.anexos_detalle:[]);
  if(!state.anexos.length)state.anexos=[{tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''}];
- if(!sharedReport)restoreLocal();
+ if(!sharedReport&&opts.restore!==false)restoreLocal();
  if(!state.des||typeof state.des!=='object')state.des={motivo:'',nota:'',conclusiones:''};
  if(typeof state.des.nota!=='string')state.des.nota='';
  if(state.catalogVersion!==CATALOG_VERSION){state.catalogVersion=CATALOG_VERSION;}
- if(!state.info.fechaInforme)state.info.fechaInforme=state.fecha||today();
- state.fecha=state.info.fechaInforme;
- if(!state.info.fechaSubsanacion)state.info.fechaSubsanacion=addBusinessDays(state.info.fechaInforme,10);
+ if(!state.info.fechaInforme&&!fresh)state.info.fechaInforme=state.fecha||today();
+ state.fecha=state.info.fechaInforme||(fresh?'':state.fecha);
+ if(!state.info.fechaSubsanacion&&!fresh&&state.info.fechaInforme)state.info.fechaSubsanacion=addBusinessDays(state.info.fechaInforme,10);
  if(!clean(state.obsNota)&&clean(state.obsConclusiones)){state.obsNota=state.obsConclusiones;state.obsConclusiones='';}
 }
 function infoField(id,label,span=1,opts={}){const type=opts.type||'text',hint=opts.hint||'';return `<div class="field ${span===2?'span2':span===3?'span3':''}"><label>${h(label)}</label><input type="${h(type)}" data-info="${h(id)}" value="${h(state.info[id]||'')}">${hint?`<span class="hint">${h(hint)}</span>`:''}</div>`}
@@ -842,10 +869,33 @@ function renderedSnapshotStruct(){
  if(state.tipo==='DESISTIMIENTO')return{asunto:desistSubject(),anexos_html:annexHtml(),informe_html:reportDesistimiento()};
  return{};
 }
+async function existingDraftByKeyStruct(){
+ if(sharedReport?.id)return null;
+ const egob=clean(state.info.egob),tipo=upper(state.tipo);
+ if(!egob||!tipo)return null;
+ const {data,error}=await sb.rpc('phdu_listar_informes_estructurales_compartidos');
+ if(error)throw error;
+ const rows=Array.isArray(data)?data:[];
+ return rows.find(r=>upper(r?.estado)==='BORRADOR'&&clean(r?.egob)===egob&&upper(r?.tipo_informe)===tipo)||null;
+}
+async function guardDraftKeyStruct(){
+ if(sharedReport?.id)return true;
+ const existing=await existingDraftByKeyStruct();
+ if(!existing)return true;
+ const who=existing.ingeniero_nombre||'otro Ingeniero Civil';
+ if(confirm(`Ya existe un borrador para el eGOB ${clean(state.info.egob)} y el tipo ${upper(state.tipo)}\n\nElaborado por: ${who}.\n\n¿Desea abrir ese borrador en lugar de crear un duplicado?`)){
+  structAllowLeave=true;
+  location.href=`informe.html?v=${ALLPA_STRUCT_VERSION}&informe=${encodeURIComponent(existing.id)}`;
+  return false;
+ }
+ throw new Error(`Ya existe un borrador para el eGOB ${clean(state.info.egob)} y el tipo ${upper(state.tipo)}. Ábralo desde la bandeja o cambie el eGOB/tipo antes de guardar.`);
+}
 async function persistSharedStruct(estado='BORRADOR',informeRegistradoId=''){
  if(sharedReport?.estado==='FINALIZADO'&&estado!=='FINALIZADO')throw new Error('El Informe ya está FINALIZADO y se abre en modo de consulta.');
- saveLocal();
- await ensureManualRequestStruct();
+ if(!clean(state.info.egob)||!upper(state.tipo))throw new Error('Para guardar el borrador debe completar el eGOB y el Tipo de Informe.');
+ if(!await guardDraftKeyStruct())return{navigating:true};
+ saveLocal(false);
+ if(estado==='FINALIZADO'&&manualMode)await ensureManualRequestStruct();
  const payload={
   documento_id:sharedReport?.id||'',
   solicitud_id:request?.id&&request.id!=='MANUAL'?request.id:'',
@@ -940,6 +990,9 @@ async function finalizeReport(){
  if(!confirm('¿Registrar este Informe Estructural como FINALIZADO?'))return;
  try{
   setStatus('Guardando respaldo compartido en Supabase...');
+  const draftRow=await persistSharedStruct('BORRADOR');
+  if(draftRow?.navigating)return;
+  await ensureManualRequestStruct();
   await persistSharedStruct('BORRADOR');
  }catch(err){
   setStatus(err.message||String(err),'error');
@@ -954,6 +1007,7 @@ async function finalizeReport(){
  const registeredId=row?.informe_id||row?.id||row?.informe_estructural_id||'';
  try{await persistSharedStruct('FINALIZADO',registeredId)}catch(syncErr){console.warn('Informe registrado; no se pudo actualizar el índice compartido',syncErr)}
  setStatus(`Informe registrado y compartido. Estado estructural: ${row?.estado_revision||''}`,'ok');
+ structDirty=false;structAllowLeave=true;
  $('estadoTop').value=row?.estado_revision||$('estadoTop').value;
  try{localStorage.removeItem('allpa-struct-manual');localStorage.removeItem('allpa-struct-'+request.id)}catch(_){ }
  setTimeout(()=>location.href='index.html?v='+ALLPA_STRUCT_VERSION,700)
@@ -1018,7 +1072,7 @@ function renderRequirements(){renderStructCatalog();renderStructSelected();}
 
 function syncSidebarStruct(){
  ensureStructObservationState();
- $('egobTop').value=state.info.egob||request?.egob||'';$('fechaIngresoTop').value=state.info.fechaIngresoTramite||'';$('tipoInforme').value=state.tipo||'';$('fechaRevisionTop').value=state.info.fechaInforme||state.fecha||today();$('fechaSubsanacionTop').value=state.info.fechaSubsanacion||'';
+ $('egobTop').value=state.info.egob||request?.egob||'';$('fechaIngresoTop').value=state.info.fechaIngresoTramite||'';$('tipoInforme').value=state.tipo||'';$('fechaRevisionTop').value=state.info.fechaInforme||state.fecha||'';$('fechaSubsanacionTop').value=state.info.fechaSubsanacion||'';
  const isObs=state.tipo==='OBSERVACIONES';$('subsanacionSideWrap').classList.toggle('hidden',!isObs);
 }
 window.guardarBorradorStruct=async function(){
@@ -1027,7 +1081,9 @@ window.guardarBorradorStruct=async function(){
  try{
   setStatus('Guardando Informe en Supabase...');
   const row=await persistSharedStruct('BORRADOR');
-  setStatus(`Informe guardado en Supabase y disponible para todos los Ingenieros Civiles · ${row?.tipo_informe==='SIN_TIPO'?'SIN TIPO':row?.tipo_informe||''}`,'ok');
+  if(row?.navigating)return false;
+  structDirty=false;
+  setStatus(`Informe guardado en Supabase por eGOB ${clean(state.info.egob)} + ${upper(state.tipo)} y disponible para todos los Ingenieros Civiles.`,'ok');
   return true;
  }catch(e){
   saveLocal();setStatus('No se pudo guardar en Supabase: '+(e.message||e),'error');alert('No se pudo guardar el Informe en Supabase.\n\n'+(e.message||e));return false;
@@ -1077,7 +1133,7 @@ function showTab(id){document.querySelectorAll('.tab').forEach(x=>x.classList.to
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&!b.classList.contains('hidden'))showTab(b.dataset.tab)});
 $('tipoInforme').addEventListener('change',()=>{state.tipo=$('tipoInforme').value;saveLocal();updateTabs()});
 $('fechaIngresoTop').addEventListener('change',()=>{state.info.fechaIngresoTramite=$('fechaIngresoTop').value;saveLocal()});
-$('fechaRevisionTop').addEventListener('change',()=>{state.info.fechaInforme=$('fechaRevisionTop').value||today();state.fecha=state.info.fechaInforme;state.info.fechaSubsanacion=addBusinessDays(state.fecha,10);$('fechaSubsanacionTop').value=state.info.fechaSubsanacion;saveLocal();renderVista();renderNotificationStruct()});
+$('fechaRevisionTop').addEventListener('change',()=>{state.info.fechaInforme=$('fechaRevisionTop').value||'';state.fecha=state.info.fechaInforme;state.info.fechaSubsanacion=state.fecha?addBusinessDays(state.fecha,10):'';$('fechaSubsanacionTop').value=state.info.fechaSubsanacion;saveLocal();renderVista();renderNotificationStruct()});
 $('fechaSubsanacionTop').addEventListener('change',()=>{state.info.fechaSubsanacion=$('fechaSubsanacionTop').value;saveLocal();renderVista();renderNotificationStruct();renderStructCatalog()});
 $('obsBuscarReq').addEventListener('input',renderStructCatalog);
 $('obsNota').addEventListener('input',()=>{state.obsNota=$('obsNota').value;saveLocal();renderVista()});
@@ -1106,7 +1162,10 @@ async function init(){
    $('ingenieroTop').value=sharedReport.ingeniero_nombre||profile.nombre_completo||profile.correo||profile.firma_nombre||'';
    await loadPreviousObservationStruct(sharedReport.solicitud_id||request?.id);
   }else if(nuevo){
-   manualMode=true;request={id:'MANUAL',egob:'',estado_revision:'EN_REVISION',datos_solicitud:{origen:'MANUAL_INGENIERIA'},anexos:[]};initState();$('egobTop').readOnly=false;$('estadoTop').value='EN_REVISION';$('ingenieroTop').value=profile.nombre_completo||profile.correo||profile.firma_nombre||'';
+   freshNewStruct=true;manualMode=true;sharedReport=null;state=emptyStructState('');
+   request={id:'MANUAL',egob:'',estado_revision:'EN_REVISION',datos_solicitud:{origen:'MANUAL_INGENIERIA'},anexos:[]};
+   try{localStorage.removeItem('allpa-struct-manual')}catch(_){}
+   initState({fresh:true,restore:false});$('egobTop').readOnly=false;$('estadoTop').value='EN_REVISION';$('ingenieroTop').value=profile.nombre_completo||profile.correo||profile.firma_nombre||'';
   }else{
    if(!id)throw new Error('No se recibió una solicitud estructural.');
    const {data,error}=await sb.from('phdu_solicitudes_revision_estructural').select('*').eq('id',id).single();if(error)throw error;request=data;
@@ -1120,10 +1179,38 @@ async function init(){
   if(sharedReport){setStatus(`Informe ${sharedReport.estado==='FINALIZADO'?'FINALIZADO':'guardado'} cargado desde Supabase · Elaborado por ${sharedReport.ingeniero_nombre||'Ingeniería Civil'} · V${ALLPA_STRUCT_VERSION}`,'ok')}else{setStatus((manualMode?'Nuevo informe estructural listo para completar.':'Solicitud cargada correctamente.')+' · V'+ALLPA_STRUCT_VERSION,'ok')}
   loadProfessionalEmailsStruct().then(()=>{const n=ensureNotificationStruct(),found=lookupProjectEmailStruct();if(found&&!n.correo){n.correo=found;n.correoAuto=found;n.correoManual=false;saveLocal();renderNotificationStruct()}}).catch(()=>{});
   if(sharedReport?.estado==='FINALIZADO')setTimeout(applyReadOnlySharedStruct,0);
- }catch(e){setStatus(e.message||String(e),'error');console.error(e)}
+  structDirty=false;structInitializing=false;
+ }catch(e){structInitializing=false;setStatus(e.message||String(e),'error');console.error(e)}
 }
+
+async function leaveStructReport(targetUrl){
+ if(structAllowLeave||sharedReport?.estado==='FINALIZADO'||!structDirty){structAllowLeave=true;location.href=targetUrl;return}
+ const egob=clean(state.info.egob),tipo=upper(state.tipo);
+ if(!egob||!tipo){
+  const missing=[!egob?'eGOB':'',!tipo?'Tipo de Informe':''].filter(Boolean).join(' y ');
+  alert(`Hay cambios sin guardar.\n\nPara guardar el borrador debe completar: ${missing}.`);
+  if(confirm('¿Desea salir de todas formas SIN guardar estos cambios?')){structAllowLeave=true;location.href=targetUrl}
+  return;
+ }
+ if(confirm(`Hay cambios sin guardar en el informe ${egob} · ${tipo}.\n\n¿Desea GUARDAR el borrador antes de salir?`)){
+  const ok=await guardarBorradorStruct();
+  if(ok!==false){structAllowLeave=true;location.href=targetUrl}
+  return;
+ }
+ if(confirm('¿Desea salir SIN guardar los últimos cambios?')){structAllowLeave=true;location.href=targetUrl}
+}
+window.leaveStructReport=leaveStructReport;
+const homeStruct=$('structHomeLink');if(homeStruct)homeStruct.addEventListener('click',e=>{if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;e.preventDefault();leaveStructReport(homeStruct.href)});
+document.addEventListener('input',e=>{if(structInitializing||e.target?.id==='obsBuscarReq')return;if(e.target?.closest?.('.struct-main'))markDirtyStruct()},true);
+document.addEventListener('change',e=>{if(structInitializing)return;if(e.target?.closest?.('.struct-main'))markDirtyStruct()},true);
+window.addEventListener('beforeunload',e=>{
+ if(structAllowLeave||sharedReport?.estado==='FINALIZADO'||!structDirty)return;
+ saveLocal(false);
+ e.preventDefault();e.returnValue='';
+});
+window.addEventListener('pagehide',()=>{if(structDirty)saveLocal(false)});
 init();
 </script>
 
-<!-- ALLPA V7.9.59 · Bloqueo de COPIAR/PDF cuando faltan campos obligatorios. Autoría usa nombre_completo; firma_nombre queda reservado únicamente para la firma del documento. -->
+<!-- ALLPA V7.9.60 · Nuevo informe inicia en blanco; borrador identificado por eGOB + Tipo de Informe; advertencia/guardado antes de salir. Conserva bloqueo de COPIAR/PDF V7.9.59. -->
 </body></html>
