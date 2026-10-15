@@ -44074,7 +44074,7 @@ window.AllpaCompatSolicitudEstructuralV7927=API;
 
 
 <!-- ==========================================================
-     ALLPA V7.9.63 · ANEXOS SOLICITUD ESTRUCTURAL · FIX ROBUSTO
+     ALLPA V7.9.64 · ANEXOS SOLICITUD ESTRUCTURAL · FIX STATE GLOBAL
      - Delegación de eventos a nivel document para sobrevivir re-renderizados.
      - Garantiza siempre al menos una fila editable.
      - Evita depender del listener ligado a una instancia anterior del editor.
@@ -44107,7 +44107,7 @@ window.AllpaCompatSolicitudEstructuralV7927=API;
 <script id="allpa-v7-9-63-anexos-solicitud-estructural-script">
 (function(){
 'use strict';
-const VERSION='7.9.63';
+const VERSION='7.9.64';
 const EDITOR_ID='solicitudEstructuralAnexosEditorV7919';
 let rendering=false;
 let repairTimer=0;
@@ -44116,7 +44116,11 @@ function clean(v){return String(v??'').trim()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function blankRow(){return {tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''}}
 function rows(){
-  if(!window.state)return [];
+  /* `state` fue declarado globalmente con `let`, por lo que NO vive en
+     window.state. La V7.9.63 comprobaba window.state y por eso devolvía
+     un arreglo temporal vacío: no se mostraba la fila y Agregar fila no
+     podía persistir nada. */
+  if(typeof state==='undefined'||!state)return [];
   if(!state.aprobatorio||typeof state.aprobatorio!=='object')state.aprobatorio={};
   if(!Array.isArray(state.aprobatorio.anexos))state.aprobatorio.anexos=[];
   if(state.aprobatorio.anexos.length===0)state.aprobatorio.anexos.push(blankRow());
@@ -44272,10 +44276,10 @@ setInterval(()=>{
   if(editor && document.body.classList.contains('allpa-structural-request-active'))repair();
 },750);
 
-window.AllpaSolicitudAnexosV7963=Object.freeze({VERSION,render:()=>render(true),rows,add,remove});
+window.AllpaSolicitudAnexosV7964=Object.freeze({VERSION,render:()=>render(true),rows,add,remove});
 })();
 </script>
-<!-- ALLPA Informes V7.9.63 · Solicitud estructural: anexos editor robusto -->
+<!-- ALLPA Informes V7.9.64 · Solicitud estructural: anexos editor corregido para state global lexical -->
 
 </body>
 </html>
