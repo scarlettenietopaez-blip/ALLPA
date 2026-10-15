@@ -44070,221 +44070,212 @@ window.AllpaCompatSolicitudEstructuralV7927=API;
 <!-- ALLPA V7.9.56 · Registro SENESCYT: admite también formato 0000-0000-000000 -->
 
 
+
+
+
 <!-- ==========================================================
-     ALLPA V7.9.62 · ANEXOS EDITABLES EN SOLICITUD ESTRUCTURAL
-     - Corrige interacción de Folder / Carpeta / Fojas.
-     - Mantiene editable el número de fojas.
-     - Habilita cantidad de planos/CDs al marcar sus casillas.
-     - Conserva anexos en state.aprobatorio.anexos para reutilizarlos
-       en el posterior Informe Técnico Aprobatorio.
+     ALLPA V7.9.63 · ANEXOS SOLICITUD ESTRUCTURAL · FIX ROBUSTO
+     - Delegación de eventos a nivel document para sobrevivir re-renderizados.
+     - Garantiza siempre al menos una fila editable.
+     - Evita depender del listener ligado a una instancia anterior del editor.
      ========================================================== -->
-<style id="allpa-v7-9-62-anexos-solicitud-estructural-css">
+<style id="allpa-v7-9-63-anexos-solicitud-estructural-css">
 #solicitudEstructuralCopyV7918,
 #solicitudEstructuralCopyV7918 .se-field,
 #solicitudEstructuralAnexosEditorV7919,
-#solicitudEstructuralAnexosEditorV7919 .anexos-table-v163,
-#solicitudEstructuralAnexosEditorV7919 .anexos-table-v163 *{
+#solicitudEstructuralAnexosEditorV7919 table,
+#solicitudEstructuralAnexosEditorV7919 tbody,
+#solicitudEstructuralAnexosEditorV7919 tr,
+#solicitudEstructuralAnexosEditorV7919 td,
+#solicitudEstructuralAnexosEditorV7919 input,
+#solicitudEstructuralAnexosEditorV7919 select,
+#solicitudEstructuralAnexosEditorV7919 button,
+#solicitudEstructuralAnexosEditorV7919 label{
   pointer-events:auto!important;
-}
-#solicitudEstructuralCopyV7918{
-  position:relative!important;
-  z-index:20!important;
 }
 #solicitudEstructuralAnexosEditorV7919{
   position:relative!important;
-  z-index:21!important;
-  user-select:auto!important;
+  z-index:999!important;
 }
+#solicitudEstructuralAnexosEditorV7919 select,
 #solicitudEstructuralAnexosEditorV7919 input:not(:disabled),
-#solicitudEstructuralAnexosEditorV7919 select:not(:disabled),
 #solicitudEstructuralAnexosEditorV7919 button:not(:disabled){
-  cursor:pointer;
-}
-#solicitudEstructuralAnexosEditorV7919 input[type="number"]:not(:disabled){
-  cursor:text;
+  opacity:1!important;
+  visibility:visible!important;
 }
 </style>
-<script id="allpa-v7-9-62-anexos-solicitud-estructural-script">
+<script id="allpa-v7-9-63-anexos-solicitud-estructural-script">
 (function(){
 'use strict';
-const VERSION='7.9.62';
+const VERSION='7.9.63';
 const EDITOR_ID='solicitudEstructuralAnexosEditorV7919';
-let applying=false;
-let observer=null;
+let rendering=false;
+let repairTimer=0;
 
-function escV7962(v){
-  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function ensureRowsV7962(){
+function clean(v){return String(v??'').trim()}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function blankRow(){return {tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''}}
+function rows(){
   if(!window.state)return [];
   if(!state.aprobatorio||typeof state.aprobatorio!=='object')state.aprobatorio={};
   if(!Array.isArray(state.aprobatorio.anexos))state.aprobatorio.anexos=[];
-  if(!state.aprobatorio.anexos.length){
-    state.aprobatorio.anexos.push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});
-  }
-  state.aprobatorio.anexos=state.aprobatorio.anexos.map(row=>{
-    const raw=String(row?.tipo||'folder').toLowerCase().trim();
-    const tipo=raw==='carpeta'?'carpeta':(['fojas','expediente'].includes(raw)?'fojas':'folder');
-    return {
-      tipo,
-      fojas:row?.fojas==null?'':String(row.fojas),
-      incluyePlanos:!!row?.incluyePlanos,
-      planos:row?.planos==null?'':String(row.planos),
-      incluyeCds:!!row?.incluyeCds,
-      cds:row?.cds==null?'':String(row.cds)
+  if(state.aprobatorio.anexos.length===0)state.aprobatorio.anexos.push(blankRow());
+  for(let i=0;i<state.aprobatorio.anexos.length;i++){
+    const r=state.aprobatorio.anexos[i]||{};
+    const raw=clean(r.tipo).toLowerCase();
+    state.aprobatorio.anexos[i]={
+      tipo:raw==='carpeta'?'carpeta':(raw==='fojas'||raw==='expediente'?'fojas':'folder'),
+      fojas:r.fojas==null?'':String(r.fojas),
+      incluyePlanos:!!r.incluyePlanos,
+      planos:r.planos==null?'':String(r.planos),
+      incluyeCds:!!r.incluyeCds,
+      cds:r.cds==null?'':String(r.cds)
     };
-  });
+  }
   return state.aprobatorio.anexos;
 }
-function typeNoV7962(rows,index,type){
+function numberOf(list,index,type){
   let n=0;
-  for(let i=0;i<=index;i++)if(String(rows[i]?.tipo||'folder').toLowerCase()===type)n++;
+  for(let i=0;i<=index;i++)if(String(list[i]?.tipo||'').toLowerCase()===type)n++;
   return n;
 }
-function rowLabelV7962(rows,row,i){
-  if(row.tipo==='carpeta')return `Carpeta ${typeNoV7962(rows,i,'carpeta')}`;
-  if(row.tipo==='folder')return `Folder ${typeNoV7962(rows,i,'folder')}`;
+function label(list,row,index){
+  if(row.tipo==='carpeta')return `Carpeta ${numberOf(list,index,'carpeta')}`;
+  if(row.tipo==='folder')return `Folder ${numberOf(list,index,'folder')}`;
   return '—';
 }
-function scheduleSaveV7962(){
-  try{
-    if(window.AllpaFixesV7911?.autosave) setTimeout(()=>window.AllpaFixesV7911.autosave(true),80);
-  }catch(_e){}
+function save(){
+  try{window.AllpaAutosaveV7911?.schedule?.()}catch(_e){}
+  try{window.AllpaFixesV7911?.autosave?.(true)}catch(_e){}
 }
-function htmlV7962(){
-  const rows=ensureRowsV7962();
+function markup(){
+  const list=rows();
   return `<p class="anexos-help-v163" style="margin:0 0 10px">Los anexos registrados aquí se guardan en el expediente y se reutilizarán automáticamente en el posterior Informe Técnico Aprobatorio de Obra Mayor.</p>
-  <table class="anexos-table-v163" data-v7962-annex-table="1">
+  <table class="anexos-table-v163" data-v7963-table="1">
     <colgroup><col style="width:9%"><col style="width:18%"><col style="width:14%"><col style="width:18%"><col style="width:16%"><col style="width:13%"><col style="width:12%"></colgroup>
     <thead><tr><th>Numeración</th><th>Tipo</th><th>N.º de fojas</th><th>Planos incluidos</th><th>Agregar CDs</th><th>N.º de CDs</th><th>Acción</th></tr></thead>
-    <tbody>${rows.map((row,i)=>`<tr data-annex-row="${i}">
-      <td data-annex-label="${i}">${escV7962(rowLabelV7962(rows,row,i))}</td>
-      <td><select data-annex-index="${i}" data-annex-field="tipo" aria-label="Tipo de anexo ${i+1}">
+    <tbody>${list.map((row,i)=>`<tr data-v7963-row="${i}">
+      <td data-v7963-label="${i}">${esc(label(list,row,i))}</td>
+      <td><select data-v7963-index="${i}" data-v7963-field="tipo">
         <option value="folder" ${row.tipo==='folder'?'selected':''}>folder</option>
         <option value="carpeta" ${row.tipo==='carpeta'?'selected':''}>carpeta</option>
         <option value="fojas" ${row.tipo==='fojas'?'selected':''}>fojas</option>
       </select></td>
-      <td><input data-annex-index="${i}" data-annex-field="fojas" type="number" min="0" step="1" inputmode="numeric" value="${escV7962(row.fojas)}" placeholder="Fojas" aria-label="Número de fojas ${i+1}"></td>
-      <td><div class="anexos-planos-line-v1"><label class="anexos-check-v163"><input data-annex-index="${i}" data-annex-field="incluyePlanos" type="checkbox" ${row.incluyePlanos?'checked':''}> incluido</label><input data-annex-index="${i}" data-annex-field="planos" class="anexos-planos-count-v1" type="number" min="0" step="1" inputmode="numeric" value="${escV7962(row.planos)}" placeholder="N.º" ${row.incluyePlanos?'':'disabled'} aria-label="Número de planos ${i+1}"><span>planos</span></div></td>
-      <td><label class="anexos-check-v163"><input data-annex-index="${i}" data-annex-field="incluyeCds" type="checkbox" ${row.incluyeCds?'checked':''}> + CDs</label></td>
-      <td><input data-annex-index="${i}" data-annex-field="cds" type="number" min="0" step="1" inputmode="numeric" value="${escV7962(row.cds)}" placeholder="CDs" ${row.incluyeCds?'':'disabled'} aria-label="Número de CDs ${i+1}"></td>
-      <td style="text-align:center"><button type="button" class="danger mini-btn" data-annex-remove="${i}" ${rows.length<=1?'disabled':''}>Quitar</button></td>
+      <td><input data-v7963-index="${i}" data-v7963-field="fojas" type="number" min="0" step="1" inputmode="numeric" value="${esc(row.fojas)}" placeholder="Fojas"></td>
+      <td><div class="anexos-planos-line-v1"><label class="anexos-check-v163"><input data-v7963-index="${i}" data-v7963-field="incluyePlanos" type="checkbox" ${row.incluyePlanos?'checked':''}> incluido</label><input data-v7963-index="${i}" data-v7963-field="planos" class="anexos-planos-count-v1" type="number" min="0" step="1" inputmode="numeric" value="${esc(row.planos)}" placeholder="N.º" ${row.incluyePlanos?'':'disabled'}><span>planos</span></div></td>
+      <td><label class="anexos-check-v163"><input data-v7963-index="${i}" data-v7963-field="incluyeCds" type="checkbox" ${row.incluyeCds?'checked':''}> + CDs</label></td>
+      <td><input data-v7963-index="${i}" data-v7963-field="cds" type="number" min="0" step="1" inputmode="numeric" value="${esc(row.cds)}" placeholder="CDs" ${row.incluyeCds?'':'disabled'}></td>
+      <td style="text-align:center"><button type="button" class="danger mini-btn" data-v7963-remove="${i}" ${list.length<=1?'disabled':''}>Quitar</button></td>
     </tr>`).join('')}</tbody>
   </table>
-  <div class="anexos-actions-v163"><button type="button" class="secondary" data-annex-add="1">+ Agregar fila</button></div>`;
+  <div class="anexos-actions-v163"><button type="button" class="secondary" data-v7963-add="1">+ Agregar fila</button></div>`;
 }
-function renderV7962(force=false){
+function render(force=false){
   const editor=document.getElementById(EDITOR_ID);
   if(!editor)return false;
-  if(!force && editor.querySelector('[data-v7962-annex-table="1"]'))return true;
-  applying=true;
-  editor.innerHTML=htmlV7962();
-  editor.dataset.v7962='1';
-  applying=false;
+  const list=rows();
+  const currentRows=editor.querySelectorAll('[data-v7963-row]').length;
+  if(!force && editor.querySelector('[data-v7963-table="1"]') && currentRows===list.length && currentRows>0)return true;
+  rendering=true;
+  editor.innerHTML=markup();
+  editor.dataset.allpaAnnexVersion=VERSION;
+  rendering=false;
   return true;
 }
-function setFieldV7962(index,field,value){
-  const rows=ensureRowsV7962();
-  const row=rows[index];
+function setValue(index,field,value){
+  const list=rows();
+  const row=list[index];
   if(!row)return;
   if(field==='incluyePlanos'||field==='incluyeCds')row[field]=!!value;
   else row[field]=String(value??'');
   if(field==='incluyePlanos'&&!row.incluyePlanos)row.planos='';
   if(field==='incluyeCds'&&!row.incluyeCds)row.cds='';
-  scheduleSaveV7962();
+  save();
 }
-function onInputV7962(ev){
-  const el=ev.target?.closest?.('[data-annex-index][data-annex-field]');
-  if(!el)return;
-  const index=Number(el.dataset.annexIndex);
-  const field=el.dataset.annexField;
-  if(el.type==='checkbox')return;
-  setFieldV7962(index,field,el.value);
+function add(){rows().push(blankRow());render(true);save()}
+function remove(index){
+  const list=rows();
+  if(list.length<=1){try{window.msg?.('Debe conservar al menos una fila de anexos.')}catch(_e){}return}
+  if(Number.isInteger(index)&&index>=0&&index<list.length)list.splice(index,1);
+  render(true);save();
 }
-function onChangeV7962(ev){
-  const el=ev.target?.closest?.('[data-annex-index][data-annex-field]');
-  if(!el)return;
-  const index=Number(el.dataset.annexIndex);
-  const field=el.dataset.annexField;
-  setFieldV7962(index,field,el.type==='checkbox'?el.checked:el.value);
-  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')renderV7962(true);
-}
-function onClickV7962(ev){
-  const add=ev.target?.closest?.('[data-annex-add]');
-  if(add){
-    ev.preventDefault();
-    ensureRowsV7962().push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});
-    renderV7962(true);scheduleSaveV7962();return;
-  }
-  const remove=ev.target?.closest?.('[data-annex-remove]');
-  if(remove){
-    ev.preventDefault();
-    const rows=ensureRowsV7962();
-    const index=Number(remove.dataset.annexRemove);
-    if(rows.length<=1){try{window.msg?.('Debe conservar al menos una fila de anexos.')}catch(_e){}return;}
-    rows.splice(index,1);renderV7962(true);scheduleSaveV7962();
-  }
-}
-function bindV7962(){
-  const editor=document.getElementById(EDITOR_ID);
-  if(!editor)return false;
-  if(editor.dataset.v7962Bound!=='1'){
-    editor.addEventListener('input',onInputV7962);
-    editor.addEventListener('change',onChangeV7962);
-    editor.addEventListener('click',onClickV7962);
-    editor.dataset.v7962Bound='1';
-  }
-  renderV7962(false);
-  if(!observer && typeof MutationObserver!=='undefined'){
-    observer=new MutationObserver(()=>{
-      if(applying)return;
-      const current=document.getElementById(EDITOR_ID);
-      if(current && !current.querySelector('[data-v7962-annex-table="1"]')){
-        setTimeout(()=>renderV7962(true),0);
-      }
-    });
-    observer.observe(editor,{childList:true,subtree:false});
-  }
-  return true;
-}
+function isInsideEditor(target){return !!target?.closest?.('#'+EDITOR_ID)}
 
-/* Compatibilidad: si algún HTML histórico sigue llamando estas funciones inline,
-   se redirigen a la lógica estable de V7.9.62. */
+/* Captura global: sigue funcionando aunque updatePanel reemplace el contenido del editor. */
+document.addEventListener('click',function(ev){
+  if(!isInsideEditor(ev.target))return;
+  const addBtn=ev.target.closest('[data-v7963-add], .anexos-actions-v163 button');
+  if(addBtn){
+    ev.preventDefault();ev.stopImmediatePropagation();add();return;
+  }
+  const rem=ev.target.closest('[data-v7963-remove]');
+  if(rem){
+    ev.preventDefault();ev.stopImmediatePropagation();remove(Number(rem.dataset.v7963Remove));return;
+  }
+},true);
+
+document.addEventListener('input',function(ev){
+  if(!isInsideEditor(ev.target))return;
+  const el=ev.target.closest('[data-v7963-index][data-v7963-field]');
+  if(!el||el.type==='checkbox')return;
+  setValue(Number(el.dataset.v7963Index),el.dataset.v7963Field,el.value);
+},true);
+
+document.addEventListener('change',function(ev){
+  if(!isInsideEditor(ev.target))return;
+  const el=ev.target.closest('[data-v7963-index][data-v7963-field]');
+  if(!el)return;
+  ev.stopImmediatePropagation();
+  const field=el.dataset.v7963Field;
+  setValue(Number(el.dataset.v7963Index),field,el.type==='checkbox'?el.checked:el.value);
+  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')render(true);
+},true);
+
+/* Compatibilidad con el HTML base que todavía contiene handlers inline. */
 window.updateSolicitudAnexoV7919=function(index,field,value){
-  setFieldV7962(Number(index),field,value);
-  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')renderV7962(true);
+  setValue(Number(index),field,value);
+  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')render(true);
 };
-window.addSolicitudAnexoV7919=function(){
-  ensureRowsV7962().push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});
-  renderV7962(true);scheduleSaveV7962();
-};
-window.removeSolicitudAnexoV7919=function(index){
-  const rows=ensureRowsV7962();
-  if(rows.length<=1){try{window.msg?.('Debe conservar al menos una fila de anexos.')}catch(_e){}return;}
-  rows.splice(Number(index),1);renderV7962(true);scheduleSaveV7962();
-};
+window.addSolicitudAnexoV7919=function(){add()};
+window.removeSolicitudAnexoV7919=function(index){remove(Number(index))};
 
-function installV7962(){
-  if(bindV7962())return;
-  setTimeout(bindV7962,120);
+function repair(){
+  if(rendering)return;
+  const editor=document.getElementById(EDITOR_ID);
+  if(!editor)return;
+  const list=rows();
+  const rowCount=editor.querySelectorAll('[data-v7963-row]').length;
+  if(!editor.querySelector('[data-v7963-table="1"]') || rowCount!==list.length || rowCount===0)render(true);
+}
+function scheduleRepair(delay=0){
+  clearTimeout(repairTimer);
+  repairTimer=setTimeout(repair,delay);
 }
 
-document.addEventListener('click',ev=>{
-  if(ev.target?.closest?.('[data-tab="tab-vista"],#tab-vista,.tab-btn'))setTimeout(installV7962,0);
-});
-document.addEventListener('change',ev=>{
-  if(ev.target?.id==='tipoInforme')setTimeout(installV7962,50);
-});
-window.addEventListener('allpa:state-applied',()=>setTimeout(installV7962,100));
-window.addEventListener('load',()=>{
-  [250,850,1800,3600,6100,8200].forEach(ms=>setTimeout(installV7962,ms));
-},{once:true});
-setTimeout(installV7962,0);
+/* Vigila toda la solicitud, no una instancia concreta del editor. */
+if(typeof MutationObserver!=='undefined'){
+  const mo=new MutationObserver(()=>scheduleRepair(0));
+  const start=()=>{
+    const panel=document.getElementById('solicitudEstructuralCopyV7918');
+    if(panel)mo.observe(panel,{childList:true,subtree:true});
+    scheduleRepair(0);
+  };
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();
+}
 
-window.AllpaSolicitudAnexosV7962=Object.freeze({VERSION,render:()=>renderV7962(true),rows:ensureRowsV7962});
+window.addEventListener('allpa:state-applied',()=>scheduleRepair(30));
+document.addEventListener('change',ev=>{if(ev.target?.id==='tipoInforme')scheduleRepair(30)});
+document.addEventListener('click',ev=>{if(ev.target?.closest?.('[data-tab="tab-vista"],#tab-vista,.tab-btn'))scheduleRepair(30)});
+window.addEventListener('load',()=>[0,100,300,700,1500,3000,6000].forEach(ms=>setTimeout(repair,ms)),{once:true});
+setInterval(()=>{
+  const editor=document.getElementById(EDITOR_ID);
+  if(editor && document.body.classList.contains('allpa-structural-request-active'))repair();
+},750);
+
+window.AllpaSolicitudAnexosV7963=Object.freeze({VERSION,render:()=>render(true),rows,add,remove});
 })();
 </script>
-<!-- ALLPA Informes V7.9.62 · Solicitud estructural: anexos editables -->
+<!-- ALLPA Informes V7.9.63 · Solicitud estructural: anexos editor robusto -->
 
 </body>
 </html>
