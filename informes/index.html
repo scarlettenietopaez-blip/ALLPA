@@ -43488,6 +43488,47 @@ function ensureSharedAnexos(){
   });
   return state.aprobatorio.anexos;
 }
+function annexSignatureV7965(rows){
+  try{return JSON.stringify((rows||[]).map(r=>({tipo:r.tipo||'folder',fojas:String(r.fojas??''),incluyePlanos:!!r.incluyePlanos,planos:String(r.planos??''),incluyeCds:!!r.incluyeCds,cds:String(r.cds??'')})));}catch(_e){return String(Date.now());}
+}
+function markAnnexEditorSyncedV7965(){
+  const ae=document.getElementById('solicitudEstructuralAnexosEditorV7919');
+  if(ae)ae.dataset.allpaAnexosSignature=annexSignatureV7965(ensureSharedAnexos());
+}
+function renderSolicitudAnexosV7965(force=false){
+  const ae=document.getElementById('solicitudEstructuralAnexosEditorV7919');
+  if(!ae)return;
+  const rows=ensureSharedAnexos();
+  const sig=annexSignatureV7965(rows);
+  const hasTable=!!ae.querySelector('table[data-allpa-anexos-v7965="1"]');
+  const rowCount=ae.querySelectorAll('tbody tr[data-allpa-anexo-row]').length;
+  const editing=!!(document.activeElement&&ae.contains(document.activeElement));
+
+  // CRÍTICO V7.9.65: syncUi/updatePanel se ejecuta muchas veces en ALLPA.
+  // Nunca reconstruimos el editor mientras el técnico está escribiendo.
+  if(!force&&editing)return;
+  if(!force&&hasTable&&rowCount===rows.length&&ae.dataset.allpaAnexosSignature===sig)return;
+
+  ae.innerHTML=`<p class="anexos-help-v163" style="margin:0 0 10px">Los anexos registrados aquí se guardan en el expediente y se reutilizarán automáticamente en el posterior Informe Técnico Aprobatorio de Obra Mayor.</p><table class="anexos-table-v163" data-allpa-anexos-v7965="1">
+      <colgroup><col style="width:9%"><col style="width:18%"><col style="width:14%"><col style="width:18%"><col style="width:16%"><col style="width:13%"><col style="width:12%"></colgroup>
+      <thead><tr><th>Numeración</th><th>Tipo</th><th>N.º de fojas</th><th>Planos incluidos</th><th>Agregar CDs</th><th>N.º de CDs</th><th>Acción</th></tr></thead>
+      <tbody>${rows.map((row,i)=>`<tr data-allpa-anexo-row="${i}">
+        <td>${row.tipo==='carpeta'?`Carpeta ${annexTypeNumber(rows,i,'carpeta')}`:(row.tipo==='folder'?`Folder ${annexTypeNumber(rows,i,'folder')}`:'—')}</td>
+        <td><select onchange="updateSolicitudAnexoV7919(${i},'tipo',this.value)">
+          <option value="folder" ${row.tipo==='folder'?'selected':''}>folder</option>
+          <option value="carpeta" ${row.tipo==='carpeta'?'selected':''}>carpeta</option>
+          <option value="fojas" ${row.tipo==='fojas'?'selected':''}>fojas</option>
+        </select></td>
+        <td><input type="number" min="0" step="1" inputmode="numeric" value="${h(row.fojas)}" placeholder="Fojas" oninput="updateSolicitudAnexoV7919(${i},'fojas',this.value)"></td>
+        <td><div class="anexos-planos-line-v1"><label class="anexos-check-v163"><input type="checkbox" ${row.incluyePlanos?'checked':''} onchange="updateSolicitudAnexoV7919(${i},'incluyePlanos',this.checked)"> incluido</label><input class="anexos-planos-count-v1" type="number" min="0" step="1" inputmode="numeric" value="${h(row.planos)}" placeholder="N.º" ${row.incluyePlanos?'':'disabled'} oninput="updateSolicitudAnexoV7919(${i},'planos',this.value)"><span>planos</span></div></td>
+        <td><label class="anexos-check-v163"><input type="checkbox" ${row.incluyeCds?'checked':''} onchange="updateSolicitudAnexoV7919(${i},'incluyeCds',this.checked)"> + CDs</label></td>
+        <td><input type="number" min="0" step="1" inputmode="numeric" value="${h(row.cds)}" placeholder="CDs" ${row.incluyeCds?'':'disabled'} oninput="updateSolicitudAnexoV7919(${i},'cds',this.value)"></td>
+        <td style="text-align:center"><button type="button" class="danger mini-btn" onclick="removeSolicitudAnexoV7919(${i})" ${rows.length<=1?'disabled':''}>Quitar</button></td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div class="anexos-actions-v163"><button type="button" class="secondary" onclick="addSolicitudAnexoV7919()">+ Agregar fila</button></div>`;
+  ae.dataset.allpaAnexosSignature=sig;
+}
 function annexTypeNumber(rows,index,type){
   let n=0;
   for(let i=0;i<=index;i++)if(String(rows[i]?.tipo||'folder').toLowerCase()===type)n++;
@@ -43539,17 +43580,20 @@ window.updateSolicitudAnexoV7919=function(index,field,value){
   else rows[index][field]=String(value??'');
   if(field==='incluyePlanos'&&!value)rows[index].planos='';
   if(field==='incluyeCds'&&!value)rows[index].cds='';
+  markAnnexEditorSyncedV7965();
   scheduleDraft();
-  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')updatePanel();
+  // Solo reconstruir cuando cambia la estructura/estado de controles.
+  // Escribir fojas/planos/CDs NO destruye el input ni pierde el foco.
+  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')renderSolicitudAnexosV7965(true);
 };
 window.addSolicitudAnexoV7919=function(){
   ensureSharedAnexos().push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});
-  scheduleDraft();updatePanel();
+  scheduleDraft();renderSolicitudAnexosV7965(true);
 };
 window.removeSolicitudAnexoV7919=function(index){
   const rows=ensureSharedAnexos();
   if(rows.length<=1){if(typeof msg==='function')msg('Debe conservar al menos una fila de anexos.');return;}
-  rows.splice(index,1);scheduleDraft();updatePanel();
+  rows.splice(index,1);scheduleDraft();renderSolicitudAnexosV7965(true);
 };
 function uuid(){
   if(window.crypto?.randomUUID)return window.crypto.randomUUID();
@@ -43640,28 +43684,7 @@ function updatePanel(){
   const x=ensureState();
   const s=document.getElementById('solicitudEstructuralAsuntoV7918');if(s)s.value=subject();
   const b=document.getElementById('solicitudEstructuralCuerpoV7918');if(b)b.innerHTML=bodyHtml();
-  const ae=document.getElementById('solicitudEstructuralAnexosEditorV7919');
-  if(ae){
-    const rows=ensureSharedAnexos();
-    ae.innerHTML=`<p class="anexos-help-v163" style="margin:0 0 10px">Los anexos registrados aquí se guardan en el expediente y se reutilizarán automáticamente en el posterior Informe Técnico Aprobatorio de Obra Mayor.</p><table class="anexos-table-v163">
-      <colgroup><col style="width:9%"><col style="width:18%"><col style="width:14%"><col style="width:18%"><col style="width:16%"><col style="width:13%"><col style="width:12%"></colgroup>
-      <thead><tr><th>Numeración</th><th>Tipo</th><th>N.º de fojas</th><th>Planos incluidos</th><th>Agregar CDs</th><th>N.º de CDs</th><th>Acción</th></tr></thead>
-      <tbody>${rows.map((row,i)=>`<tr>
-        <td>${row.tipo==='carpeta'?`Carpeta ${annexTypeNumber(rows,i,'carpeta')}`:(row.tipo==='folder'?`Folder ${annexTypeNumber(rows,i,'folder')}`:'—')}</td>
-        <td><select onchange="updateSolicitudAnexoV7919(${i},'tipo',this.value)">
-          <option value="folder" ${row.tipo==='folder'?'selected':''}>folder</option>
-          <option value="carpeta" ${row.tipo==='carpeta'?'selected':''}>carpeta</option>
-          <option value="fojas" ${row.tipo==='fojas'?'selected':''}>fojas</option>
-        </select></td>
-        <td><input type="number" min="0" step="1" inputmode="numeric" value="${h(row.fojas)}" placeholder="Fojas" oninput="updateSolicitudAnexoV7919(${i},'fojas',this.value)"></td>
-        <td><div class="anexos-planos-line-v1"><label class="anexos-check-v163"><input type="checkbox" ${row.incluyePlanos?'checked':''} onchange="updateSolicitudAnexoV7919(${i},'incluyePlanos',this.checked)"> incluido</label><input class="anexos-planos-count-v1" type="number" min="0" step="1" inputmode="numeric" value="${h(row.planos)}" placeholder="N.º" ${row.incluyePlanos?'':'disabled'} oninput="updateSolicitudAnexoV7919(${i},'planos',this.value)"><span>planos</span></div></td>
-        <td><label class="anexos-check-v163"><input type="checkbox" ${row.incluyeCds?'checked':''} onchange="updateSolicitudAnexoV7919(${i},'incluyeCds',this.checked)"> + CDs</label></td>
-        <td><input type="number" min="0" step="1" inputmode="numeric" value="${h(row.cds)}" placeholder="CDs" ${row.incluyeCds?'':'disabled'} oninput="updateSolicitudAnexoV7919(${i},'cds',this.value)"></td>
-        <td style="text-align:center"><button type="button" class="danger mini-btn" onclick="removeSolicitudAnexoV7919(${i})" ${rows.length<=1?'disabled':''}>Quitar</button></td>
-      </tr>`).join('')}</tbody>
-    </table>
-    <div class="anexos-actions-v163"><button type="button" class="secondary" onclick="addSolicitudAnexoV7919()">+ Agregar fila</button></div>`;
-  }
+  renderSolicitudAnexosV7965(false);
   const btn=document.getElementById('registrarSolicitudEstructuralV7918');
   if(btn){btn.disabled=registering||!!x.formalizada;btn.textContent=x.formalizada?'SOLICITUD REGISTRADA · '+(x.estadoRevision||'PENDIENTE'):(registering?'REGISTRANDO Y ENVIANDO…':'REGISTRAR Y ENVIAR A REVISIÓN ESTRUCTURAL');}
   if(x.formalizada)setStatus('Solicitud registrada en Revisiones Estructurales. Estado: '+(x.estadoRevision||'PENDIENTE')+'.','ok');
@@ -44073,213 +44096,18 @@ window.AllpaCompatSolicitudEstructuralV7927=API;
 
 
 
-<!-- ==========================================================
-     ALLPA V7.9.64 · ANEXOS SOLICITUD ESTRUCTURAL · FIX STATE GLOBAL
-     - Delegación de eventos a nivel document para sobrevivir re-renderizados.
-     - Garantiza siempre al menos una fila editable.
-     - Evita depender del listener ligado a una instancia anterior del editor.
-     ========================================================== -->
-<style id="allpa-v7-9-63-anexos-solicitud-estructural-css">
-#solicitudEstructuralCopyV7918,
-#solicitudEstructuralCopyV7918 .se-field,
-#solicitudEstructuralAnexosEditorV7919,
-#solicitudEstructuralAnexosEditorV7919 table,
-#solicitudEstructuralAnexosEditorV7919 tbody,
-#solicitudEstructuralAnexosEditorV7919 tr,
-#solicitudEstructuralAnexosEditorV7919 td,
+
+
+
+<style id="allpa-v7-9-65-anexos-estables-css">
 #solicitudEstructuralAnexosEditorV7919 input,
 #solicitudEstructuralAnexosEditorV7919 select,
 #solicitudEstructuralAnexosEditorV7919 button,
-#solicitudEstructuralAnexosEditorV7919 label{
-  pointer-events:auto!important;
-}
-#solicitudEstructuralAnexosEditorV7919{
-  position:relative!important;
-  z-index:999!important;
-}
-#solicitudEstructuralAnexosEditorV7919 select,
+#solicitudEstructuralAnexosEditorV7919 label{pointer-events:auto!important}
 #solicitudEstructuralAnexosEditorV7919 input:not(:disabled),
-#solicitudEstructuralAnexosEditorV7919 button:not(:disabled){
-  opacity:1!important;
-  visibility:visible!important;
-}
+#solicitudEstructuralAnexosEditorV7919 select:not(:disabled){user-select:auto!important}
 </style>
-<script id="allpa-v7-9-63-anexos-solicitud-estructural-script">
-(function(){
-'use strict';
-const VERSION='7.9.64';
-const EDITOR_ID='solicitudEstructuralAnexosEditorV7919';
-let rendering=false;
-let repairTimer=0;
-
-function clean(v){return String(v??'').trim()}
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function blankRow(){return {tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''}}
-function rows(){
-  /* `state` fue declarado globalmente con `let`, por lo que NO vive en
-     window.state. La V7.9.63 comprobaba window.state y por eso devolvía
-     un arreglo temporal vacío: no se mostraba la fila y Agregar fila no
-     podía persistir nada. */
-  if(typeof state==='undefined'||!state)return [];
-  if(!state.aprobatorio||typeof state.aprobatorio!=='object')state.aprobatorio={};
-  if(!Array.isArray(state.aprobatorio.anexos))state.aprobatorio.anexos=[];
-  if(state.aprobatorio.anexos.length===0)state.aprobatorio.anexos.push(blankRow());
-  for(let i=0;i<state.aprobatorio.anexos.length;i++){
-    const r=state.aprobatorio.anexos[i]||{};
-    const raw=clean(r.tipo).toLowerCase();
-    state.aprobatorio.anexos[i]={
-      tipo:raw==='carpeta'?'carpeta':(raw==='fojas'||raw==='expediente'?'fojas':'folder'),
-      fojas:r.fojas==null?'':String(r.fojas),
-      incluyePlanos:!!r.incluyePlanos,
-      planos:r.planos==null?'':String(r.planos),
-      incluyeCds:!!r.incluyeCds,
-      cds:r.cds==null?'':String(r.cds)
-    };
-  }
-  return state.aprobatorio.anexos;
-}
-function numberOf(list,index,type){
-  let n=0;
-  for(let i=0;i<=index;i++)if(String(list[i]?.tipo||'').toLowerCase()===type)n++;
-  return n;
-}
-function label(list,row,index){
-  if(row.tipo==='carpeta')return `Carpeta ${numberOf(list,index,'carpeta')}`;
-  if(row.tipo==='folder')return `Folder ${numberOf(list,index,'folder')}`;
-  return '—';
-}
-function save(){
-  try{window.AllpaAutosaveV7911?.schedule?.()}catch(_e){}
-  try{window.AllpaFixesV7911?.autosave?.(true)}catch(_e){}
-}
-function markup(){
-  const list=rows();
-  return `<p class="anexos-help-v163" style="margin:0 0 10px">Los anexos registrados aquí se guardan en el expediente y se reutilizarán automáticamente en el posterior Informe Técnico Aprobatorio de Obra Mayor.</p>
-  <table class="anexos-table-v163" data-v7963-table="1">
-    <colgroup><col style="width:9%"><col style="width:18%"><col style="width:14%"><col style="width:18%"><col style="width:16%"><col style="width:13%"><col style="width:12%"></colgroup>
-    <thead><tr><th>Numeración</th><th>Tipo</th><th>N.º de fojas</th><th>Planos incluidos</th><th>Agregar CDs</th><th>N.º de CDs</th><th>Acción</th></tr></thead>
-    <tbody>${list.map((row,i)=>`<tr data-v7963-row="${i}">
-      <td data-v7963-label="${i}">${esc(label(list,row,i))}</td>
-      <td><select data-v7963-index="${i}" data-v7963-field="tipo">
-        <option value="folder" ${row.tipo==='folder'?'selected':''}>folder</option>
-        <option value="carpeta" ${row.tipo==='carpeta'?'selected':''}>carpeta</option>
-        <option value="fojas" ${row.tipo==='fojas'?'selected':''}>fojas</option>
-      </select></td>
-      <td><input data-v7963-index="${i}" data-v7963-field="fojas" type="number" min="0" step="1" inputmode="numeric" value="${esc(row.fojas)}" placeholder="Fojas"></td>
-      <td><div class="anexos-planos-line-v1"><label class="anexos-check-v163"><input data-v7963-index="${i}" data-v7963-field="incluyePlanos" type="checkbox" ${row.incluyePlanos?'checked':''}> incluido</label><input data-v7963-index="${i}" data-v7963-field="planos" class="anexos-planos-count-v1" type="number" min="0" step="1" inputmode="numeric" value="${esc(row.planos)}" placeholder="N.º" ${row.incluyePlanos?'':'disabled'}><span>planos</span></div></td>
-      <td><label class="anexos-check-v163"><input data-v7963-index="${i}" data-v7963-field="incluyeCds" type="checkbox" ${row.incluyeCds?'checked':''}> + CDs</label></td>
-      <td><input data-v7963-index="${i}" data-v7963-field="cds" type="number" min="0" step="1" inputmode="numeric" value="${esc(row.cds)}" placeholder="CDs" ${row.incluyeCds?'':'disabled'}></td>
-      <td style="text-align:center"><button type="button" class="danger mini-btn" data-v7963-remove="${i}" ${list.length<=1?'disabled':''}>Quitar</button></td>
-    </tr>`).join('')}</tbody>
-  </table>
-  <div class="anexos-actions-v163"><button type="button" class="secondary" data-v7963-add="1">+ Agregar fila</button></div>`;
-}
-function render(force=false){
-  const editor=document.getElementById(EDITOR_ID);
-  if(!editor)return false;
-  const list=rows();
-  const currentRows=editor.querySelectorAll('[data-v7963-row]').length;
-  if(!force && editor.querySelector('[data-v7963-table="1"]') && currentRows===list.length && currentRows>0)return true;
-  rendering=true;
-  editor.innerHTML=markup();
-  editor.dataset.allpaAnnexVersion=VERSION;
-  rendering=false;
-  return true;
-}
-function setValue(index,field,value){
-  const list=rows();
-  const row=list[index];
-  if(!row)return;
-  if(field==='incluyePlanos'||field==='incluyeCds')row[field]=!!value;
-  else row[field]=String(value??'');
-  if(field==='incluyePlanos'&&!row.incluyePlanos)row.planos='';
-  if(field==='incluyeCds'&&!row.incluyeCds)row.cds='';
-  save();
-}
-function add(){rows().push(blankRow());render(true);save()}
-function remove(index){
-  const list=rows();
-  if(list.length<=1){try{window.msg?.('Debe conservar al menos una fila de anexos.')}catch(_e){}return}
-  if(Number.isInteger(index)&&index>=0&&index<list.length)list.splice(index,1);
-  render(true);save();
-}
-function isInsideEditor(target){return !!target?.closest?.('#'+EDITOR_ID)}
-
-/* Captura global: sigue funcionando aunque updatePanel reemplace el contenido del editor. */
-document.addEventListener('click',function(ev){
-  if(!isInsideEditor(ev.target))return;
-  const addBtn=ev.target.closest('[data-v7963-add], .anexos-actions-v163 button');
-  if(addBtn){
-    ev.preventDefault();ev.stopImmediatePropagation();add();return;
-  }
-  const rem=ev.target.closest('[data-v7963-remove]');
-  if(rem){
-    ev.preventDefault();ev.stopImmediatePropagation();remove(Number(rem.dataset.v7963Remove));return;
-  }
-},true);
-
-document.addEventListener('input',function(ev){
-  if(!isInsideEditor(ev.target))return;
-  const el=ev.target.closest('[data-v7963-index][data-v7963-field]');
-  if(!el||el.type==='checkbox')return;
-  setValue(Number(el.dataset.v7963Index),el.dataset.v7963Field,el.value);
-},true);
-
-document.addEventListener('change',function(ev){
-  if(!isInsideEditor(ev.target))return;
-  const el=ev.target.closest('[data-v7963-index][data-v7963-field]');
-  if(!el)return;
-  ev.stopImmediatePropagation();
-  const field=el.dataset.v7963Field;
-  setValue(Number(el.dataset.v7963Index),field,el.type==='checkbox'?el.checked:el.value);
-  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')render(true);
-},true);
-
-/* Compatibilidad con el HTML base que todavía contiene handlers inline. */
-window.updateSolicitudAnexoV7919=function(index,field,value){
-  setValue(Number(index),field,value);
-  if(field==='tipo'||field==='incluyePlanos'||field==='incluyeCds')render(true);
-};
-window.addSolicitudAnexoV7919=function(){add()};
-window.removeSolicitudAnexoV7919=function(index){remove(Number(index))};
-
-function repair(){
-  if(rendering)return;
-  const editor=document.getElementById(EDITOR_ID);
-  if(!editor)return;
-  const list=rows();
-  const rowCount=editor.querySelectorAll('[data-v7963-row]').length;
-  if(!editor.querySelector('[data-v7963-table="1"]') || rowCount!==list.length || rowCount===0)render(true);
-}
-function scheduleRepair(delay=0){
-  clearTimeout(repairTimer);
-  repairTimer=setTimeout(repair,delay);
-}
-
-/* Vigila toda la solicitud, no una instancia concreta del editor. */
-if(typeof MutationObserver!=='undefined'){
-  const mo=new MutationObserver(()=>scheduleRepair(0));
-  const start=()=>{
-    const panel=document.getElementById('solicitudEstructuralCopyV7918');
-    if(panel)mo.observe(panel,{childList:true,subtree:true});
-    scheduleRepair(0);
-  };
-  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',start,{once:true}):start();
-}
-
-window.addEventListener('allpa:state-applied',()=>scheduleRepair(30));
-document.addEventListener('change',ev=>{if(ev.target?.id==='tipoInforme')scheduleRepair(30)});
-document.addEventListener('click',ev=>{if(ev.target?.closest?.('[data-tab="tab-vista"],#tab-vista,.tab-btn'))scheduleRepair(30)});
-window.addEventListener('load',()=>[0,100,300,700,1500,3000,6000].forEach(ms=>setTimeout(repair,ms)),{once:true});
-setInterval(()=>{
-  const editor=document.getElementById(EDITOR_ID);
-  if(editor && document.body.classList.contains('allpa-structural-request-active'))repair();
-},750);
-
-window.AllpaSolicitudAnexosV7964=Object.freeze({VERSION,render:()=>render(true),rows,add,remove});
-})();
-</script>
-<!-- ALLPA Informes V7.9.64 · Solicitud estructural: anexos editor corregido para state global lexical -->
+<!-- ALLPA Informes V7.9.65 · Solicitud estructural: editor de anexos estable, sin re-render durante escritura -->
 
 </body>
 </html>
