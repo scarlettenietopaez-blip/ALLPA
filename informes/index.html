@@ -3871,6 +3871,7 @@ header.no-print{padding-left:82px!important}
 .allpa-home-v7 svg,#homeProjectBtnV124.home-project-v124 svg{width:22px!important;height:22px!important;display:block!important}
 .allpa-home-v7{left:18px!important;top:15px!important}
 </style>
+<!-- ALLPA V7.9.67 · Informes de Desistimiento sin encabezados institucional/título superior -->
 </head>
 <body>
 <button type="button" class="allpa-home-v7 no-print" id="allpaHomeBackV140" title="Volver al nivel anterior" aria-label="Volver al nivel anterior" onclick="navigateBackAllpaV140()">
@@ -9726,14 +9727,14 @@ function renderInformeDesistimientoV69(){
   const title=desTituloV69();
 
   if(!motivo){
-    return `${reportHeader(title)}<div class="apr-alert">Seleccione el motivo de desistimiento en la pestaña Desistimiento.</div>`;
+    return `${''}<div class="apr-alert">Seleccione el motivo de desistimiento en la pestaña Desistimiento.</div>`;
   }
 
   if(motivo==='Por Petición del Administrado'){
     const base=desRowV69('DES_BLG_003').Texto_Base || '';
     const con=desRowV69('DES_CON_003').Texto_Base || 'En base al Artículo 211 del COA, por Petición del Administrado se procede con el Desistimiento del Trámite.';
     const rec=desRowV69('DES_REC_003').Texto_Base || 'Se recomienda remitir el presente trámite para la emisión de la Resolución Administrativa correspondiente.';
-    return `${reportHeader(title)}
+    return `${''}
       <h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
       <h2>Base legal</h2><p class="legal-text">${formatLegalText(base)}</p>
       <h2>Conclusiones</h2><p>${nl2br(con)}</p>
@@ -9745,7 +9746,7 @@ function renderInformeDesistimientoV69(){
   const baseConclusion=desRowV69(conId).Texto_Base || 'Por las conclusiones antes expuestas se emite criterio técnico NO FAVORABLE,';
   const extra=(state.desistimiento?.conclusiones||'').trim();
   const conclusionText=extra ? `${baseConclusion} ${extra}` : baseConclusion;
-  return `${reportHeader(title)}
+  return `${''}
     <h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
     <h2>Criterio técnico</h2>${selectedObsTable()}
     <h2>Base legal</h2>${baseLegalObservacionesV69()}${textosTecnicosSection()}
@@ -20571,12 +20572,12 @@ renderInformeDesistimientoV69=function(){
   ensureDesistimientoV69();
   const motivo=normalizeDesMotivoV145(state.desistimiento?.motivo||'');
   const title=desTituloV69();
-  if(!motivo) return `${reportHeader(title)}<div class="apr-alert">Seleccione el motivo de desistimiento en la pestaña Desistimiento.</div>`;
+  if(!motivo) return `${''}<div class="apr-alert">Seleccione el motivo de desistimiento en la pestaña Desistimiento.</div>`;
   if(motivo===DES_MOTIVO_PET_V145){
     const base=desRowV69('DES_BLG_003').Texto_Base||'';
     const con=desRowV69('DES_CON_003').Texto_Base||'';
     const rec=desRowV69('DES_REC_003').Texto_Base||'';
-    return `${reportHeader(title)}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
+    return `${''}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
       <h2>Base legal</h2><p class="legal-text">${formatLegalText(base)}</p>
       <h2>Conclusiones</h2><p>${nl2br(con)}</p>
       <h2>Recomendaciones</h2><p>${nl2br(rec)}</p>${firmaTecnicoSection()}`;
@@ -20584,7 +20585,7 @@ renderInformeDesistimientoV69=function(){
   const baseConclusion=desRowV69('DES_CON_001').Texto_Base||'Por las conclusiones antes expuestas se emite criterio técnico NO FAVORABLE,';
   const extra=String(state.desistimiento?.conclusiones||'').trim();
   const conclusionText=extra?`${baseConclusion} ${extra}`:baseConclusion;
-  return `${reportHeader(title)}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
+  return `${''}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
     <h2>Criterio técnico</h2>${selectedObsTable()}
     <h2>Base legal</h2>${baseLegalObservacionesV69()}${textosTecnicosSection()}
     <h2>Conclusiones</h2><p>${nl2br(conclusionText)}</p>${firmaTecnicoSection()}`;
@@ -29883,7 +29884,7 @@ renderObsSeleccionadas = function(){
     const nota = notaHtmlV27();
 
     if(!motivo){
-      return `${reportHeader(title)}<div class="apr-alert">Seleccione el motivo de desistimiento en la pestaña Desistimiento.</div>`;
+      return `${''}<div class="apr-alert">Seleccione el motivo de desistimiento en la pestaña Desistimiento.</div>`;
     }
 
     const isPet = (typeof DES_MOTIVO_PET_V145 !== 'undefined' && motivo === DES_MOTIVO_PET_V145)
@@ -29893,7 +29894,7 @@ renderObsSeleccionadas = function(){
       const base = desRowV69('DES_BLG_003').Texto_Base || '';
       const con = desRowV69('DES_CON_003').Texto_Base || '';
       const rec = desRowV69('DES_REC_003').Texto_Base || '';
-      return `${reportHeader(title)}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
+      return `${''}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
         <h2>Base legal</h2><p class="legal-text">${formatLegalText(base)}</p>
         ${nota}<h2>Conclusiones</h2><p>${nl2brNotaV27(con)}</p>
         <h2>Recomendaciones</h2><p>${nl2brNotaV27(rec)}</p>${firmaTecnicoSection()}`;
@@ -29904,7 +29905,7 @@ renderObsSeleccionadas = function(){
     const extra = cleanConclusionExtraV27(state.desistimiento?.conclusiones || '');
     const conclusionText = extra ? `${baseConclusion}\n${extra}` : baseConclusion;
 
-    return `${reportHeader(title)}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
+    return `${''}<h2>Antecedentes</h2>${reportInfoGeneralAprobatorio()}
       <h2>Criterio técnico</h2>${selectedObsTable()}
       <h2>Base legal</h2>${baseLegalObservacionesV69()}${textosTecnicosSection()}
       ${nota}<h2>Conclusiones</h2><p>${nl2brNotaV27(conclusionText)}</p>${firmaTecnicoSection()}`;
