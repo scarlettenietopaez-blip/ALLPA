@@ -44109,5 +44109,160 @@ window.AllpaCompatSolicitudEstructuralV7927=API;
 </style>
 <!-- ALLPA Informes V7.9.65 · Solicitud estructural: editor de anexos estable, sin re-render durante escritura -->
 
+
+
+<!-- ==========================================================
+     ALLPA V7.9.66 · EDITOR DE ANEXOS AISLADO
+     - La tabla de la Solicitud de Revisión Estructural se monta
+       dentro de Shadow DOM para impedir que los renderizadores
+       históricos de Vista reconstruyan o bloqueen sus controles.
+     - Estado compartido: state.aprobatorio.anexos.
+     ========================================================== -->
+<script id="allpa-v7-9-66-anexos-shadow">
+(function(){
+'use strict';
+const VERSION='7.9.66';
+const HOST_ID='solicitudEstructuralAnexosEditorV7919';
+let lastHost=null;
+let lastSignature='';
+
+function rows(){
+  if(typeof state==='undefined'||!state)return [];
+  if(!state.aprobatorio||typeof state.aprobatorio!=='object')state.aprobatorio={};
+  if(!Array.isArray(state.aprobatorio.anexos))state.aprobatorio.anexos=[];
+  if(!state.aprobatorio.anexos.length){
+    state.aprobatorio.anexos.push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});
+  }
+  state.aprobatorio.anexos.forEach(r=>{
+    if(!r||typeof r!=='object')return;
+    const t=String(r.tipo||'folder').toLowerCase().trim();
+    r.tipo=t==='carpeta'?'carpeta':(t==='fojas'||t==='expediente'?'fojas':'folder');
+    if(r.fojas==null)r.fojas='';
+    if(r.planos==null)r.planos='';
+    if(r.cds==null)r.cds='';
+    r.fojas=String(r.fojas);r.planos=String(r.planos);r.cds=String(r.cds);
+    r.incluyePlanos=!!r.incluyePlanos;r.incluyeCds=!!r.incluyeCds;
+  });
+  return state.aprobatorio.anexos;
+}
+function signature(){
+  try{return JSON.stringify(rows().map(r=>({tipo:r.tipo,fojas:r.fojas,incluyePlanos:r.incluyePlanos,planos:r.planos,incluyeCds:r.incluyeCds,cds:r.cds})));}
+  catch(_e){return '';}
+}
+function nOfType(index,type){
+  const a=rows();let n=0;
+  for(let i=0;i<=index;i++)if(a[i]?.tipo===type)n++;
+  return n;
+}
+function notifyChanged(){
+  lastSignature=signature();
+  try{
+    const host=document.getElementById(HOST_ID);
+    if(host)host.dispatchEvent(new Event('input',{bubbles:true,composed:true}));
+  }catch(_e){}
+}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+function rowHtml(r,i,total){
+  const label=r.tipo==='carpeta'?`Carpeta ${nOfType(i,'carpeta')}`:(r.tipo==='folder'?`Folder ${nOfType(i,'folder')}`:'—');
+  return `<tr data-i="${i}">
+    <td class="num">${esc(label)}</td>
+    <td><select data-field="tipo">
+      <option value="folder" ${r.tipo==='folder'?'selected':''}>folder</option>
+      <option value="carpeta" ${r.tipo==='carpeta'?'selected':''}>carpeta</option>
+      <option value="fojas" ${r.tipo==='fojas'?'selected':''}>fojas</option>
+    </select></td>
+    <td><input data-field="fojas" type="text" inputmode="numeric" value="${esc(r.fojas)}" placeholder="Fojas"></td>
+    <td><div class="inline"><label><input data-field="incluyePlanos" type="checkbox" ${r.incluyePlanos?'checked':''}> incluido</label><input data-field="planos" class="short" type="text" inputmode="numeric" value="${esc(r.planos)}" placeholder="N.º" ${r.incluyePlanos?'':'disabled'}><span>planos</span></div></td>
+    <td><label><input data-field="incluyeCds" type="checkbox" ${r.incluyeCds?'checked':''}> + CDs</label></td>
+    <td><input data-field="cds" type="text" inputmode="numeric" value="${esc(r.cds)}" placeholder="CDs" ${r.incluyeCds?'':'disabled'}></td>
+    <td class="action"><button type="button" data-action="remove" ${total<=1?'disabled':''}>QUITAR</button></td>
+  </tr>`;
+}
+function css(){return `
+:host{display:block;font-family:Arial,sans-serif;color:#0b2b4c}
+*{box-sizing:border-box}
+.help{margin:0 0 10px;color:#243753;font-size:12px;line-height:1.4}
+.wrap{overflow-x:auto}
+table{width:100%;min-width:900px;table-layout:fixed;border-collapse:collapse;background:#fff}
+th,td{border:1px solid #b8cbe0;padding:7px;vertical-align:middle}
+th{background:#e5eef7;font-size:11px;font-weight:900;text-transform:uppercase;text-align:center}
+th:nth-child(1){width:9%}th:nth-child(2){width:18%}th:nth-child(3){width:14%}th:nth-child(4){width:18%}th:nth-child(5){width:16%}th:nth-child(6){width:13%}th:nth-child(7){width:12%}
+.num{font-weight:900;text-align:center}
+input[type=text],select{display:block;width:100%;min-width:0;height:38px;padding:8px;border:1px solid #c8d6e5;border-radius:9px;background:#fff;color:#17324d;font:13px Arial,sans-serif;pointer-events:auto;user-select:text;outline:none}
+input[type=text]:focus,select:focus{border-color:#0b5a7d;box-shadow:0 0 0 3px rgba(11,90,125,.13)}
+input:disabled{background:#f1f5f9;color:#94a3b8}
+input[type=checkbox]{width:18px;height:18px;margin:0;accent-color:#0b5a7d}
+label,.inline{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;font-weight:800;white-space:nowrap}
+.short{width:58px!important;flex:0 0 58px;text-align:center}
+.action{text-align:center}
+button{border:0;border-radius:11px;padding:10px 14px;font-size:11px;font-weight:900;cursor:pointer}
+button[data-action=remove]{background:#cf2343;color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.actions{display:flex;justify-content:flex-end;margin-top:10px}
+button[data-action=add]{background:#07567f;color:#fff}
+`}
+function render(force=false){
+  const host=document.getElementById(HOST_ID);if(!host)return false;
+  if(!host.shadowRoot){host.attachShadow({mode:'open'});lastHost=host;}
+  const root=host.shadowRoot;
+  if(!root)return false;
+  const sig=signature();
+  if(!force&&root.activeElement)return true;
+  if(!force&&lastHost===host&&lastSignature===sig&&root.querySelector('table'))return true;
+  const a=rows();
+  root.innerHTML=`<style>${css()}</style><p class="help">Los anexos registrados aquí se guardan en el expediente y se reutilizarán automáticamente en el posterior Informe Técnico Aprobatorio de Obra Mayor.</p><div class="wrap"><table><thead><tr><th>Numeración</th><th>Tipo</th><th>N.º de fojas</th><th>Planos incluidos</th><th>Agregar CDs</th><th>N.º de CDs</th><th>Acción</th></tr></thead><tbody>${a.map((r,i)=>rowHtml(r,i,a.length)).join('')}</tbody></table></div><div class="actions"><button type="button" data-action="add">+ AGREGAR FILA</button></div>`;
+  lastHost=host;lastSignature=sig;
+  bind(root);
+  return true;
+}
+function bind(root){
+  if(root.__allpaV7966Bound)return;root.__allpaV7966Bound=true;
+  root.addEventListener('input',ev=>{
+    const el=ev.target;if(!(el instanceof HTMLInputElement))return;
+    const tr=el.closest('tr[data-i]');if(!tr)return;
+    const i=Number(tr.dataset.i),field=el.dataset.field,a=rows();if(!a[i]||!field)return;
+    if(field==='fojas'||field==='planos'||field==='cds'){
+      el.value=el.value.replace(/[^0-9]/g,'');a[i][field]=el.value;notifyChanged();
+    }
+  });
+  root.addEventListener('change',ev=>{
+    const el=ev.target;const tr=el?.closest?.('tr[data-i]');if(!tr)return;
+    const i=Number(tr.dataset.i),field=el.dataset.field,a=rows();if(!a[i]||!field)return;
+    if(field==='tipo')a[i].tipo=el.value;
+    if(field==='incluyePlanos'){a[i].incluyePlanos=!!el.checked;if(!el.checked)a[i].planos='';}
+    if(field==='incluyeCds'){a[i].incluyeCds=!!el.checked;if(!el.checked)a[i].cds='';}
+    notifyChanged();
+    render(true);
+  });
+  root.addEventListener('click',ev=>{
+    const btn=ev.target?.closest?.('button[data-action]');if(!btn)return;
+    ev.preventDefault();
+    const a=rows();
+    if(btn.dataset.action==='add'){
+      a.push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});notifyChanged();render(true);return;
+    }
+    if(btn.dataset.action==='remove'){
+      const tr=btn.closest('tr[data-i]'),i=Number(tr?.dataset.i);
+      if(a.length<=1)return;
+      if(Number.isInteger(i)&&i>=0&&i<a.length){a.splice(i,1);notifyChanged();render(true);}return;
+    }
+  });
+}
+function mountSoon(){setTimeout(()=>render(false),0);setTimeout(()=>render(false),80);}
+
+const observer=new MutationObserver(()=>{const host=document.getElementById(HOST_ID);if(host&&host!==lastHost)mountSoon();});
+try{observer.observe(document.documentElement,{childList:true,subtree:true});}catch(_e){}
+document.addEventListener('change',ev=>{if(ev.target?.id==='tipoInforme')setTimeout(()=>render(true),60);});
+window.addEventListener('allpa:state-applied',()=>setTimeout(()=>render(true),100));
+window.addEventListener('load',()=>{[100,500,1200,2500,5000].forEach(ms=>setTimeout(()=>render(false),ms));},{once:true});
+setInterval(()=>{const host=document.getElementById(HOST_ID);if(!host)return;if(host.shadowRoot?.activeElement)return;const sig=signature();if(host!==lastHost||sig!==lastSignature)render(true);},1200);
+
+window.AllpaAnexosSolicitudV7966=Object.freeze({VERSION,render:()=>render(true),rows});
+mountSoon();
+})();
+</script>
+<!-- ALLPA Informes V7.9.66 · Anexos de Solicitud Estructural aislados de renderizadores históricos -->
+
 </body>
 </html>
