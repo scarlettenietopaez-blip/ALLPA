@@ -33429,13 +33429,14 @@ textarea.evidencia-text,
         }
       }
 
+<!-- ALLPA V7.9.70 · Corrige pérdida de TRÁMITE E-GOB y PROPIETARIOS al insertar APODERADOS en Información General -->
       /* Fallback V7.8.4: nunca insertar el apoderado al inicio del tbody.
          1) Busca y sustituye cualquier fila legado de APODERADO aunque el renderer
             haya cambiado clases, centrado o espacios.
          2) Si no existe fila legado, inserta las filas justo antes de PROYECTO
             DEFINITIVO, manteniéndolas después de todos los propietarios. */
       if(!replaced){
-        const legacyApodRow=/<tr\b[^>]*>[\s\S]*?<td\b[^>]*>\s*APODERADO\s*<\/td>[\s\S]*?<td\b[^>]*>\s*CI\/RUC APODERADO\s*<\/td>[\s\S]*?<\/tr>/i;
+        const legacyApodRow=/<tr\b[^>]*>(?:(?!<\/tr>)[\s\S])*?<td\b[^>]*>\s*APODERADO\s*<\/td>(?:(?!<\/tr>)[\s\S])*?<td\b[^>]*>\s*CI\/RUC APODERADO\s*<\/td>(?:(?!<\/tr>)[\s\S])*?<\/tr>/i;
         if(legacyApodRow.test(html)){
           html=html.replace(legacyApodRow,multi);
           replaced=true;
@@ -33443,7 +33444,7 @@ textarea.evidencia-text,
       }
 
       if(!replaced){
-        const proyectoRow=/(<tr\b[^>]*>[\s\S]*?<td\b[^>]*>\s*PROYECTO DEFINITIVO\s*<\/td>[\s\S]*?<\/tr>)/i;
+        const proyectoRow=/(<tr\b[^>]*>(?:(?!<\/tr>)[\s\S])*?<td\b[^>]*>\s*PROYECTO DEFINITIVO\s*<\/td>(?:(?!<\/tr>)[\s\S])*?<\/tr>)/i;
         if(proyectoRow.test(html)){
           html=html.replace(proyectoRow,`${multi}$1`);
           replaced=true;
@@ -33730,7 +33731,7 @@ textarea.evidencia-text,
       baseOrder:Number.isFinite(Number(source.baseOrder ?? source._baseOrderV108))
         ? Number(source.baseOrder ?? source._baseOrderV108)
         : index,
-      allowLevels:!!source.allowLevels,
+      allowLevels:roleName==='bruta' ? true : !!source.allowLevels,
       calculated:['brutaTotal','areaAmpliacionTotal','cosPB','cosTotal'].includes(roleName),
       deletable:!['predio','utilPB','utilTotal','brutaTotal','areaAmpliacionTotal','cosPB','cosTotal'].includes(roleName),
       intervention:type,
@@ -33920,6 +33921,9 @@ textarea.evidencia-text,
       const type=rowType(raw);
       raw.intervention=type;
       raw.tipoAreaV13=type; // puente temporal
+      // V7.9.69: toda fila de área bruta, incluida planta baja base,
+      // admite niveles aunque un respaldo histórico traiga allowLevels:false.
+      raw.allowLevels=true;
     }
 
     if(!raw._ctIdV3){
@@ -34192,8 +34196,9 @@ textarea.evidencia-text,
   }
 
   function canLevels(raw,index){
-    if(role(raw,index)!=='bruta') return false;
-    return raw?.allowLevels!==false;
+    // V7.9.69: el rol canónico manda. Una fila de área bruta siempre
+    // permite niveles; allowLevels:false de versiones antiguas no la bloquea.
+    return role(raw,index)==='bruta';
   }
 
   function renderLevels(raw,index){
@@ -35414,6 +35419,8 @@ textarea.evidencia-text,
       if(r==='bruta'){
         raw.intervention=type;
         raw.tipoAreaV13=type;
+        // V7.9.69: normalizar también respaldos antiguos.
+        raw.allowLevels=true;
       }
 
       raw.origin=originOf(raw);
@@ -44265,5 +44272,7 @@ mountSoon();
 </script>
 <!-- ALLPA Informes V7.9.66 · Anexos de Solicitud Estructural aislados de renderizadores históricos -->
 
+
+<!-- ALLPA V7.9.69 · Conclusión Técnica: niveles habilitados en toda fila con rol bruta, incluida Área bruta planta baja -->
 </body>
 </html>
