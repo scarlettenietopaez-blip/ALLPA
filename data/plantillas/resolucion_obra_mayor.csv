@@ -1,8 +1,8 @@
 ﻿ID_Bloque;Orden;Pagina_Referencia;Seccion;Titulo;Texto_Base;Tipo_Bloque;Variables;Fuente_Datos;Mostrar;Observacion_Interna
-CFG_001;1;;CONFIGURACION;DIRECTOR_NOMBRE;ING. JUAN DIEGO REMACHE RIVERA MGS.;CONFIG;;CSV;SI;Dato institucional. Cambiar aquí si cambia la autoridad.
-CFG_002;2;;CONFIGURACION;DIRECTOR_CARGO;DIRECTOR GENERAL DE GESTIÓN DE PLANIFICACIÓN, HABITAT Y DESARROLLO URBANÍSTICO;CONFIG;;CSV;SI;Cargo que se reutiliza en encabezado, vistos y firma.
-CFG_003;3;;CONFIGURACION;ACCION_PERSONAL_DIRECTOR;DG-TH-2026 -LRN-2;CONFIG;;CSV;SI;Acción de personal de la autoridad.
-CFG_004;4;;CONFIGURACION;FECHA_ACCION_PERSONAL_DIRECTOR;08 de enero de 2026;CONFIG;;CSV;SI;Fecha en texto largo tal como debe mostrarse en la resolución.
+CFG_001;1;;CONFIGURACION;DIRECTOR_NOMBRE;ING. MARCELA ALEJANDRA PAZMIÑO CEPEDA MGS.;CONFIG;;CSV;SI;Dato institucional. Cambiar aquí si cambia la autoridad.
+CFG_002;2;;CONFIGURACION;DIRECTOR_CARGO;DIRECTOR GENERAL DE GESTIÓN DE PLANIFICACIÓN, HABITAT Y DESARROLLO URBANÍSTICO (S);CONFIG;;CSV;SI;Cargo que se reutiliza en encabezado, vistos y firma.
+CFG_003;3;;CONFIGURACION;ACCION_PERSONAL_DIRECTOR;DG-TH-2026 -SUB-40;CONFIG;;CSV;SI;Acción de personal de la autoridad.
+CFG_004;4;;CONFIGURACION;FECHA_ACCION_PERSONAL_DIRECTOR;20 de octubre de 2026;CONFIG;;CSV;SI;Fecha en texto largo tal como debe mostrarse en la resolución.
 CFG_005;5;;CONFIGURACION;REGISTRADOR_PROPIEDAD;ABG. HENRY ENDARA MAZÓN;CONFIG;;CSV;SI;Registrador fijo definido para la plantilla actual del proyecto ALLPA.
 CFG_006;6;;CONFIGURACION;MEMORANDO_CRITERIO_JURIDICO;GADMR-PROC-2026-0038-M;CONFIG;;CSV;SI;Memorando institucional usado como criterio jurídico base.
 CFG_007;7;;CONFIGURACION;TEXTO_CRITERIO_JURIDICO;(…) Deberá la Dirección General de Gestión de Planificación, Habitat y Desarrollo Urbanístico, asumir todas las actividades, atribuciones y deberes y obligaciones que estaba a cargo de la Dirección General de Ordenamiento Territorial y aquellas que le sean similares que constan dentro de las ordenanza, hasta que las mismas sean reformadas o sustituidas, esto en cumplimiento de todos los artículos antes citados y tomando en consideración que el servicio público no puede paralizarse. (…);CONFIG;;CSV;SI;Texto editable sin tocar la programación.
