@@ -37745,6 +37745,36 @@ function validate(context='generar el PDF'){
     }
   }catch(_e){}
 
+  /* ALLPA V7.9.73 — PLANOS APROBADOS OBLIGATORIOS EN APROBATORIO DE OBRA MAYOR
+     La sección existe para proyectos de Ampliación/Modificación.
+     - Con Licencia Urbanística: Resolución + Fecha obligatorias; eGOB sigue opcional.
+     - Sin Licencia Urbanística: Fecha de aprobación + Entidad obligatorias.
+     Esta validación alimenta tanto COPIAR como PDF mediante ReportOutputV25B. */
+  try{
+    const esAprobatorio=String(state?.tipoInforme||'').trim()==='Informe Técnico Aprobatorio';
+    const esObraMayor=String(state?.projectType||'').trim()==='obra_mayor_definitivo';
+    const aplicaPlanos=esAprobatorio && esObraMayor &&
+      (typeof ampModV12==='function' ? !!ampModV12() : !!document.getElementById('planosAprobadosV12'));
+
+    if(aplicaPlanos){
+      const p=(typeof ensurePlanosV12==='function')
+        ? ensurePlanosV12()
+        : (state?.aprobatorio?.planosAprobadosV12||{});
+      const clean=v=>String(v==null?'':v).trim();
+
+      if(p?.licencia){
+        if(!clean(p.resolucion)) errors.push('Planos Aprobados: falta el campo obligatorio Resolución de la Licencia Urbanística.');
+        if(!clean(p.fecha)) errors.push('Planos Aprobados: falta el campo obligatorio Fecha de la Licencia Urbanística.');
+      }else{
+        if(!clean(p?.fechaAprobacion)) errors.push('Planos Aprobados: falta el campo obligatorio Fecha de aprobación.');
+        if(!clean(p?.entidad)) errors.push('Planos Aprobados: falta el campo obligatorio Entidad.');
+      }
+    }
+  }catch(err){
+    errors.push('Planos Aprobados: no se pudo comprobar que los campos obligatorios estén completos.');
+    console.warn('ALLPA V7.9.73 validación Planos Aprobados:',err);
+  }
+
   return unique(errors);
 }
 
@@ -38746,8 +38776,9 @@ function planosHtmlV12(){
  const p=ensurePlanosV12();
  return `<div id="planosAprobadosV12"><div class="section-title">Planos aprobados</div><div class="planos-aprobados-v12">
  <label class="check-line"><input type="checkbox" id="planosLicenciaV12" ${p.licencia?'checked':''}> Cuenta con Licencia Urbanística</label>
- ${p.licencia?`<div class="planos-grid-v12"><div><label>Resolución</label><input id="planosResolucionV12" value="${escV12(p.resolucion)}"></div><div><label>eGOB (opcional)</label><input id="planosEgobV12" inputmode="numeric" value="${escV12(p.egob)}"></div><div><label>Fecha</label><input type="date" id="planosFechaV12" value="${escV12(p.fecha)}"></div></div>`:
- `<div class="planos-grid-v12 two"><div><label>Fecha de aprobación</label><input type="date" id="planosFechaAprobacionV12" value="${escV12(p.fechaAprobacion)}"></div><div><label>Entidad</label><input id="planosEntidadV12" value="${escV12(p.entidad)}"></div></div>`}
+ ${p.licencia?`<div class="planos-grid-v12"><div><label>Resolución *</label><input id="planosResolucionV12" value="${escV12(p.resolucion)}"></div><div><label>eGOB (opcional)</label><input id="planosEgobV12" inputmode="numeric" value="${escV12(p.egob)}"></div><div><label>Fecha *</label><input type="date" id="planosFechaV12" value="${escV12(p.fecha)}"></div></div>`:
+ `<div class="planos-grid-v12 two"><div><label>Fecha de aprobación *</label><input type="date" id="planosFechaAprobacionV12" value="${escV12(p.fechaAprobacion)}"></div><div><label>Entidad *</label><input id="planosEntidadV12" value="${escV12(p.entidad)}"></div></div>`}
+ <div style="margin-top:8px;font-size:10px;font-weight:700;color:#9a3412">* Obligatorio para copiar o generar el PDF.</div>
  </div></div>`;
 }
 function mountPlanosV12(){
@@ -44274,5 +44305,6 @@ mountSoon();
 
 
 <!-- ALLPA V7.9.69 · Conclusión Técnica: niveles habilitados en toda fila con rol bruta, incluida Área bruta planta baja -->
+<!-- ALLPA Informes V7.9.73 · Planos Aprobados obligatorios para Copiar/PDF en Aprobatorio de Obra Mayor -->
 </body>
 </html>
