@@ -410,7 +410,7 @@ function variables(){
   const treatment=currentTreatment();const up=treatment.toUpperCase();const owners=ownerNames();const docs=ownerDocs();const ownerDetail=ownersWithDocs();const work=workTypeFragments();const ex=loadExtra();const p=selected?.proyecto||{},u=selected?.ubicacion||{},a=selected?.areas||{},g=selected?.gravamen||{},s=selected?.estructural||{},t=selected?.tecnico||{};
   const numRes=manualResolutionFormatted();
   return {
-    EGOB:String(selected?.egob||''),NUMERO_RESOLUCION:numRes,DIRECTOR_NOMBRE:cfg('CFG_001'),DIRECTOR_CARGO:cfg('CFG_002'),ACCION_PERSONAL_DIRECTOR:cfg('CFG_003'),FECHA_ACCION_PERSONAL_DIRECTOR:cfg('CFG_004'),REGISTRADOR_PROPIEDAD:cfg('CFG_005'),MEMORANDO_CRITERIO_JURIDICO:cfg('CFG_006'),TEXTO_CRITERIO_JURIDICO:cfg('CFG_007'),
+    EGOB:String(selected?.egob||''),NUMERO_RESOLUCION:numRes,SIGLA_RESOLUCION:cfg('CFG_008'),DIRECTOR_NOMBRE:cfg('CFG_001'),DIRECTOR_CARGO:cfg('CFG_002'),ACCION_PERSONAL_DIRECTOR:cfg('CFG_003'),FECHA_ACCION_PERSONAL_DIRECTOR:cfg('CFG_004'),REGISTRADOR_PROPIEDAD:cfg('CFG_005'),MEMORANDO_CRITERIO_JURIDICO:cfg('CFG_006'),TEXTO_CRITERIO_JURIDICO:cfg('CFG_007'),
     FECHA_INGRESO_TRAMITE_LARGA:longDate(selected?.fecha_ingreso_tramite),PROYECTISTA_NOMBRE:String(selected?.proyectista?.nombre||''),TRATAMIENTO_PROPIETARIO:treatment,PROPIETARIO_NOMBRE:owners,PROPIETARIO_CEDULA:docs,PROPIETARIOS_CON_DOCUMENTO:ownerDetail,VERBO_PROPIEDAD:ownerVerb(),CALIDAD_PROPIETARIO:ownerQuality(treatment),PARROQUIA:String(u.parroquia||''),AREA_TOTAL_CERTIFICADO_LETRAS:areaWords(g.area_total_certificado),AREA_TOTAL_CERTIFICADO:String(g.area_total_certificado??''),CERTIFICADO_GRAVAMEN:String(g.certificado||''),FICHA_REGISTRAL:String(g.ficha_registral||''),FECHA_GRAVAMEN_LARGA:longDate(g.fecha),
     DOCUMENTO_ESTRUCTURAL:cleanMemoNumber(s.documento),FECHA_DOCUMENTO_ESTRUCTURAL_LARGA:longDate(s.fecha),TECNICO_ESTRUCTURAL:String(s.tecnico||''),CARGO_TECNICO_ESTRUCTURAL:structuralCargo(),CRITERIO_ESTRUCTURAL:String(s.criterio||''),ING_CALCULISTA:String(s.calculista||''),REG_SENESCYT_CALCULISTA:String(s.senescyt||''),
     NUMERO_MEMORANDO_REMISION:cleanMemoNumber(getEl('rv5MemoNumero')?.value||resolution?.numero_memorando_remision||''),FECHA_MEMORANDO_REMISION_LARGA:longDate(getEl('rv5MemoFecha')?.value||resolution?.fecha_memorando_remision),TECNICO_INFORME:String(t.nombre||''),CARGO_TECNICO_INFORME:String(t.firma_cargo||t.cargo||''),CONCLUSION_TECNICA_INFORME:technicalConclusion(),AREA_CONSTRUCCION:String(a.construccion??''),AREA_PAGO_TASA:areaForFee(),NUMERO_INFORME_APROBATORIO:String(selected?.numero_informe_formateado||selected?.numero_formateado||''),
@@ -652,6 +652,7 @@ function printPreview(){
   </style>
 </head><body>${body}
 
+<!-- ALLPA V7.9.75 · Licencia Obra Mayor: NUMERO-AAAA-GADMR-DPHDU-OM -->
 </body></html>`);
   w.document.close();setTimeout(()=>{w.focus();w.print();},500);
 }
