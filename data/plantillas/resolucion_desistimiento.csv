@@ -1,8 +1,8 @@
 ﻿ID_Bloque;Orden;Pagina_Referencia;Seccion;Titulo;Texto_Base;Tipo_Bloque;Variables;Fuente_Datos;Mostrar;Aplica_Motivo;Observacion_Interna
-CFG_001;1;;CONFIGURACION;DIRECTOR_NOMBRE;ING. MARCELA ALEJANDRA PAZMIÑO CEPEDA;CONFIG;;CSV;SI;TODOS;
-CFG_002;2;;CONFIGURACION;DIRECTOR_CARGO;DIRECTOR GENERAL DE GESTIÓN DE PLANIFICACIÓN, HÁBITAT Y DESARROLLO URBANÍSTICO (S);CONFIG;;CSV;SI;TODOS;
-CFG_003;3;;CONFIGURACION;ACCION_PERSONAL_DIRECTOR;DG-TH-2026-SUB-40;CONFIG;;CSV;SI;TODOS;
-CFG_004;4;;CONFIGURACION;FECHA_ACCION_PERSONAL_DIRECTOR;20 de octubre de 2026;CONFIG;;CSV;SI;TODOS;
+CFG_001;1;;CONFIGURACION;DIRECTOR_NOMBRE;ING. JUAN DIEGO REMACHE RIVERA MGS.;CONFIG;;CSV;SI;TODOS;
+CFG_002;2;;CONFIGURACION;DIRECTOR_CARGO;DIRECTOR GENERAL DE GESTIÓN DE PLANIFICACIÓN, HÁBITAT Y DESARROLLO URBANÍSTICO;CONFIG;;CSV;SI;TODOS;
+CFG_003;3;;CONFIGURACION;ACCION_PERSONAL_DIRECTOR;DG-TH-2026 -LRN-2;CONFIG;;CSV;SI;TODOS;
+CFG_004;4;;CONFIGURACION;FECHA_ACCION_PERSONAL_DIRECTOR;08 de enero de 2026;CONFIG;;CSV;SI;TODOS;
 CFG_005;5;;CONFIGURACION;MEMORANDO_CRITERIO_JURIDICO;GADMR-PROC-2026-0038-M;CONFIG;;CSV;SI;TODOS;
 CFG_006;6;;CONFIGURACION;SIGLA_RESOLUCION;GADMR-GPHDU-DES;CONFIG;;CSV;SI;TODOS;
 CFG_007;7;;CONFIGURACION;PLANTILLA_VERSION;resolucion_desistimiento_obra_mayor_v3;CONFIG;;CSV;SI;TODOS;
@@ -10,7 +10,7 @@ ENC_001;10;1;ENCABEZADO;TITULO;[B]RESOLUCIÓN ADMINISTRATIVA Nro. {{NUMERO_RESOL
 ENC_002;11;1;ENCABEZADO;DIRECTOR;{{DIRECTOR_NOMBRE}};DINAMICO_CONFIG;DIRECTOR_NOMBRE;CFG_001;SI;TODOS;
 ENC_003;12;1;ENCABEZADO;CARGO;[B]{{DIRECTOR_CARGO}}[/B];DINAMICO_CONFIG;DIRECTOR_CARGO;CFG_002;SI;TODOS;
 ENC_004;13;1;ENCABEZADO;CONSIDERANDO;CONSIDERANDO:;FIJO;;CSV;SI;TODOS;
-CON_001;20;1;CONSIDERANDO;NOMBRAMIENTO;"[B]Que,[/B] la Ingeniera Marcela Alejandra Pazmiño Cepeda nombrada legalmente en calidad de Director General de Gestión de Planificación, Hábitat y Desarrollo Urbanístico (S), mediante Acción de Personal No. {{ACCION_PERSONAL_DIRECTOR}}, que rige a partir del {{FECHA_ACCION_PERSONAL_DIRECTOR}};";DINAMICO_CONFIG;ACCION_PERSONAL_DIRECTOR|FECHA_ACCION_PERSONAL_DIRECTOR;CFG_003|CFG_004;SI;TODOS;
+CON_001;20;1;CONSIDERANDO;NOMBRAMIENTO;"[B]Que,[/B] el Ingeniero Juan Diego Remache Rivera nombrado legalmente en calidad de Director General de Gestión de Planificación, Hábitat y Desarrollo Urbanístico, mediante Acción de Personal No. {{ACCION_PERSONAL_DIRECTOR}}, que rige a partir del {{FECHA_ACCION_PERSONAL_DIRECTOR}};";DINAMICO_CONFIG;ACCION_PERSONAL_DIRECTOR|FECHA_ACCION_PERSONAL_DIRECTOR;CFG_003|CFG_004;SI;TODOS;
 CON_002;21;1;CONSIDERANDO;CONSTITUCION_82;"[B]Que,[/B] el artículo 82 de la Constitución de la República dispone “El derecho a la seguridad jurídica se fundamenta en el respeto a la Constitución y en la existencia de normas jurídicas previas, claras, públicas y aplicadas por las autoridades competentes”;";FIJO;;CSV;SI;TODOS;
 CON_003;22;1;CONSIDERANDO;CONSTITUCION_225;[B]Que,[/B] el artículo 225 de la Constitución de la República del Ecuador, señala que son parte de la Administración Pública, los siguientes: 1. “Los organismos y dependencias de las funciones Ejecutiva, Legislativa, Judicial, Electoral y de Transparencia y Control Social. 2. Las entidades que integran el régimen autónomo descentralizado. 3. Los organismos y entidades creados por la Constitución o la ley para el ejercicio de la potestad estatal, para la prestación de servicios públicos o para desarrollar actividades económicas asumidas por el Estado. 4. Las personas jurídicas creadas por acto normativo de los gobiernos autónomos descentralizados para la prestación de servicios públicos.”;FIJO;;CSV;SI;TODOS;
 CON_004;23;1;CONSIDERANDO;CONSTITUCION_226;"[B]Que,[/B] el artículo 226 de la Constitución de la República establece “Las instituciones del Estado, sus organismos, dependencias, las servidoras o servidores públicos y las personas que actúen en virtud de una potestad estatal ejercerán solamente las competencias y facultades que les sean atribuidas en la Constitución y la ley. Tendrán el deber de coordinar acciones para el cumplimiento de sus fines y hacer efectivo el goce y ejercicio de los derechos reconocidos en la Constitución”;";FIJO;;CSV;SI;TODOS;
