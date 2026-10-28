@@ -4879,7 +4879,58 @@ function normalizeTableUpperInput(el){
 }
 function onlyDigits(v,max=null){ let s=String(v||'').replace(/\D/g,''); if(max) s=s.slice(0,max); return s; }
 function numVal(v){ return parseFloat(String(v||'').replace(',','.')) || 0; }
-function addBusinessDays(dateStr, days){ if(!dateStr) return ''; const d=new Date(dateStr+'T00:00:00'); let added=0; while(added<days){ d.setDate(d.getDate()+1); const day=d.getDay(); if(day!==0 && day!==6) added++; } return d.toISOString().slice(0,10); }
+/* ALLPA V7.9.77 · Calendario de feriados / días no laborables.
+   Fuente editable: data/feriados.csv
+   Fallback embebido para mantener el cálculo aun si el CSV no carga. */
+const ALLPA_FERIADOS_V7977 = new Set(['2026-11-02','2026-11-03']);
+function normalizeHolidayDateV7977(v){
+  const raw=String(v||'').trim();
+  if(!raw) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const m=raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if(!m) return '';
+  return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+}
+async function loadFeriadosV7977(){
+  try{
+    const txt=await fetchCSVTextV32('data/feriados.csv');
+    const rows=parseCSVV32(txt);
+    if(!rows.length) return ALLPA_FERIADOS_V7977;
+    const fechas=[];
+    rows.forEach(r=>{
+      if(typeof activeV32==='function' && !activeV32(r)) return;
+      const fecha=normalizeHolidayDateV7977(r.Fecha||r.fecha||r.DATE||r.Date||'');
+      if(fecha) fechas.push(fecha);
+    });
+    if(fechas.length){
+      ALLPA_FERIADOS_V7977.clear();
+      fechas.forEach(f=>ALLPA_FERIADOS_V7977.add(f));
+    }
+  }catch(e){
+    console.warn('V7.9.77: no se pudo cargar data/feriados.csv; se usa el calendario embebido.',e);
+  }
+  return ALLPA_FERIADOS_V7977;
+}
+function isHolidayV7977(dateObj){
+  const y=dateObj.getFullYear();
+  const m=String(dateObj.getMonth()+1).padStart(2,'0');
+  const d=String(dateObj.getDate()).padStart(2,'0');
+  return ALLPA_FERIADOS_V7977.has(`${y}-${m}-${d}`);
+}
+function addBusinessDays(dateStr, days){
+  if(!dateStr) return '';
+  const d=new Date(dateStr+'T00:00:00');
+  let added=0;
+  while(added<days){
+    d.setDate(d.getDate()+1);
+    const day=d.getDay();
+    if(day!==0 && day!==6 && !isHolidayV7977(d)) added++;
+  }
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
 
 function openDB(){
  return new Promise((resolve,reject)=>{
@@ -28889,6 +28940,7 @@ renderObsSeleccionadas = function(){
 
   /* DEPURACIÓN 13 — CARGADOR EXTERNO CENTRALIZADO */
   window.loadExternalCSVsV32=async function(){
+    await loadFeriadosV7977();
     await loadExternalCSVsCoreV32();
 
     const extras={
@@ -44306,5 +44358,6 @@ mountSoon();
 
 <!-- ALLPA V7.9.69 · Conclusión Técnica: niveles habilitados en toda fila con rol bruta, incluida Área bruta planta baja -->
 <!-- ALLPA Informes V7.9.73 · Planos Aprobados obligatorios para Copiar/PDF en Aprobatorio de Obra Mayor -->
+<!-- ALLPA V7.9.77 · feriados externos en data/feriados.csv; 2026-11-02 y 2026-11-03 no laborables -->
 </body>
 </html>
