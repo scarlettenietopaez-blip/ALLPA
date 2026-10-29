@@ -44359,5 +44359,328 @@ mountSoon();
 <!-- ALLPA V7.9.69 · Conclusión Técnica: niveles habilitados en toda fila con rol bruta, incluida Área bruta planta baja -->
 <!-- ALLPA Informes V7.9.73 · Planos Aprobados obligatorios para Copiar/PDF en Aprobatorio de Obra Mayor -->
 <!-- ALLPA V7.9.77 · feriados externos en data/feriados.csv; 2026-11-02 y 2026-11-03 no laborables -->
+
+<!-- ALLPA V7.9.78 · Propietarios desde catastro por clave catastral (Supabase phdu_buscar_propietarios) -->
+<script id="allpa-propietarios-catastro-v1">
+(function(){
+'use strict';
+
+/* Configuración: cambiar aquí si se renombra la función o el proyecto. */
+const CFG=Object.freeze({
+  VERSION:'1.0.0',
+  SUPABASE_URL:'https://lfinvpmobnczgtabtwfs.supabase.co',
+  SUPABASE_KEY:'sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i',
+  STORAGE_KEY:'allpa-phdu-auth-v1',      // misma sesión que el resto de módulos PHDU
+  RPC:'phdu_buscar_propietarios',
+  MIN_DIGITOS:15                         // no consultar claves incompletas (prov+cant+parr+zona+sect…)
+});
+
+let client=null;
+let busy=false;
+/* `state` es un `let` global del informe (no vive en window): se lee por nombre. */
+function st(){ return (typeof state!=='undefined') ? state : null; }
+
+function getClient(){
+  if(client) return client;
+  if(!window.supabase?.createClient) return null;
+  client=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:CFG.STORAGE_KEY}});
+  return client;
+}
+function aviso(texto,ok){
+  if(typeof window.msg==='function') window.msg(texto,!!ok); else console.info('[ALLPA catastro]',texto);
+}
+function norm(v){
+  return String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+}
+function formatoNombre(v){
+  const t=String(v||'').replace(/\s+/g,' ').trim();
+  return typeof window.smartInputCase==='function' ? window.smartInputCase(t) : t;
+}
+function fechaEC(iso){
+  const d=new Date(iso); if(isNaN(d)) return '';
+  return d.toLocaleString('es-EC',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).replace(',','');
+}
+function claveActual(){
+  let clave='';
+  try{ clave=typeof window.buildClaveFromPartsV37==='function' ? window.buildClaveFromPartsV37() : ''; }catch(_e){}
+  return String(clave||'').replace(/\D/g,'');
+}
+function refrescar(){
+  try{ if(typeof window.syncPropietariosInfo==='function') window.syncPropietariosInfo(); }catch(_e){}
+  try{ if(typeof window.renderInfoForm==='function') window.renderInfoForm(); }catch(_e){}
+  try{ if(typeof window.renderPropietarios==='function') window.renderPropietarios(); }catch(_e){}
+  try{ if(typeof window.renderReport==='function') window.renderReport(); }catch(_e){}
+  try{ if(typeof window.renderPreview==='function') window.renderPreview(); }catch(_e){}
+}
+
+async function cargarPropietariosDesdeCatastro(){
+  if(busy) return;
+  const clave=claveActual();
+  if(clave.length<CFG.MIN_DIGITOS) return;            // clave incompleta: solo parroquia/zona, como antes
+  const sb=getClient();
+  if(!st()){ return; }
+  if(!sb){ aviso('No se pudo conectar con la base PHDU para consultar propietarios. Ingréselos manualmente.'); return; }
+
+  busy=true;
+  try{
+    const {data:ses}=await sb.auth.getSession();
+    if(!ses?.session){ aviso('Inicie sesión en PHDU para traer los propietarios desde catastro. Puede continuar manualmente.'); return; }
+
+    const {data,error}=await sb.rpc(CFG.RPC,{p_clave:clave});
+    if(error) throw error;
+
+    const vistos=new Set();
+    const filas=(data||[]).filter(r=>{const k=norm(r.nombre); if(!k||vistos.has(k)) return false; vistos.add(k); return true;});
+    if(!filas.length){ aviso('La clave no tiene propietarios registrados en catastro. Ingréselos manualmente.'); return; }
+
+    if(typeof window.ensurePropietarios==='function') window.ensurePropietarios();
+    const actuales=(Array.isArray(st()?.propietarios)?st().propietarios:[]).filter(p=>String(p?.nombre||'').trim()||String(p?.ci||'').trim());
+
+    const yaCoinciden=actuales.length===filas.length && actuales.every(p=>vistos.has(norm(p.nombre)));
+    if(yaCoinciden){ aviso('Los propietarios ya coinciden con catastro.',true); return; }
+
+    if(actuales.length){
+      const lista=filas.map(r=>'• '+formatoNombre(r.nombre)).join('\n');
+      if(!window.confirm(`Catastro registra ${filas.length} propietario(s) para esta clave:\n\n${lista}\n\n¿Reemplazar los propietarios ingresados? Se conservarán las cédulas de los nombres que coincidan.`)) return;
+    }
+
+    const ciPorNombre=new Map(actuales.map(p=>[norm(p.nombre),String(p.ci||'')]));
+    st().propietarios=filas.map(r=>({nombre:formatoNombre(r.nombre),ci:ciPorNombre.get(norm(r.nombre))||''}));
+    st().catastroPropietariosV1={
+      clave,
+      fuente:'catastro',
+      propietarios_catastro:filas.map(r=>r.nombre),
+      catastro_actualizado_en:filas[0]?.actualizado_en||null,
+      cargado_en:new Date().toISOString()
+    };
+    refrescar();
+    if(typeof window.scheduleReportUpdate==='function') window.scheduleReportUpdate();
+
+    const f=fechaEC(filas[0]?.actualizado_en);
+    aviso(`Propietarios cargados desde catastro (${filas.length})${f?' · actualizado el '+f:''}. Complete la cédula y verifique con la escritura.`,true);
+  }catch(err){
+    console.warn('ALLPA propietarios catastro:',err);
+    window.__ALLPA_PHDU_LAST_ERROR__=err;
+    aviso('No se pudo consultar los propietarios en catastro. Puede continuar manualmente.');
+  }finally{
+    busy=false;
+  }
+}
+
+/* Envolver el botón 🔍: primero lo de siempre (parroquia / urbano-rural), luego propietarios. */
+const anterior=window.buscarClaveCatastralV36;
+if(typeof anterior==='function' && !anterior.__propietariosCatastroV1){
+  const envuelta=function(){
+    let r;
+    try{ r=anterior.apply(this,arguments); }
+    finally{ cargarPropietariosDesdeCatastro(); }
+    return r;
+  };
+  envuelta.__propietariosCatastroV1=true;
+  window.buscarClaveCatastralV36=envuelta;
+}
+
+window.AllpaPropietariosCatastroV1=Object.freeze({VERSION:CFG.VERSION,cargar:cargarPropietariosDesdeCatastro});
+})();
+</script>
+
+<!-- ALLPA V7.9.79 · Clave catastral en cascada: SECT → POLG → PRED solo con códigos reales de catastro -->
+<style id="allpa-clave-cascada-v1-css">
+  .cat-valida-v1{border-color:#2e7d32!important;box-shadow:0 0 0 2px rgba(46,125,50,.15)!important}
+  .cat-invalida-v1{border-color:#c62828!important;box-shadow:0 0 0 2px rgba(198,40,40,.18)!important;background:#fff5f5!important}
+</style>
+<script id="allpa-clave-cascada-v1">
+(function(){
+'use strict';
+
+/* Configuración: estructura 06 | 01 | parroquia(2) | zona(3) | sector(3) | polígono(3) | predio(12) */
+const CFG=Object.freeze({
+  VERSION:'1.0.0',
+  SUPABASE_URL:'https://lfinvpmobnczgtabtwfs.supabase.co',
+  SUPABASE_KEY:'sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i',
+  STORAGE_KEY:'allpa-phdu-auth-v1',
+  RPC:'phdu_opciones_clave',
+  NIVELES:[
+    {id:'catSect',prop:'sect',largo:3, nombre:'sector'},
+    {id:'catPolg',prop:'polg',largo:3, nombre:'polígono'},
+    {id:'catPred',prop:'pred',largo:12,nombre:'predio'}
+  ]
+});
+
+let client=null;
+const cache=new Map();
+function getClient(){
+  if(client) return client;
+  if(!window.supabase?.createClient) return null;
+  client=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:CFG.STORAGE_KEY}});
+  return client;
+}
+function st(){ return (typeof state!=='undefined') ? state : null; }
+function cat(){ return st()?.catastral||{}; }
+function dig(v){ return String(v||'').replace(/\D/g,''); }
+function aviso(t,ok){ if(typeof window.msg==='function') window.msg(t,!!ok); }
+function fmtPred(c){ return String(c).match(/.{1,3}/g).join('-'); }
+
+/* Prefijo de 9 dígitos: prov + cant + parroquia + zona */
+function base9(){
+  const c=cat();
+  const prov=dig(c.prov||'06').padStart(2,'0'), cant=dig(c.cant||'01').padStart(2,'0');
+  const parro=dig(c.parro), zona=dig(c.zona);
+  if(!parro||!zona) return '';
+  return prov+cant+parro.padStart(2,'0')+zona.padStart(3,'0');
+}
+/* Prefijo para consultar el nivel i (0 = sector, 1 = polígono, 2 = predio) */
+function prefijo(i){
+  let p=base9(); if(!p) return '';
+  for(let k=0;k<i;k++){
+    const n=CFG.NIVELES[k], v=dig(cat()[n.prop]);
+    if(v.length!==n.largo) return '';
+    p+=v;
+  }
+  return p;
+}
+async function opciones(pre){
+  if(!pre) return [];
+  if(cache.has(pre)) return cache.get(pre);
+  const sb=getClient(); if(!sb) return [];
+  const prom=(async()=>{
+    const {data:ses}=await sb.auth.getSession();
+    if(!ses?.session) return [];
+    const {data,error}=await sb.rpc(CFG.RPC,{p_prefijo:pre});
+    if(error) throw error;
+    return data||[];
+  })().catch(e=>{ console.warn('ALLPA clave cascada:',e); cache.delete(pre); return []; });
+  cache.set(pre,prom);
+  return prom;
+}
+function datalist(n){
+  let dl=document.getElementById('dl_'+n.id);
+  if(!dl){ dl=document.createElement('datalist'); dl.id='dl_'+n.id; document.body.appendChild(dl); }
+  return dl;
+}
+function llenar(n,lista){
+  const dl=datalist(n);
+  dl.innerHTML=lista.map(o=>{
+    const etiqueta=n.prop==='pred' ? fmtPred(o.codigo) : `${o.predios} predio${o.predios===1?'':'s'}`;
+    return `<option value="${o.codigo}" label="${etiqueta}"></option>`;
+  }).join('');
+}
+function marcar(el,estado){
+  if(!el) return;
+  el.classList.remove('cat-valida-v1','cat-invalida-v1');
+  if(estado==='ok') el.classList.add('cat-valida-v1');
+  if(estado==='mal') el.classList.add('cat-invalida-v1');
+}
+/* Escribe en la casilla y deja que el código existente de Allpa actualice el estado */
+function poner(id,valor){
+  const el=document.getElementById(id); if(!el) return;
+  if(el.value===valor) return;
+  el.value=valor;
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+}
+function limpiarDesde(i){
+  for(let k=i;k<CFG.NIVELES.length;k++){
+    const n=CFG.NIVELES[k];
+    if(dig(cat()[n.prop])) poner(n.id,'');
+    marcar(document.getElementById(n.id),null);
+    datalist(n).innerHTML='';
+  }
+}
+
+async function cargarLista(i){
+  const n=CFG.NIVELES[i];
+  const lista=await opciones(prefijo(i));
+  llenar(n,lista);
+  return lista;
+}
+
+async function confirmar(i){
+  const n=CFG.NIVELES[i];
+  let el=document.getElementById(n.id);
+  if(!el || el.disabled) return;
+  let v=dig(el.value);
+  const anterior=el.dataset.confirmadoV1||'';
+  if(!v){ marcar(el,null); if(anterior) limpiarDesde(i+1); el.dataset.confirmadoV1=''; return; }
+
+  const pre=prefijo(i);
+  if(!pre){ aviso('Primero elija parroquia y zona'+(i>0?' y los niveles anteriores':'')+'.'); return; }
+  const lista=await cargarLista(i);
+
+  if(n.largo===3) v=v.slice(0,3).padStart(3,'0');
+  if(n.prop==='pred' && v.length<=3){
+    const p3=v.padStart(3,'0');
+    const coinciden=lista.filter(o=>o.codigo.startsWith(p3));
+    if(coinciden.length===1) v=coinciden[0].codigo;
+    else if(coinciden.length>1){
+      llenar(n,coinciden);
+      poner(n.id,p3); marcar(document.getElementById(n.id),null);
+      aviso(`El predio ${p3} tiene ${coinciden.length} unidades (propiedad horizontal). Elija una de la lista.`);
+      return;
+    }else v=p3;
+  }
+
+  poner(n.id,v);
+  el=document.getElementById(n.id);
+  if(!lista.length){ marcar(el,null); return; }          // sin sesión o sin datos: no se valida
+
+  const existe=lista.some(o=>o.codigo===v);
+  marcar(el,existe?'ok':'mal');
+  if(el) el.dataset.confirmadoV1=v;
+  if(anterior && anterior!==v) limpiarDesde(i+1);
+
+  if(!existe){
+    const etiqueta=n.prop==='pred'?fmtPred(v):v;
+    aviso(`El ${n.nombre} ${etiqueta} no existe en catastro para lo elegido. Revise la clave o use "Ingresar Clave Catastral Manualmente".`);
+    return;
+  }
+  if(i<CFG.NIVELES.length-1){
+    cargarLista(i+1);
+    const sig=document.getElementById(CFG.NIVELES[i+1].id);
+    if(sig && !sig.disabled) setTimeout(()=>sig.focus(),0);
+  }else if(typeof window.buscarClaveCatastralV36==='function'){
+    window.buscarClaveCatastralV36();                    // clave completa y válida: parroquia + propietarios
+  }
+}
+
+/* Valida en silencio lo que ya está escrito (al volver a dibujarse el formulario) */
+async function revisar(i){
+  const n=CFG.NIVELES[i], el=document.getElementById(n.id);
+  if(!el || el.disabled) return;
+  const v=dig(el.value); if(!v){ marcar(el,null); return; }
+  const lista=await cargarLista(i);
+  if(!lista.length) return;
+  const el2=document.getElementById(n.id); if(!el2) return;
+  marcar(el2, lista.some(o=>o.codigo===v)?'ok':'mal');
+  el2.dataset.confirmadoV1=v;
+}
+
+function preparar(){
+  CFG.NIVELES.forEach((n,i)=>{
+    const el=document.getElementById(n.id);
+    if(!el || el.dataset.cascadaV1==='1') return;
+    el.dataset.cascadaV1='1';
+    el.setAttribute('list','dl_'+n.id);
+    el.setAttribute('autocomplete','off');
+    el.maxLength=n.largo;
+    el.placeholder=n.prop==='pred'?'Elija o escriba (ej. 069)':'Elija o escriba';
+    datalist(n);
+    el.addEventListener('focus',()=>{ el.dataset.confirmadoV1=dig(el.value); cargarLista(i); });
+    el.addEventListener('change',()=>confirmar(i));
+    el.addEventListener('keydown',ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); confirmar(i); } });
+    revisar(i);
+  });
+}
+
+let pendiente=false;
+new MutationObserver(()=>{
+  if(pendiente) return; pendiente=true;
+  setTimeout(()=>{ pendiente=false; preparar(); },0);
+}).observe(document.body,{childList:true,subtree:true});
+preparar();
+
+window.AllpaClaveCascadaV1=Object.freeze({VERSION:CFG.VERSION,opciones,preparar});
+})();
+</script>
+
 </body>
 </html>
