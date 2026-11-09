@@ -131,17 +131,18 @@ button{cursor:pointer}
 <!-- ALLPA V7.9.55 · Resoluciones: lectura de Informe Técnico mediante RPC V2 para rol ABOGADO -->
 <!-- ALLPA V7.9.72 · Resoluciones de Desistimiento: RPC V2 lista y abre Obra Mayor + Anteproyecto -->
 <!-- ALLPA V7.9.76 · Plantillas separadas de Resolución de Desistimiento: Obra Mayor / Anteproyecto -->
+<!-- ALLPA V7.9.79 · Resolución de Obra Mayor: redacción jurídica de comparecencia por apoderado(s) -->
 <noscript>ALLPA Resoluciones requiere JavaScript habilitado.</noscript>
 <script id="allpa-resoluciones-v5-script">
 (function(){
 'use strict';
-const VERSION='8.2.1-resoluciones-rpc-lectura-abogado-v2';
+const VERSION='8.2.3-resoluciones-apoderados-comparecencia-v7979';
 const SUPABASE_URL='https://lfinvpmobnczgtabtwfs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
 let TEMPLATE_ROWS=[];
 let TEMPLATE_META={version:'',sha256:'',url:'../data/plantillas/resolucion_obra_mayor.csv'};
 let templateReady=false;
-const OPTIONAL_VARS=new Set(['TIPO_OBRA_RESUELVE_FRAGMENTO','TIPO_OBRA_ARTICULO_FRAGMENTO']);
+const OPTIONAL_VARS=new Set(['TIPO_OBRA_RESUELVE_FRAGMENTO','TIPO_OBRA_ARTICULO_FRAGMENTO','APODERADOS_REPRESENTACION_FRAGMENTO','APODERADOS_INTERVENCION_ORACION','APODERADOS_REFERENCIA_GENERICA','APODERADOS_NOTIFICACION_FRAGMENTO']);
 const STRUCT_TECH_URL='../data/tecnicos_estructurales.csv';
 const INSTITUTIONAL_BG='../assets/fondo_institucional.png';
 let STRUCT_TECH_ROWS=[];
@@ -366,6 +367,68 @@ function ownersWithDocs(){
   }
   return arr.map(x=>{const n=String(x?.nombre||'').trim(),d=String(x?.ci||'').trim();return n+(d?', con número de cédula '+d:'');}).filter(Boolean).join('; ');
 }
+function apoderadosListV7978(){
+  const correctedNames=hasReportCorrection('__apoderados_texto');
+  const correctedDocs=hasReportCorrection('__apoderados_cedulas');
+  if(correctedNames||correctedDocs){
+    const names=String(selected?.__apoderados_texto||'').split(/\s+\/\s+|\s*;\s*/).map(x=>x.trim()).filter(Boolean);
+    const docs=String(selected?.__apoderados_cedulas||'').split(/\s+\/\s+|\s*;\s*/).map(x=>x.trim()).filter(Boolean);
+    const n=Math.max(names.length,docs.length);
+    return Array.from({length:n},(_,i)=>({nombre:names[i]||'',ci:docs[i]||''})).filter(x=>x.nombre||x.ci);
+  }
+  const snap=reportSnapshot();
+  const sources=[selected?.apoderados,snap?.apoderados,snap?.formulario?.apoderados,snap?.state?.apoderados];
+  let arr=[];
+  for(const src of sources){
+    if(Array.isArray(src)&&src.length){arr=src;break;}
+  }
+  let out=arr.map(a=>({nombre:String(a?.nombre||a?.name||'').trim(),ci:String(a?.ci||a?.documento||a?.identificacion||'').trim()})).filter(a=>a.nombre||a.ci);
+  if(!out.length){
+    const legacy=(snap?.apoderado&&typeof snap.apoderado==='object')?snap.apoderado:selected?.apoderado;
+    if(legacy&&typeof legacy==='object'){
+      if(legacy.activo!==false){
+        const nombre=String(legacy.nombre||legacy.name||'').trim(),ci=String(legacy.ci||legacy.documento||legacy.identificacion||'').trim();
+        if(nombre||ci)out=[{nombre,ci}];
+      }
+    }else{
+      const raw=String(legacy||'').trim();
+      if(raw){
+        const parts=raw.split(/\s*[·|]\s*/).map(x=>x.trim()).filter(Boolean);
+        out=[{nombre:parts[0]||raw,ci:parts.slice(1).join(' · ')}];
+      }
+    }
+  }
+  const seen=new Set();
+  return out.filter(a=>{const k=norm(a.nombre)+'|'+String(a.ci||'').replace(/\s+/g,'');if(!k||seen.has(k))return false;seen.add(k);return true;});
+}
+function apoderadosNamesV7978(){return apoderadosListV7978().map(a=>a.nombre).filter(Boolean).join(' / ');}
+function apoderadosDocsV7978(){return apoderadosListV7978().map(a=>a.ci).filter(Boolean).join(' / ');}
+function apoderadosWithDocsV7978(){
+  return apoderadosListV7978().map(a=>{
+    const n=String(a.nombre||'').trim(),d=String(a.ci||'').trim();
+    if(n&&d)return `${n}, con identificación Nro. ${d}`;
+    return n||d;
+  }).filter(Boolean).join('; ');
+}
+function apoderadosComparecenciaV7979({generico=false}={}){
+  const arr=apoderadosListV7978();if(!arr.length)return '';
+  const comparece=generico ? 'quien comparece' : (singularOwner()?'quien comparece':'quienes comparecen');
+  const posesivo=arr.length===1?'su apoderado':'sus apoderados';
+  return `, ${comparece} por intermedio de ${posesivo} ${apoderadosWithDocsV7978()}`;
+}
+function apoderadosRepresentationFragmentV7978(){
+  return apoderadosComparecenciaV7979();
+}
+function apoderadosIntervencionOracionV7978(){
+  /* V7.9.79: se conserva por compatibilidad; la plantilla ya coloca la comparecencia junto al nombre del propietario. */
+  return '';
+}
+function apoderadosReferenciaGenericaV7979(){
+  return apoderadosComparecenciaV7979({generico:true});
+}
+function apoderadosNotificacionFragmentV7978(){
+  return apoderadosComparecenciaV7979();
+}
 function ownerVerb(){return singularOwner()?'es':'son';}
 function ownerQuality(t){if(!singularOwner())return 'propietarios';return qualityFromTreatment(t);}
 function workTypeFragments(){const raw=String(selected?.proyecto?.tipo_obra||'').trim();const n=norm(raw);if(!raw||n==='OBRA NUEVA')return {resolve:'',article:''};return {resolve:' '+raw.toUpperCase(),article:' ('+raw.toUpperCase()+')'};}
@@ -404,7 +467,7 @@ function reportCoordinate(axis){
 }
 function exactTechnicalConclusion(){
   const p=selected?.proyecto||{},u=selected?.ubicacion||{};
-  return `CONCLUSIÓN TÉCNICA. En concordancia a lo dispuesto en la Ordenanza No. 016-2023 DE ACTUALIZACIÓN DEL CÓDIGO URBANO, Publicada En El Registro Oficial Edición Especial Nº 885 del martes 23 de mayo de 2023, y una vez validada la matriz del formato de Revisión de OBRA MAYOR - PROYECTO DEFINITIVO, del trámite eGOB Nro. ${String(selected?.egob||'')}, se concluye: Emitir el presente informe de OBRA MAYOR, uso ${String(p.uso||'')}, altura de edificación ${intWords(p.pisos||0)} (${String(p.pisos??'')}) pisos, propiedad de ${currentTreatment()} ${ownersWithDocs()}, predio ubicado en la parroquia ${String(u.parroquia||'')}, sector ${String(u.barrio_sector||'')}, ${String(u.direccion||'')}, código PIT ${String(u.codigo_pit||'')}, clave catastral ${formatCadastralKey(u.clave_catastral||'')}, proyectista ${String(selected?.proyectista?.nombre||'')}, con registro Senescyt ${String(selected?.proyectista?.senescyt||'')}, registro municipal ${String(selected?.proyectista?.registro_municipal||'')}. Conforme al siguiente detalle:`;
+  return `CONCLUSIÓN TÉCNICA. En concordancia a lo dispuesto en la Ordenanza No. 016-2023 DE ACTUALIZACIÓN DEL CÓDIGO URBANO, Publicada En El Registro Oficial Edición Especial Nº 885 del martes 23 de mayo de 2023, y una vez validada la matriz del formato de Revisión de OBRA MAYOR - PROYECTO DEFINITIVO, del trámite eGOB Nro. ${String(selected?.egob||'')}, se concluye: Emitir el presente informe de OBRA MAYOR, uso ${String(p.uso||'')}, altura de edificación ${intWords(p.pisos||0)} (${String(p.pisos??'')}) pisos, propiedad de ${currentTreatment()} ${ownersWithDocs()}${apoderadosRepresentationFragmentV7978()}, predio ubicado en la parroquia ${String(u.parroquia||'')}, sector ${String(u.barrio_sector||'')}, ${String(u.direccion||'')}, código PIT ${String(u.codigo_pit||'')}, clave catastral ${formatCadastralKey(u.clave_catastral||'')}, proyectista ${String(selected?.proyectista?.nombre||'')}, con registro Senescyt ${String(selected?.proyectista?.senescyt||'')}, registro municipal ${String(selected?.proyectista?.registro_municipal||'')}. Conforme al siguiente detalle:`;
 }
 function technicalConclusion(){return exactTechnicalConclusion();}
 function variables(){
@@ -412,7 +475,7 @@ function variables(){
   const numRes=manualResolutionFormatted();
   return {
     EGOB:String(selected?.egob||''),NUMERO_RESOLUCION:numRes,SIGLA_RESOLUCION:cfg('CFG_008'),DIRECTOR_NOMBRE:cfg('CFG_001'),DIRECTOR_CARGO:cfg('CFG_002'),ACCION_PERSONAL_DIRECTOR:cfg('CFG_003'),FECHA_ACCION_PERSONAL_DIRECTOR:cfg('CFG_004'),REGISTRADOR_PROPIEDAD:cfg('CFG_005'),MEMORANDO_CRITERIO_JURIDICO:cfg('CFG_006'),TEXTO_CRITERIO_JURIDICO:cfg('CFG_007'),
-    FECHA_INGRESO_TRAMITE_LARGA:longDate(selected?.fecha_ingreso_tramite),PROYECTISTA_NOMBRE:String(selected?.proyectista?.nombre||''),TRATAMIENTO_PROPIETARIO:treatment,PROPIETARIO_NOMBRE:owners,PROPIETARIO_CEDULA:docs,PROPIETARIOS_CON_DOCUMENTO:ownerDetail,VERBO_PROPIEDAD:ownerVerb(),CALIDAD_PROPIETARIO:ownerQuality(treatment),PARROQUIA:String(u.parroquia||''),AREA_TOTAL_CERTIFICADO_LETRAS:areaWords(g.area_total_certificado),AREA_TOTAL_CERTIFICADO:String(g.area_total_certificado??''),CERTIFICADO_GRAVAMEN:String(g.certificado||''),FICHA_REGISTRAL:String(g.ficha_registral||''),FECHA_GRAVAMEN_LARGA:longDate(g.fecha),
+    FECHA_INGRESO_TRAMITE_LARGA:longDate(selected?.fecha_ingreso_tramite),PROYECTISTA_NOMBRE:String(selected?.proyectista?.nombre||''),TRATAMIENTO_PROPIETARIO:treatment,PROPIETARIO_NOMBRE:owners,PROPIETARIO_CEDULA:docs,PROPIETARIOS_CON_DOCUMENTO:ownerDetail,APODERADOS_REPRESENTACION_FRAGMENTO:apoderadosRepresentationFragmentV7978(),APODERADOS_INTERVENCION_ORACION:apoderadosIntervencionOracionV7978(),APODERADOS_REFERENCIA_GENERICA:apoderadosReferenciaGenericaV7979(),APODERADOS_NOTIFICACION_FRAGMENTO:apoderadosNotificacionFragmentV7978(),VERBO_PROPIEDAD:ownerVerb(),CALIDAD_PROPIETARIO:ownerQuality(treatment),PARROQUIA:String(u.parroquia||''),AREA_TOTAL_CERTIFICADO_LETRAS:areaWords(g.area_total_certificado),AREA_TOTAL_CERTIFICADO:String(g.area_total_certificado??''),CERTIFICADO_GRAVAMEN:String(g.certificado||''),FICHA_REGISTRAL:String(g.ficha_registral||''),FECHA_GRAVAMEN_LARGA:longDate(g.fecha),
     DOCUMENTO_ESTRUCTURAL:cleanMemoNumber(s.documento),FECHA_DOCUMENTO_ESTRUCTURAL_LARGA:longDate(s.fecha),TECNICO_ESTRUCTURAL:String(s.tecnico||''),CARGO_TECNICO_ESTRUCTURAL:structuralCargo(),CRITERIO_ESTRUCTURAL:String(s.criterio||''),ING_CALCULISTA:String(s.calculista||''),REG_SENESCYT_CALCULISTA:String(s.senescyt||''),
     NUMERO_MEMORANDO_REMISION:cleanMemoNumber(getEl('rv5MemoNumero')?.value||resolution?.numero_memorando_remision||''),FECHA_MEMORANDO_REMISION_LARGA:longDate(getEl('rv5MemoFecha')?.value||resolution?.fecha_memorando_remision),TECNICO_INFORME:String(t.nombre||''),CARGO_TECNICO_INFORME:String(t.firma_cargo||t.cargo||''),CONCLUSION_TECNICA_INFORME:technicalConclusion(),AREA_CONSTRUCCION:String(a.construccion??''),AREA_PAGO_TASA:areaForFee(),NUMERO_INFORME_APROBATORIO:String(selected?.numero_informe_formateado||selected?.numero_formateado||''),
     NUMERO_COMPROBANTE:String(getEl('rv5PagoNumero')?.value||resolution?.numero_comprobante||''),FECHA_COMPROBANTE_LARGA:longDate(getEl('rv5PagoFecha')?.value||resolution?.fecha_comprobante),VALOR_COMPROBANTE:money(getEl('rv5PagoValor')?.value||resolution?.valor_comprobante),CONCEPTO_COMPROBANTE:String(getEl('rv5PagoConcepto')?.value||resolution?.concepto_comprobante||''),
@@ -540,6 +603,8 @@ function renderSidebarSummary(){
     editableReportCell('Ingreso del trámite','fecha_ingreso_tramite',selected.fecha_ingreso_tramite||'','date'),
     editableReportCell('Propietario(s)','propietarios_texto',selected.propietarios_texto||ownerNames()||''),
     editableReportCell('Cédula(s)','__propietarios_cedulas',ownerDocs()||''),
+    editableReportCell('Apoderado(s)','__apoderados_texto',apoderadosNamesV7978()||''),
+    editableReportCell('CI/RUC apoderado(s)','__apoderados_cedulas',apoderadosDocsV7978()||''),
     editableReportCell('Proyecto','proyecto.nombre',p.nombre||''),
     editableReportCell('Uso principal','proyecto.uso',p.uso||''),
     editableReportCell('Tipo de obra','proyecto.tipo_obra',p.tipo_obra||''),
