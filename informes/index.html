@@ -40092,6 +40092,39 @@ function legacyApoderadosTextV7980(arr){
   return (Array.isArray(arr)?arr:[]).map(a=>[String(a?.nombre||'').trim(),String(a?.ci||'').trim()].filter(Boolean).join(' · ')).filter(Boolean).join(' | ');
 }
 
+/* V7.9.82 — Texto plano del acápite 2. CRITERIO TÉCNICO para que
+   Resoluciones pueda reutilizar exactamente la información del informe.
+   No sustituye la tabla del informe: guarda una representación legible en
+   datos_informe junto con el snapshot técnico. */
+function criterioTecnicoDesistimientoParaResolucionV7982(){
+  let rows=[];
+  try{ rows=typeof combinedObsRows==='function'?(combinedObsRows()||[]):[]; }catch(_e){ rows=[]; }
+  return rows.map((raw,i)=>{
+    let o=raw||{};
+    try{ if(typeof formatCriterionRowV783==='function') o=formatCriterionRowV783(o)||o; }catch(_e){}
+    const isReq=o?.source==='req'||o?.source==='prop_req';
+    let art='';
+    if(isReq){
+      art=String(o?.articulo||o?.norma||'').trim();
+    }else{
+      const num=String(o?.articulo||o?.norma||'').trim();
+      const title=String(o?.articuloTitulo||'').trim();
+      const display=String(o?.articuloDisplay||'').trim();
+      art=display || [num,title].filter(Boolean).join(num&&title&&!/[.;:]$/.test(num)?'. ':' ');
+    }
+    let clar='';
+    try{ clar=String(typeof obsSpecificV55==='function'?obsSpecificV55(o):(o?.observacion||o?.correccion||'')).trim(); }catch(_e){ clar=String(o?.observacion||o?.correccion||'').trim(); }
+    if(!clar) clar='No cumple';
+    art=art.replace(/\s+/g,' ').trim();
+    clar=clar.replace(/\s+/g,' ').trim();
+    if(!art&&!clar) return '';
+    const artText=art?art.replace(/[.;:]?$/,''):'';
+    const clarText=clar.replace(/[.]?$/,'.');
+    return `${i+1}. ${artText}${artText?': ':''}${clarText}`;
+  }).filter(Boolean).join('\n');
+}
+window.criterioTecnicoDesistimientoParaResolucionV7982=criterioTecnicoDesistimientoParaResolucionV7982;
+
 function buildDesistimientoPayloadV790(){
   try{if(typeof window.collectTop==='function') window.collectTop(); else if(typeof collectTop==='function') collectTop();}catch(_e){}
   try{if(typeof window.ensurePropietarios==='function') window.ensurePropietarios(); else if(typeof ensurePropietarios==='function') ensurePropietarios();}catch(_e){}
@@ -40119,6 +40152,14 @@ function buildDesistimientoPayloadV790(){
       conclusion=[base,extra].filter(Boolean).join(' ').trim();
     }
   }catch(_e){ conclusion=extra; }
+
+  /* Persistencia auxiliar para Resoluciones. Mantiene el informe original
+     intacto y permite reconstruir fielmente Criterio Técnico / Conclusiones. */
+  if(snapshot && typeof snapshot==='object'){
+    snapshot.apoderados=apoderados.map(a=>({nombre:a.nombre,ci:a.ci}));
+    snapshot.criterio_tecnico_desistimiento=criterioTecnicoDesistimientoParaResolucionV7982();
+    snapshot.conclusiones_desistimiento_resolucion=conclusion;
+  }
 
   return {
     payload:{
@@ -44375,5 +44416,6 @@ mountSoon();
 <!-- ALLPA Informes V7.9.73 · Planos Aprobados obligatorios para Copiar/PDF en Aprobatorio de Obra Mayor -->
 <!-- ALLPA V7.9.77 · feriados externos en data/feriados.csv; 2026-11-02 y 2026-11-03 no laborables -->
 <!-- ALLPA V7.9.80 · Persistencia normalizada de uno o varios apoderados al finalizar Informes -->
+<!-- ALLPA V7.9.82 · Informe de desistimiento persiste Criterio Técnico para Resoluciones -->
 </body>
 </html>
