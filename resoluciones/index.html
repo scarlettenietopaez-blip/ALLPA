@@ -131,12 +131,12 @@ button{cursor:pointer}
 <!-- ALLPA V7.9.55 · Resoluciones: lectura de Informe Técnico mediante RPC V2 para rol ABOGADO -->
 <!-- ALLPA V7.9.72 · Resoluciones de Desistimiento: RPC V2 lista y abre Obra Mayor + Anteproyecto -->
 <!-- ALLPA V7.9.76 · Plantillas separadas de Resolución de Desistimiento: Obra Mayor / Anteproyecto -->
-<!-- ALLPA V7.9.79 · Resolución de Obra Mayor: redacción jurídica de comparecencia por apoderado(s) -->
+<!-- ALLPA V7.9.80 · Resolución de Obra Mayor: recuperación robusta de apoderado(s) históricos y actuales -->
 <noscript>ALLPA Resoluciones requiere JavaScript habilitado.</noscript>
 <script id="allpa-resoluciones-v5-script">
 (function(){
 'use strict';
-const VERSION='8.2.3-resoluciones-apoderados-comparecencia-v7979';
+const VERSION='8.2.4-resoluciones-apoderados-recuperacion-v7980';
 const SUPABASE_URL='https://lfinvpmobnczgtabtwfs.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
 let TEMPLATE_ROWS=[];
@@ -367,39 +367,99 @@ function ownersWithDocs(){
   }
   return arr.map(x=>{const n=String(x?.nombre||'').trim(),d=String(x?.ci||'').trim();return n+(d?', con número de cédula '+d:'');}).filter(Boolean).join('; ');
 }
+function apoderadoObjV7980(a){
+  if(!a||typeof a!=='object'||Array.isArray(a))return null;
+  if(a.activo===false)return null;
+  const nombre=String(a.nombre||a.name||a.apoderado_nombre||a.nombre_apoderado||'').trim();
+  const ci=String(a.ci||a.documento||a.identificacion||a.apoderado_documento||a.cedula||a.ruc||'').trim();
+  return (nombre||ci)?{nombre,ci}:null;
+}
+function parseLegacyApoderadosV7980(raw){
+  raw=String(raw||'').trim();if(!raw)return [];
+  /* Formatos históricos soportados:
+     NOMBRE · CI
+     NOMBRE · CI | NOMBRE 2 · CI 2
+     NOMBRE ; NOMBRE 2 (sin documentos)
+  */
+  const groups=raw.split(/\s*\|\s*|\s*;\s*/).map(x=>x.trim()).filter(Boolean);
+  const out=[];
+  for(const group of groups){
+    const parts=group.split(/\s*·\s*/).map(x=>x.trim()).filter(Boolean);
+    if(parts.length>=2)out.push({nombre:parts[0],ci:parts.slice(1).join(' · ')});
+    else if(group)out.push({nombre:group,ci:''});
+  }
+  return out;
+}
+function apoderadosFromTextPairV7980(namesRaw,docsRaw){
+  const names=String(namesRaw||'').split(/\s+\/\s+|\s*;\s*|\s*\|\s*/).map(x=>x.trim()).filter(Boolean);
+  const docs=String(docsRaw||'').split(/\s+\/\s+|\s*;\s*|\s*\|\s*/).map(x=>x.trim()).filter(Boolean);
+  const n=Math.max(names.length,docs.length);
+  return Array.from({length:n},(_,i)=>({nombre:names[i]||'',ci:docs[i]||''})).filter(x=>x.nombre||x.ci);
+}
+function recursiveApoderadosV7980(root){
+  const found=[];const seenNodes=new Set();let visited=0;
+  function walk(node,depth){
+    if(node==null||depth>8||visited>2500)return;visited++;
+    if(typeof node!=='object')return;
+    if(seenNodes.has(node))return;seenNodes.add(node);
+    if(Array.isArray(node)){node.forEach(x=>walk(x,depth+1));return;}
+    for(const [key,val] of Object.entries(node)){
+      const nk=norm(key).replace(/\s+/g,'_');
+      if(nk==='APODERADOS'&&Array.isArray(val)){
+        val.forEach(x=>{const a=apoderadoObjV7980(x);if(a)found.push(a);});
+      }else if(nk==='APODERADO'&&val&&typeof val==='object'&&!Array.isArray(val)){
+        const a=apoderadoObjV7980(val);if(a)found.push(a);
+      }else if(nk==='APODERADO'&&typeof val==='string'){
+        found.push(...parseLegacyApoderadosV7980(val));
+      }else if(['APODERADOS_TEXTO','NOMBRES_APODERADOS'].includes(nk)){
+        const docs=node.documentos_apoderados||node.apoderados_documentos||node.cedulas_apoderados||'';
+        found.push(...apoderadosFromTextPairV7980(val,docs));
+      }
+      walk(val,depth+1);
+    }
+  }
+  walk(root,0);return found;
+}
 function apoderadosListV7978(){
+  /* 1) Correcciones jurídicas: una corrección con contenido tiene prioridad.
+     Una corrección histórica vacía ya NO oculta los datos originales del Informe. */
   const correctedNames=hasReportCorrection('__apoderados_texto');
   const correctedDocs=hasReportCorrection('__apoderados_cedulas');
   if(correctedNames||correctedDocs){
-    const names=String(selected?.__apoderados_texto||'').split(/\s+\/\s+|\s*;\s*/).map(x=>x.trim()).filter(Boolean);
-    const docs=String(selected?.__apoderados_cedulas||'').split(/\s+\/\s+|\s*;\s*/).map(x=>x.trim()).filter(Boolean);
-    const n=Math.max(names.length,docs.length);
-    return Array.from({length:n},(_,i)=>({nombre:names[i]||'',ci:docs[i]||''})).filter(x=>x.nombre||x.ci);
+    const corrected=apoderadosFromTextPairV7980(selected?.__apoderados_texto,selected?.__apoderados_cedulas);
+    if(corrected.length)return corrected;
   }
+
   const snap=reportSnapshot();
-  const sources=[selected?.apoderados,snap?.apoderados,snap?.formulario?.apoderados,snap?.state?.apoderados];
-  let arr=[];
-  for(const src of sources){
-    if(Array.isArray(src)&&src.length){arr=src;break;}
+  const out=[];
+  const pushArray=(src)=>{if(Array.isArray(src))src.forEach(a=>{const x=apoderadoObjV7980(a);if(x)out.push(x);});};
+
+  /* 2) Contratos actuales y snapshots conocidos. */
+  [selected?.apoderados,snap?.apoderados,snap?.formulario?.apoderados,snap?.state?.apoderados,snap?.datos?.apoderados].forEach(pushArray);
+
+  /* 3) Pares de texto presentes en algunas versiones intermedias. */
+  out.push(...apoderadosFromTextPairV7980(selected?.apoderados_texto,selected?.documentos_apoderados));
+  out.push(...apoderadosFromTextPairV7980(snap?.apoderados_texto,snap?.documentos_apoderados));
+
+  /* 4) Campo legado del registro y del snapshot. */
+  const legacyCandidates=[selected?.apoderado,snap?.apoderado,snap?.formulario?.apoderado,snap?.state?.apoderado];
+  for(const legacy of legacyCandidates){
+    if(legacy&&typeof legacy==='object'&&!Array.isArray(legacy)){
+      const a=apoderadoObjV7980(legacy);if(a)out.push(a);
+    }else if(typeof legacy==='string')out.push(...parseLegacyApoderadosV7980(legacy));
   }
-  let out=arr.map(a=>({nombre:String(a?.nombre||a?.name||'').trim(),ci:String(a?.ci||a?.documento||a?.identificacion||'').trim()})).filter(a=>a.nombre||a.ci);
-  if(!out.length){
-    const legacy=(snap?.apoderado&&typeof snap.apoderado==='object')?snap.apoderado:selected?.apoderado;
-    if(legacy&&typeof legacy==='object'){
-      if(legacy.activo!==false){
-        const nombre=String(legacy.nombre||legacy.name||'').trim(),ci=String(legacy.ci||legacy.documento||legacy.identificacion||'').trim();
-        if(nombre||ci)out=[{nombre,ci}];
-      }
-    }else{
-      const raw=String(legacy||'').trim();
-      if(raw){
-        const parts=raw.split(/\s*[·|]\s*/).map(x=>x.trim()).filter(Boolean);
-        out=[{nombre:parts[0]||raw,ci:parts.slice(1).join(' · ')}];
-      }
-    }
-  }
+
+  /* 5) Rescate para Informes históricos: busca recursivamente cualquiera de
+     las estructuras anteriores dentro de datos_informe. */
+  if(!out.length)out.push(...recursiveApoderadosV7980(snap));
+
   const seen=new Set();
-  return out.filter(a=>{const k=norm(a.nombre)+'|'+String(a.ci||'').replace(/\s+/g,'');if(!k||seen.has(k))return false;seen.add(k);return true;});
+  return out.filter(a=>{
+    const nombre=String(a?.nombre||'').trim(),ci=String(a?.ci||'').trim();
+    if(!nombre&&!ci)return false;
+    const k=norm(nombre)+'|'+ci.replace(/\s+/g,'');
+    if(seen.has(k))return false;seen.add(k);return true;
+  });
 }
 function apoderadosNamesV7978(){return apoderadosListV7978().map(a=>a.nombre).filter(Boolean).join(' / ');}
 function apoderadosDocsV7978(){return apoderadosListV7978().map(a=>a.ci).filter(Boolean).join(' / ');}
