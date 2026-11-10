@@ -142,7 +142,7 @@ const SUPABASE_PUBLISHABLE_KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
 let TEMPLATE_ROWS=[];
 let TEMPLATE_META={version:'',sha256:'',url:'../data/plantillas/resolucion_obra_mayor.csv'};
 let templateReady=false;
-const OPTIONAL_VARS=new Set(['TIPO_OBRA_RESUELVE_FRAGMENTO','TIPO_OBRA_ARTICULO_FRAGMENTO','APODERADOS_REPRESENTACION_FRAGMENTO','APODERADOS_INTERVENCION_ORACION','APODERADOS_REFERENCIA_GENERICA','APODERADOS_NOTIFICACION_FRAGMENTO']);
+const OPTIONAL_VARS=new Set(['TIPO_OBRA_RESUELVE_FRAGMENTO','TIPO_OBRA_ARTICULO_FRAGMENTO','APODERADOS_REPRESENTACION_FRAGMENTO','APODERADOS_REPRESENTACION_SIN_DOCUMENTO','APODERADOS_INTERVENCION_ORACION','APODERADOS_REFERENCIA_GENERICA','APODERADOS_NOTIFICACION_FRAGMENTO']);
 const STRUCT_TECH_URL='../data/tecnicos_estructurales.csv';
 const INSTITUTIONAL_BG='../assets/fondo_institucional.png';
 let STRUCT_TECH_ROWS=[];
@@ -480,6 +480,13 @@ function apoderadosComparecenciaV7979({generico=false}={}){
 function apoderadosRepresentationFragmentV7978(){
   return apoderadosComparecenciaV7979();
 }
+function apoderadosRepresentationNoDocsFragmentV830(){
+  const arr=apoderadosListV7978();if(!arr.length)return '';
+  const comparece=singularOwner()?'quien comparece':'quienes comparecen';
+  const posesivo=arr.length===1?'su apoderado':'sus apoderados';
+  const nombres=arr.map(a=>String(a?.nombre||'').trim()).filter(Boolean).join('; ');
+  return nombres?`, ${comparece} por intermedio de ${posesivo} ${nombres}`:'';
+}
 function apoderadosIntervencionOracionV7978(){
   /* V7.9.79: se conserva por compatibilidad; la plantilla ya coloca la comparecencia junto al nombre del propietario. */
   return '';
@@ -536,7 +543,7 @@ function variables(){
   const numRes=manualResolutionFormatted();
   return {
     EGOB:String(selected?.egob||''),NUMERO_RESOLUCION:numRes,SIGLA_RESOLUCION:cfg('CFG_008'),DIRECTOR_NOMBRE:cfg('CFG_001'),DIRECTOR_CARGO:cfg('CFG_002'),ACCION_PERSONAL_DIRECTOR:cfg('CFG_003'),FECHA_ACCION_PERSONAL_DIRECTOR:cfg('CFG_004'),REGISTRADOR_PROPIEDAD:cfg('CFG_005'),MEMORANDO_CRITERIO_JURIDICO:cfg('CFG_006'),TEXTO_CRITERIO_JURIDICO:cfg('CFG_007'),
-    FECHA_INGRESO_TRAMITE_LARGA:longDate(selected?.fecha_ingreso_tramite),PROYECTISTA_NOMBRE:String(selected?.proyectista?.nombre||''),TRATAMIENTO_PROPIETARIO:treatment,PROPIETARIO_NOMBRE:owners,PROPIETARIO_CEDULA:docs,PROPIETARIOS_CON_DOCUMENTO:ownerDetail,APODERADOS_REPRESENTACION_FRAGMENTO:apoderadosRepresentationFragmentV7978(),APODERADOS_INTERVENCION_ORACION:apoderadosIntervencionOracionV7978(),APODERADOS_REFERENCIA_GENERICA:apoderadosReferenciaGenericaV7979(),APODERADOS_NOTIFICACION_FRAGMENTO:apoderadosNotificacionFragmentV7978(),VERBO_PROPIEDAD:ownerVerb(),CALIDAD_PROPIETARIO:ownerQuality(treatment),PARROQUIA:String(u.parroquia||''),AREA_TOTAL_CERTIFICADO_LETRAS:areaWords(g.area_total_certificado),AREA_TOTAL_CERTIFICADO:String(g.area_total_certificado??''),CERTIFICADO_GRAVAMEN:String(g.certificado||''),FICHA_REGISTRAL:String(g.ficha_registral||''),FECHA_GRAVAMEN_LARGA:longDate(g.fecha),
+    FECHA_INGRESO_TRAMITE_LARGA:longDate(selected?.fecha_ingreso_tramite),PROYECTISTA_NOMBRE:String(selected?.proyectista?.nombre||''),TRATAMIENTO_PROPIETARIO:treatment,PROPIETARIO_NOMBRE:owners,PROPIETARIO_CEDULA:docs,PROPIETARIOS_CON_DOCUMENTO:ownerDetail,APODERADOS_REPRESENTACION_FRAGMENTO:apoderadosRepresentationFragmentV7978(),APODERADOS_REPRESENTACION_SIN_DOCUMENTO:apoderadosRepresentationNoDocsFragmentV830(),APODERADOS_INTERVENCION_ORACION:apoderadosIntervencionOracionV7978(),APODERADOS_REFERENCIA_GENERICA:apoderadosReferenciaGenericaV7979(),APODERADOS_NOTIFICACION_FRAGMENTO:apoderadosNotificacionFragmentV7978(),VERBO_PROPIEDAD:ownerVerb(),CALIDAD_PROPIETARIO:ownerQuality(treatment),PARROQUIA:String(u.parroquia||''),AREA_TOTAL_CERTIFICADO_LETRAS:areaWords(g.area_total_certificado),AREA_TOTAL_CERTIFICADO:String(g.area_total_certificado??''),CERTIFICADO_GRAVAMEN:String(g.certificado||''),FICHA_REGISTRAL:String(g.ficha_registral||''),FECHA_GRAVAMEN_LARGA:longDate(g.fecha),
     DOCUMENTO_ESTRUCTURAL:cleanMemoNumber(s.documento),FECHA_DOCUMENTO_ESTRUCTURAL_LARGA:longDate(s.fecha),TECNICO_ESTRUCTURAL:String(s.tecnico||''),CARGO_TECNICO_ESTRUCTURAL:structuralCargo(),CRITERIO_ESTRUCTURAL:String(s.criterio||''),ING_CALCULISTA:String(s.calculista||''),REG_SENESCYT_CALCULISTA:String(s.senescyt||''),
     NUMERO_MEMORANDO_REMISION:cleanMemoNumber(getEl('rv5MemoNumero')?.value||resolution?.numero_memorando_remision||''),FECHA_MEMORANDO_REMISION_LARGA:longDate(getEl('rv5MemoFecha')?.value||resolution?.fecha_memorando_remision),TECNICO_INFORME:String(t.nombre||''),CARGO_TECNICO_INFORME:String(t.firma_cargo||t.cargo||''),CONCLUSION_TECNICA_INFORME:technicalConclusion(),AREA_CONSTRUCCION:String(a.construccion??''),AREA_PAGO_TASA:areaForFee(),NUMERO_INFORME_APROBATORIO:String(selected?.numero_informe_formateado||selected?.numero_formateado||''),
     NUMERO_COMPROBANTE:String(getEl('rv5PagoNumero')?.value||resolution?.numero_comprobante||''),FECHA_COMPROBANTE_LARGA:longDate(getEl('rv5PagoFecha')?.value||resolution?.fecha_comprobante),VALOR_COMPROBANTE:money(getEl('rv5PagoValor')?.value||resolution?.valor_comprobante),CONCEPTO_COMPROBANTE:formatPaymentConcept(getEl('rv5PagoConcepto')?.value||resolution?.concepto_comprobante||''),
