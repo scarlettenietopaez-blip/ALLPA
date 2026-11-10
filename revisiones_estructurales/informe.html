@@ -6,7 +6,8 @@
 <meta http-equiv="Expires" content="0">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALLPA · Informe Estructural</title>
-<!-- ALLPA Revisiones Estructurales V7.9.44 · impresión A4 institucional + paginación/márgenes/tablas 2026-10-07 -->
+<link rel="icon" type="image/png" href="../assets/logo-allpa-20264.png?v=2">
+<!-- ALLPA Revisiones Estructurales V7.9.62 · Oculta urbano/rural y coordenadas en Aprobatorio 2026-11-10 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--azul:#06375d;--azul2:#075681;--rojo:#b91d35;--ink:#17344d;--muted:#62788b;--line:#c8d8e4;--bg:#f1f6f9;--ok:#0d7a46;--warn:#8a5a00}
@@ -443,7 +444,7 @@ button{border:0;border-radius:10px;padding:9px 12px;font-weight:800;cursor:point
         <div class="field" style="margin-top:14px"><label>NOTA (OPCIONAL)</label><textarea id="obsNota" placeholder="Texto adicional que ingresa el Ing. Revisor, si corresponde."></textarea></div>
         <div class="tab-actions"><button type="button" class="secondary" onclick="tabAnteriorStruct()">ATRÁS</button><button type="button" class="success" onclick="guardarYSeguirStruct()">GUARDAR Y SIGUIENTE</button></div>
       </section>
-      <section id="tab-apr" class="tab card no-print"><div class="section-title">INFORME TÉCNICO APROBATORIO ESTRUCTURAL</div><div id="aprFields" class="grid"></div><div class="field" style="margin-top:12px"><label><input id="recColumnas" type="checkbox" style="width:auto;height:auto"> Incluir recomendación: Se sugiere revisar secciones de columnas de acuerdo al cálculo estructural.</label></div><div id="annexForm"></div></section>
+      <section id="tab-apr" class="tab card no-print"><div class="section-title">INFORME TÉCNICO APROBATORIO ESTRUCTURAL</div><div id="aprFields"></div><div class="field" style="margin-top:12px"><label><input id="recColumnas" type="checkbox" style="width:auto;height:auto"> Incluir recomendación: Se sugiere revisar secciones de columnas de acuerdo al cálculo estructural.</label></div><div id="annexForm"></div></section>
       <section id="tab-des" class="tab card no-print">
         <div class="section-title">INFORME TÉCNICO DE DESISTIMIENTO</div>
         <div class="grid">
@@ -558,6 +559,7 @@ window.toggleApoderadoStruct=function(active){state.info.apoderadoActivo=!!activ
 function archFieldStruct(id,label,span=1,type='text'){return `<div class="field ${span===2?'span2':span===3?'span3':''}"><label>${h(label)}</label><input type="${h(type)}" data-info="${h(id)}" value="${h(state.info[id]||'')}"></div>`}
 function renderInfo(){
  const owners=ownerRowsStruct(); const apActive=!!state.info.apoderadoActivo;
+ const locationFieldsStruct=state.tipo==='APROBATORIO'?'':`${archFieldStruct('urbanoRural','URBANO / RURAL')}${archFieldStruct('coordenadaX','COORDENADA X')}${archFieldStruct('coordenadaY','COORDENADA Y')}`;
  $('infoGrid').innerHTML=`
  <section class="arch-info-section"><div class="arch-info-title">1. DATOS DEL TRÁMITE</div>
    <div class="arch-info-grid">${archFieldStruct('egob','TRÁMITE EGOB NRO.:',3)}</div>
@@ -566,8 +568,7 @@ function renderInfo(){
    <div class="arch-apod-box ${apActive?'':'hidden-apod'}"><div class="arch-info-grid">${archFieldStruct('apoderado','APODERADO',2)}${archFieldStruct('apoderadoDocumento','CI/RUC APODERADO')}</div></div>
  </section>
  <section class="arch-info-section"><div class="arch-info-title">2. INFORMACIÓN PROYECTISTA</div><div class="arch-info-grid">${archFieldStruct('proyectista','PROYECTISTA',3)}${archFieldStruct('proyectistaSenescyt','REG. SENESCYT')}${archFieldStruct('proyectistaMunicipal','REG. MUNICIPAL')}</div></section>
- <section class="arch-info-section"><div class="arch-info-title">3. INFORMACIÓN DEL PROYECTO</div><div class="arch-info-grid">${archFieldStruct('proyecto','NOMBRE DEL PROYECTO',2)}${archFieldStruct('uso','USO PRINCIPAL')}${archFieldStruct('pisos','ALTURA EDIFICACIÓN (PISOS)')}${archFieldStruct('areaConstruccion','ÁREA DE CONSTRUCCIÓN (m²)')}${archFieldStruct('parroquia','PARROQUIA')}${archFieldStruct('direccion','DIRECCIÓN',2)}${archFieldStruct('pit','ZONA DE PLANEAMIENTO / CÓDIGO PIT')}${archFieldStruct('clave','CLAVE CATASTRAL',2)}${archFieldStruct('barrioSector','BARRIO / SECTOR')}${archFieldStruct('urbanoRural','URBANO / RURAL')}${archFieldStruct('coordenadaX','COORDENADA X')}${archFieldStruct('coordenadaY','COORDENADA Y')}</div></section>
- <section class="arch-info-section"><div class="arch-info-title">4. SOLICITUD DE REVISIÓN ESTRUCTURAL</div><div class="arch-info-grid">${archFieldStruct('memorando','MEMORANDO DE SOLICITUD',2)}${archFieldStruct('arquitecto','TÉCNICO QUE SOLICITA')}${archFieldStruct('arquitectoCargo','CARGO DEL TÉCNICO SOLICITANTE',2)}${archFieldStruct('calculista','ING. CALCULISTA')}${archFieldStruct('calculistaSenescyt','REG. SENESCYT CALCULISTA')}</div></section>`;
+ <section class="arch-info-section"><div class="arch-info-title">3. INFORMACIÓN DEL PROYECTO</div><div class="arch-info-grid">${archFieldStruct('proyecto','NOMBRE DEL PROYECTO',2)}${archFieldStruct('uso','USO PRINCIPAL')}${archFieldStruct('pisos','ALTURA EDIFICACIÓN (PISOS)')}${archFieldStruct('areaConstruccion','ÁREA DE CONSTRUCCIÓN (m²)')}${archFieldStruct('parroquia','PARROQUIA')}${archFieldStruct('direccion','DIRECCIÓN',2)}${archFieldStruct('pit','ZONA DE PLANEAMIENTO / CÓDIGO PIT')}${archFieldStruct('clave','CLAVE CATASTRAL',2)}${archFieldStruct('barrioSector','BARRIO / SECTOR')}${locationFieldsStruct}</div></section>`;
  document.querySelectorAll('[data-info]').forEach(el=>el.addEventListener('input',()=>{const id=el.dataset.info;state.info[id]=el.value;if(id==='egob')$('egobTop').value=el.value;if(['pisos','areaConstruccion'].includes(id)){renderStructCatalog();renderObsContext();}saveLocal();renderVista();}));
 }
 function numberValue(v){const n=Number(String(v??'').replace(',','.').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:0}
@@ -681,7 +682,7 @@ function renderAnnex(){
  document.querySelectorAll('[data-ax]').forEach(el=>{const ev=(el.type==='checkbox'||el.tagName==='SELECT')?'change':'input';el.addEventListener(ev,()=>{const r=state.anexos[Number(el.dataset.ax)],f=el.dataset.f;r[f]=el.type==='checkbox'?el.checked:el.value;if(f==='incluyePlanos'&&!r[f])r.planos='';if(f==='incluyeCds'&&!r[f])r.cds='';saveLocal();if(el.type==='checkbox'||el.tagName==='SELECT')renderAnnex();renderVista()})})
 }
 window.addAnnex=()=>{state.anexos.push({tipo:'folder',fojas:'',incluyePlanos:false,planos:'',incluyeCds:false,cds:''});saveLocal();renderAnnex();renderVista()};window.removeAnnex=i=>{if(state.anexos.length===1)return alert('Debe conservar al menos una fila.');state.anexos.splice(i,1);saveLocal();renderAnnex();renderVista()};
-function renderAprFields(){$('aprFields').innerHTML=infoField('memorando','Memorando de Solicitud Estructural')+infoField('arquitecto','Técnico que registra la solicitud')+infoField('arquitectoCargo','Cargo del técnico solicitante')+infoField('egob','eGOB')+infoField('propietarios','Propietario(s)')+infoField('documentos','CI/RUC')+infoField('calculista','Ing. Calculista')+infoField('calculistaSenescyt','REG. SENESCYT Calculista');$('aprFields').querySelectorAll('[data-info]').forEach(el=>el.addEventListener('input',()=>{state.info[el.dataset.info]=el.value;saveLocal();renderInfo();renderVista()}));$('recColumnas').checked=!!state.recColumnas;$('recColumnas').onchange=()=>{state.recColumnas=$('recColumnas').checked;saveLocal();renderVista()};renderAnnex()}
+function renderAprFields(){const box=$('aprFields');box.innerHTML=`<section class="arch-info-section"><div class="arch-info-title">4. SOLICITUD DE REVISIÓN ESTRUCTURAL</div><div class="arch-info-grid">${archFieldStruct('memorando','MEMORANDO DE SOLICITUD',2)}${archFieldStruct('arquitecto','TÉCNICO QUE SOLICITA')}${archFieldStruct('arquitectoCargo','CARGO DEL TÉCNICO SOLICITANTE',2)}${archFieldStruct('calculista','ING. CALCULISTA')}${archFieldStruct('calculistaSenescyt','REG. SENESCYT CALCULISTA')}</div></section>`;box.querySelectorAll('[data-info]').forEach(el=>el.addEventListener('input',()=>{state.info[el.dataset.info]=el.value;saveLocal();renderVista()}));$('recColumnas').checked=!!state.recColumnas;$('recColumnas').onchange=()=>{state.recColumnas=$('recColumnas').checked;saveLocal();renderVista()};renderAnnex()}
 function selectedObservations(){ensureStructObservationState();return (state.obsSeleccionadas||[]).map(o=>({requisitoId:o.requisitoId||'',requisito:o.requisito||'',grupo:o.grupo||'',origenChecklist:o.origenChecklist||'',manual:!!o.manual,observacion:clean(o.observacion)||'No Cumple',imagenes:Array.isArray(o.imagenes)?o.imagenes:[]}));}
 function observationSectionStruct(o){
  const direct=normSearchStruct(`${o?.grupo||''}`);
@@ -1127,7 +1128,7 @@ function syncRegisterButtonStruct(){
  btn.setAttribute('aria-hidden',visible?'false':'true');
 }
 function updateTabs(){
- const allowed=tabsStruct();document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('hidden',!allowed.includes(b.dataset.tab)));const cur=document.querySelector('.tab.active')?.id;if(!allowed.includes(cur))showTab('tab-info');syncSidebarStruct();syncRegisterButtonStruct();if(state.tipo==='OBSERVACIONES'){renderStructCatalog();renderStructSelected();renderNotificationStruct()}if(state.tipo==='DESISTIMIENTO')renderDesObservationInfo();renderVista();
+ const allowed=tabsStruct();document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('hidden',!allowed.includes(b.dataset.tab)));const cur=document.querySelector('.tab.active')?.id;if(!allowed.includes(cur))showTab('tab-info');syncSidebarStruct();renderInfo();syncRegisterButtonStruct();if(state.tipo==='OBSERVACIONES'){renderStructCatalog();renderStructSelected();renderNotificationStruct()}if(state.tipo==='DESISTIMIENTO')renderDesObservationInfo();renderVista();
 }
 function showTab(id){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.tab-btn').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));if(id==='tab-vista')renderVista();if(id==='tab-obs'){renderStructCatalog();renderStructSelected()}if(id==='tab-notif')renderNotificationStruct()}
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b&&!b.classList.contains('hidden'))showTab(b.dataset.tab)});
