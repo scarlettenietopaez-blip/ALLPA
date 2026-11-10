@@ -1035,7 +1035,7 @@ window.AllpaAnteproyectoNotificacion=Object.freeze({open:openModule,close:closeM
 <script id="allpa-resolucion-desistimiento-v1-script">
 (function(){
 'use strict';
-const VERSION='1.0.11-resolucion-desistimiento-apoderado-condicional-v7986';
+const VERSION='1.0.12-resolucion-desistimiento-formato-pal12-margen254-paginacion';
 const SUPABASE_URL='https://lfinvpmobnczgtabtwfs.supabase.co';
 const KEY='sb_publishable_oARH0ZQa0_d8w_dkYYd1dw_NlWSUn9i';
 const TEMPLATE_URLS=['../data/plantillas/resolucion_desistimiento.csv','../data/resolucion_desistimiento.csv'];
@@ -1209,10 +1209,10 @@ function drvInlineTokens(p){
   [...p.childNodes].forEach(ch=>walk(ch,[]));return tokens;
 }
 function drvEmptyBlockLike(block){
-  const clone=block.cloneNode(false);const p=document.createElement('p');clone.appendChild(p);return {block:clone,p};
+  const clone=block.cloneNode(false);clone.classList.add('drv-page-fragment');const p=document.createElement('p');clone.appendChild(p);return {block:clone,p};
 }
 function drvCriterionShellV7984(continuation=false){
-  const block=document.createElement('div');block.className='drv-block drv-criterion-block';
+  const block=document.createElement('div');block.className='drv-block drv-criterion-block'+(continuation?' drv-fragment-continuation':'');
   const title=document.createElement('p');title.className='drv-criterion-title';title.innerHTML='<strong>2. CRITERIO TÉCNICO'+(continuation?' (continuación)':'')+'</strong>';block.appendChild(title);
   const table=document.createElement('table');table.className='drv-criterion-table';table.innerHTML='<thead><tr><th>NRO.</th><th>ARTÍCULO / NORMA</th><th>ACLARACIÓN</th></tr></thead><tbody></tbody>';block.appendChild(table);
   return {block,tbody:table.querySelector('tbody')};
@@ -1233,6 +1233,7 @@ function drvPaginateBlocks(blocks,signatureHtml,host){
         let tr=drvCriterionRowElementV7984(r,i);shell.tbody.appendChild(tr);
         if(!fits()){
           shell.tbody.removeChild(tr);
+          shell.block.classList.add('drv-fragment-continued');
           content=drvCreatePage(host);shell=drvCriterionShellV7984(true);content.appendChild(shell.block);
           tr=drvCriterionRowElementV7984(r,i);shell.tbody.appendChild(tr);
         }
@@ -1253,7 +1254,8 @@ function drvPaginateBlocks(blocks,signatureHtml,host){
       if(!fits()){
         piece.p.removeChild(n);
         if(!String(piece.p.textContent||'').trim())content.removeChild(piece.block);
-        content=drvCreatePage(host);piece=drvEmptyBlockLike(block);content.appendChild(piece.block);piece.p.appendChild(n);
+        else piece.block.classList.add('drv-fragment-continued');
+        content=drvCreatePage(host);piece=drvEmptyBlockLike(block);piece.block.classList.add('drv-fragment-continuation');content.appendChild(piece.block);piece.p.appendChild(n);
       }
     }
   }
@@ -1409,7 +1411,17 @@ async function updateFinal(){
   busy=true;updateHeaderActions();try{const p=formPayload(),b=renderPreview();p.resolucion_id=resolution.id;p.bloques_renderizados=b.out;p.plantilla_version=meta.version;p.plantilla_hash=meta.hash;const d=await rpc('phdu_actualizar_resolucion_desistimiento_numerada',{p_payload:p});resolution=d;selected.resolucion=d;status('Resolución '+d.numero_formateado+' actualizada sin cambiar su número.','ok');await loadReports();renderWorkspace()}catch(e){showErrors([String(e?.message||e)],'No se pudo actualizar');status('No se pudo actualizar la Resolución.','error')}finally{busy=false;updateHeaderActions()}
 }
 async function copyText(){renderPreview();try{await navigator.clipboard.writeText($('drvPreview')?.innerText||'');status('Texto de la Resolución copiado.','ok')}catch(e){status('No se pudo copiar el texto.','error')}}
-function printDoc(){renderPreview();const body=$('drvPreview')?.innerHTML||'';const w=open('','_blank','width=950,height=900');if(!w){status('El navegador bloqueó la ventana de impresión.','error');return}const bg=new URL('../assets/fondo_institucional.png',location.href).href;w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Resolución de Desistimiento</title><style>@page{size:A4;margin:0}*{box-sizing:border-box}html,body{margin:0}body{font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif}.drv-page{position:relative;width:210mm;min-height:297mm;page-break-after:always;break-after:page;background:#fff url('${bg}') center top/210mm 297mm no-repeat;padding:28mm 16mm 25mm;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;color:#111;font-size:11pt;line-height:1.15}.drv-page:last-child{page-break-after:auto}.drv-page-egob{position:absolute;right:16mm;left:auto;bottom:10mm;font-size:8pt;font-weight:700;color:#263746;white-space:nowrap}.drv-block{margin:0 0 8px;text-align:justify}.drv-block.enc{text-align:center}.drv-block.resolve{text-align:center;font-weight:800;margin:12px 0}.drv-block.closing{text-align:left}.drv-block p{margin:0}.drv-criterion-title{margin:0 0 5px!important;text-align:left}.drv-criterion-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:4px 0 9px;font-size:9.4pt;line-height:1.15}.drv-criterion-table th,.drv-criterion-table td{border:1px solid #222;padding:4px 5px;vertical-align:top;text-align:left}.drv-criterion-table th{background:#d9d9d9;font-weight:700;font-size:8.8pt}.drv-criterion-table th:first-child,.drv-criterion-table td.drv-crit-n{width:9%;text-align:center}.drv-criterion-table th:nth-child(2){width:49%}.drv-signatures{width:100%;border-collapse:collapse;margin-top:16px;table-layout:fixed;text-align:center}.drv-signatures th,.drv-signatures td{border:1px solid #222}.drv-signatures th{padding:3px;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;font-size:9pt}.drv-signatures td{height:34mm;padding:14mm 7px 3mm;vertical-align:bottom;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;font-size:9pt;line-height:1.15}.drv-missing{background:#fff0a8}</style>
+function printDoc(){renderPreview();const body=$('drvPreview')?.innerHTML||'';const w=open('','_blank','width=950,height=900');if(!w){status('El navegador bloqueó la ventana de impresión.','error');return}const bg=new URL('../assets/fondo_institucional.png',location.href).href;w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Resolución de Desistimiento</title><style>@page{size:A4;margin:0}*{box-sizing:border-box}html,body{margin:0}body{font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif}.drv-page{position:relative;width:210mm;min-height:297mm;page-break-after:always;break-after:page;background:#fff url('${bg}') center top/210mm 297mm no-repeat;padding:28mm 16mm 25mm;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;color:#111;font-size:11pt;line-height:1.15}.drv-page:last-child{page-break-after:auto}.drv-page-egob{position:absolute;right:16mm;left:auto;bottom:10mm;font-size:8pt;font-weight:700;color:#263746;white-space:nowrap}.drv-block{margin:0 0 8px;text-align:justify}.drv-block.enc{text-align:center}.drv-block.resolve{text-align:center;font-weight:800;margin:12px 0}.drv-block.closing{text-align:left}.drv-block p{margin:0}.drv-criterion-title{margin:0 0 5px!important;text-align:left}.drv-criterion-table{width:100%;border-collapse:collapse;table-layout:fixed;margin:4px 0 9px;font-size:9.4pt;line-height:1.15}.drv-criterion-table th,.drv-criterion-table td{border:1px solid #222;padding:4px 5px;vertical-align:top;text-align:left}.drv-criterion-table th{background:#d9d9d9;font-weight:700;font-size:8.8pt}.drv-criterion-table th:first-child,.drv-criterion-table td.drv-crit-n{width:9%;text-align:center}.drv-criterion-table th:nth-child(2){width:49%}.drv-signatures{width:100%;border-collapse:collapse;margin-top:16px;table-layout:fixed;text-align:center}.drv-signatures th,.drv-signatures td{border:1px solid #222}.drv-signatures th{padding:3px;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;font-size:9pt}.drv-signatures td{height:34mm;padding:14mm 7px 3mm;vertical-align:bottom;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;font-size:9pt;line-height:1.15}.drv-missing{background:#fff0a8}
+/* V8.2.6 · Formato homologado Resoluciones de Desistimiento: Obra Mayor + Anteproyecto */
+.drv-page{width:210mm!important;height:297mm!important;min-height:297mm!important;padding:25.4mm!important;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;font-size:12pt!important;line-height:1.15!important;overflow:hidden!important}
+.drv-page-content{height:246.2mm!important;overflow:hidden!important;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;font-size:12pt!important;line-height:1.15!important}
+.drv-page-content *{font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;font-size:12pt!important}
+.drv-page-egob{right:25.4mm!important;bottom:11mm!important;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;font-size:8pt!important}
+.drv-block{margin:0 0 12pt!important;text-align:justify}.drv-block.resolve{margin:0 0 12pt!important}.drv-block p{margin:0!important}
+.drv-fragment-continued{margin-bottom:0!important}.drv-fragment-continuation{margin-top:0!important}
+.drv-criterion-title{margin:0 0 6pt!important}.drv-criterion-table{margin:0!important;font-size:12pt!important;line-height:1.15!important}.drv-criterion-table th,.drv-criterion-table td{font-size:12pt!important;padding:4px 5px!important;break-inside:avoid!important;page-break-inside:avoid!important}.drv-criterion-table tr{break-inside:avoid!important;page-break-inside:avoid!important}
+.drv-signatures{margin-top:12pt!important;break-inside:avoid!important;page-break-inside:avoid!important}.drv-signatures th,.drv-signatures th *,.drv-signatures td,.drv-signatures td *{font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;font-size:11pt!important}.drv-signatures th{padding:3px 5px!important}.drv-signatures td{height:42mm!important;padding:22mm 7px 4mm!important;vertical-align:bottom!important;line-height:1.1!important}
+</style>
 </head><body>${body}
 <!-- ALLPA V7.9.84 · Corrige paginación de Criterio Técnico y Conclusiones en Resolución de Desistimiento de Anteproyecto -->
 </body></html>`);w.document.close();setTimeout(()=>{w.focus();w.print()},500)}
@@ -1623,6 +1635,47 @@ html,body{height:100%!important;overflow:hidden!important;overflow-x:hidden!impo
   },{passive:false});
 })();
 </script>
+
+
+<style id="allpa-desistimiento-formato-v826">
+/* V8.2.6 · Resoluciones de Desistimiento (Obra Mayor y Anteproyecto)
+   Palatino 12 pt; firmas 11 pt; separación de un Enter; márgenes A4 2,54 cm;
+   paginación continua por líneas y por filas, sin margen artificial en fragmentos. */
+.drv-paper{width:min(210mm,100%)!important;gap:16px!important}
+.drv-page{
+  position:relative!important;width:210mm!important;height:297mm!important;min-height:297mm!important;
+  padding:25.4mm!important;box-sizing:border-box!important;
+  background:#fff url('../assets/fondo_institucional.png') center/210mm 297mm no-repeat!important;
+  font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;
+  font-size:12pt!important;line-height:1.15!important;overflow:hidden!important;
+}
+.drv-page-content{
+  position:relative!important;z-index:1!important;height:246.2mm!important;overflow:hidden!important;
+  font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;
+  font-size:12pt!important;line-height:1.15!important;
+}
+.drv-page-content *{font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif;font-size:12pt!important}
+.drv-page-egob{right:25.4mm!important;left:auto!important;bottom:11mm!important;font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;font-size:8pt!important}
+.drv-block{margin:0 0 12pt!important;text-align:justify!important}
+.drv-block.enc{text-align:center!important}.drv-block.resolve{margin:0 0 12pt!important;text-align:center!important}.drv-block.closing{text-align:left!important}.drv-block p{margin:0!important}
+/* Cuando un mismo párrafo continúa en la página siguiente, no se agrega un Enter ficticio al pie. */
+.drv-fragment-continued{margin-bottom:0!important}.drv-fragment-continuation{margin-top:0!important}
+/* Criterio técnico: 12 pt y salto exclusivamente entre filas. */
+.drv-criterion-title{margin:0 0 6pt!important;text-align:left!important}
+.drv-criterion-table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;margin:0!important;font-size:12pt!important;line-height:1.15!important}
+.drv-criterion-table th,.drv-criterion-table td{font-size:12pt!important;padding:4px 5px!important;break-inside:avoid!important;page-break-inside:avoid!important}
+.drv-criterion-table tr{break-inside:avoid!important;page-break-inside:avoid!important}
+/* Firmas: 11 pt y espacio útil equivalente al formato aprobatorio. */
+.drv-signatures{width:100%!important;border-collapse:collapse!important;margin-top:12pt!important;table-layout:fixed!important;text-align:center!important;break-inside:avoid!important;page-break-inside:avoid!important}
+.drv-signatures th,.drv-signatures th *,.drv-signatures td,.drv-signatures td *{font-family:'Palatino Linotype',Palatino,'Book Antiqua',serif!important;font-size:11pt!important}
+.drv-signatures th{padding:3px 5px!important}.drv-signatures td{height:42mm!important;padding:22mm 7px 4mm!important;vertical-align:bottom!important;line-height:1.1!important}
+@media print{
+  .drv-page{width:210mm!important;height:297mm!important;min-height:297mm!important;padding:25.4mm!important;background-size:210mm 297mm!important;page-break-after:always!important;break-after:page!important}
+  .drv-page-content{height:246.2mm!important}
+  .drv-page:last-child{page-break-after:auto!important;break-after:auto!important}
+}
+</style>
+<!-- ALLPA V8.2.6 · Desistimiento OM + Anteproyecto: Palatino 12/11, Enter 12 pt, márgenes 2.54 cm, paginación por líneas/filas -->
 
 <!-- ALLPA V7.9.83 · Desistimiento Anteproyecto: Criterio Técnico en tabla + Conclusiones; apoderado solo si existe -->
 <!-- ALLPA V7.9.85 · Cita literal del Informe y alta manual de apoderado cuando no existe -->
