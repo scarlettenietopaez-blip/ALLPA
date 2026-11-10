@@ -132,6 +132,7 @@ button{cursor:pointer}
 <!-- ALLPA V7.9.72 · Resoluciones de Desistimiento: RPC V2 lista y abre Obra Mayor + Anteproyecto -->
 <!-- ALLPA V7.9.76 · Plantillas separadas de Resolución de Desistimiento: Obra Mayor / Anteproyecto -->
 <!-- ALLPA V7.9.80 · Resolución de Obra Mayor: recuperación robusta de apoderado(s) históricos y actuales -->
+<!-- ALLPA V8.3.1 · Resolución Aprobatoria OM: apoderado condicional + alta manual como Desistimiento -->
 <noscript>ALLPA Resoluciones requiere JavaScript habilitado.</noscript>
 <script id="allpa-resoluciones-v5-script">
 (function(){
@@ -307,6 +308,20 @@ function updateReportCorrection(path,value){
   saveReportCorrections(c);
   setSelectedPath(path,value);
   renderPreview();
+}
+function enableApoderadoV831(){
+  if(!selected||!canWrite()||demoMode)return;
+  const c=loadReportCorrections();
+  c.__mostrar_apoderado_manual=true;
+  if(!Object.prototype.hasOwnProperty.call(c,'__apoderados_texto'))c.__apoderados_texto='';
+  if(!Object.prototype.hasOwnProperty.call(c,'__apoderados_cedulas'))c.__apoderados_cedulas='';
+  saveReportCorrections(c);
+  setSelectedPath('__mostrar_apoderado_manual',true);
+  setSelectedPath('__apoderados_texto',String(c.__apoderados_texto||''));
+  setSelectedPath('__apoderados_cedulas',String(c.__apoderados_cedulas||''));
+  renderSidebarSummary();
+  renderPreview();
+  setTimeout(()=>document.querySelector('[data-rv5-report-field="__apoderados_texto"]')?.focus(),40);
 }
 async function resetReportCorrections(){
   if(!selected?.informe_id)return;
@@ -738,6 +753,11 @@ function renderSidebarSummary(){
   const p=selected.proyecto||{},u=selected.ubicacion||{},a=selected.areas||{},g=selected.gravamen||{},s=selected.estructural||{},t=selected.tecnico||{},pr=selected.proyectista||{};
   const num=manualResolutionFormatted();
   const st=resolution?.estado||'SIN BORRADOR';
+  const apBase=apoderadosListV7978();
+  const apNamesActual=String(selected?.__apoderados_texto||apBase.map(a=>a.nombre).filter(Boolean).join(' / ')||'').trim();
+  const apDocsActual=String(selected?.__apoderados_cedulas||apBase.map(a=>a.ci).filter(Boolean).join(' / ')||'').trim();
+  const apManual=loadReportCorrections().__mostrar_apoderado_manual===true||selected?.__mostrar_apoderado_manual===true;
+  const apEnabled=apBase.length>0||!!apNamesActual||!!apDocsActual||apManual;
   const rows=[
     editableReportCell('Informe Técnico','numero_informe_formateado',selected.numero_informe_formateado||''),
     editableReportCell('eGOB','egob',selected.egob||''),
@@ -745,8 +765,10 @@ function renderSidebarSummary(){
     editableReportCell('Ingreso del trámite','fecha_ingreso_tramite',selected.fecha_ingreso_tramite||'','date'),
     editableReportCell('Propietario(s)','propietarios_texto',selected.propietarios_texto||ownerNames()||''),
     editableReportCell('Cédula(s)','__propietarios_cedulas',ownerDocs()||''),
-    editableReportCell('Apoderado(s)','__apoderados_texto',apoderadosNamesV7978()||''),
-    editableReportCell('CI/RUC apoderado(s)','__apoderados_cedulas',apoderadosDocsV7978()||''),
+    ...(apEnabled?[
+      editableReportCell('Apoderado(s)','__apoderados_texto',apNamesActual),
+      editableReportCell('CI/RUC apoderado(s)','__apoderados_cedulas',apDocsActual)
+    ]:[]),
     editableReportCell('Proyecto','proyecto.nombre',p.nombre||''),
     editableReportCell('Uso principal','proyecto.uso',p.uso||''),
     editableReportCell('Tipo de obra','proyecto.tipo_obra',p.tipo_obra||''),
@@ -775,12 +797,14 @@ function renderSidebarSummary(){
     editableReportCell('Técnico del informe','tecnico.nombre',t.nombre||''),
     editableReportCell('Cargo técnico','tecnico.firma_cargo',t.firma_cargo||t.cargo||'')
   ].join('');
-  const count=Object.keys(loadReportCorrections()).length;
+  const count=Object.keys(loadReportCorrections()).filter(k=>k!=='__mostrar_apoderado_manual').length;
+  const addAp=!apEnabled&&canWrite()&&!demoMode?`<button type="button" class="rv5-add-apoderado-v831" onclick="window.AllpaResolucionesV5.addAttorney()">+ Agregar Apoderado/CI</button>`:'';
   host.innerHTML=`<div class="rv5-card"><div class="rv5-card-pad">
     <h2>Datos del Informe</h2>
     <div class="rv5-side-number"><div><div class="rv5-mini">RESOLUCIÓN</div><strong id="rv5ResolutionNumber" class="${num?'':'pending'}">${esc(num||'PENDIENTE DE ASIGNACIÓN')}</strong></div><span class="rv5-badge ${st==='FINALIZADA'?'final':st==='BORRADOR'?'draft':'none'}">${esc(st)}</span></div>
     <div class="rv5-summary-edit-note"><strong>Campos editables para la Resolución.</strong> Las correcciones realizadas por la abogada se reflejan inmediatamente en todos los textos de la Resolución; no modifican el Informe Técnico Aprobatorio original.${count?` <strong>${count} campo(s) corregido(s).</strong>`:''}</div>
     <table class="rv5-summary-table"><tbody>${rows}</tbody></table>
+    ${addAp}
     <div class="rv5-summary-edit-actions"><button type="button" class="rv5-summary-reset" onclick="window.AllpaResolucionesV5.resetReportCorrections()" ${canWrite()?'':'disabled'}>Restaurar datos del Informe</button></div>
   </div></div>`;
   bindEditableReportFields();
@@ -874,7 +898,7 @@ function ensureLaunchers(){}
 function open(){document.title='ALLPA - RESOLUCIÓN APROBATORIA DE OBRA MAYOR';mount();getEl('resolucionesOverlayV5')?.classList.add('open');ensureLaunchers();if(profile)updateProfile();else restoreSession();}
 function close(){getEl('resolucionesOverlayV5')?.classList.remove('open');document.title='ALLPA - Resoluciones PHDU';document.getElementById('rv6ProjectGate')?.classList.remove('hidden');}
 try{if(window.supabase?.createClient){client=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'allpa-phdu-auth-v1'}});}}catch(err){console.error('ALLPA Resoluciones V5:',err);}
-window.AllpaResolucionesV5=Object.freeze({version:VERSION,open,close,login,logout,refresh:loadReports,selectInforme,preview:renderPreview,saveDraft:()=>saveDraft(false),finalize:finalizeResolution,updateNumbered:updateNumberedResolution,resetReportCorrections,copyText,print:printPreview,closeError:closeErrorModal,getProfile:()=>clone(profile),getSelected:()=>clone(selected),getResolution:()=>clone(resolution),getTemplate:()=>clone(TEMPLATE_META),mode:'RESOLUCIONES_V810_CORRECCIONES_INFORME'});
+window.AllpaResolucionesV5=Object.freeze({version:VERSION,open,close,login,logout,refresh:loadReports,selectInforme,preview:renderPreview,saveDraft:()=>saveDraft(false),finalize:finalizeResolution,updateNumbered:updateNumberedResolution,resetReportCorrections,addAttorney:enableApoderadoV831,copyText,print:printPreview,closeError:closeErrorModal,getProfile:()=>clone(profile),getSelected:()=>clone(selected),getResolution:()=>clone(resolution),getTemplate:()=>clone(TEMPLATE_META),mode:'RESOLUCIONES_V831_APODERADO_CONDICIONAL'});
 async function boot(){mount();getEl('resolucionesOverlayV5')?.classList.add('open');setStatus('Cargando plantilla oficial de Resolución…');try{await loadTemplate();await loadStructuralTechnicians();setStatus('Plantilla '+TEMPLATE_META.version+' cargada'+(structTechReady?' · técnicos estructurales disponibles.':' · advertencia: no se pudo cargar técnicos estructurales.'),structTechReady?'ok':'warn');await restoreSession();renderWorkspace();}catch(err){templateReady=false;setStatus('No se pudo cargar la plantilla: '+String(err?.message||err),'error');renderWorkspace();}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,80));else setTimeout(boot,0);
 })();
@@ -1469,6 +1493,12 @@ window.AllpaDesistimientoResolucion=Object.freeze({version:VERSION,open:openModu
   background:#fff!important;color:#8a1c16!important;border:1px solid #d7a2a0!important;
   font-size:9px!important;font-weight:900!important
 }
+.rv5-add-apoderado-v831{
+  width:100%;margin-top:8px;min-height:31px;border-radius:8px;
+  border:1px solid #84aec4;background:#f1f8fc;color:#0b587c;
+  font-size:8.5px;font-weight:900;cursor:pointer
+}
+.rv5-add-apoderado-v831:hover{background:#e4f3fb}
 .rv5-summary-edited{
   display:inline-flex;margin-left:5px;padding:1px 5px;border-radius:999px;
   background:#ffefba;color:#6a4a00;font-size:7px;font-weight:1000;vertical-align:middle
