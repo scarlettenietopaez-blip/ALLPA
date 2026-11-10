@@ -21,7 +21,7 @@ h1{font-size:34px;margin:0 0 8px}.lead{margin:0 0 26px;color:var(--muted);line-h
 <body>
 <div class="top">ALLPA</div>
 <div class="portal"><section class="hero" aria-label="Identidad institucional"><div class="hero-label">DIRECCIÓN GENERAL DE GESTIÓN DE PLANIFICACIÓN,<br>HÁBITAT Y DESARROLLO URBANÍSTICO</div></section><section class="panel"><div class="box">
-  <div id="loginView"><h1>Inicio de sesión</h1><p class="lead">Ingrese con su cuenta PHDU. ALLPA habilitará únicamente los módulos correspondientes a su rol.</p>
+  <div id="loginView" class="hidden"><h1>Inicio de sesión</h1><p class="lead">Ingrese con su cuenta PHDU. ALLPA habilitará únicamente los módulos correspondientes a su rol.</p>
     <div class="login"><div class="field"><label>Correo</label><input id="email" type="email" autocomplete="username"></div><div class="field"><label>Contraseña</label><input id="password" type="password" autocomplete="current-password"></div><div class="actions"><button class="primary" onclick="login()">INGRESAR A ALLPA</button><button class="soft" onclick="requestPasswordReset()">RECUPERAR CONTRASEÑA</button></div><div class="recovery-note">Para recuperar el acceso, ingrese primero su correo y pulse “Recuperar contraseña”. Recibirá un enlace para definir una nueva contraseña.</div><div id="status" class="status">Esperando credenciales PHDU.</div></div>
   </div>
   <div id="recoveryView" class="hidden"><h1 class="recovery-title">Restablecer contraseña</h1><p class="lead">Ingrese y confirme su nueva contraseña para la cuenta PHDU.</p>
@@ -44,6 +44,7 @@ const INITIAL_AUTH_ERROR=INITIAL_HASH_PARAMS.get('error_description')||INITIAL_Q
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'allpa-phdu-auth-v1'}});
 let currentProfile=null;
 let recoveryMode=false;
+const PROFILE_CACHE_KEY='allpa-phdu-profile-v1';
 
 function s(msg,type=''){const e=document.getElementById('status');e.textContent=msg;e.className='status '+type}
 function rs(msg,type=''){const e=document.getElementById('recoveryStatus');e.textContent=msg;e.className='status '+type}
@@ -55,9 +56,22 @@ function setView(name){
 }
 function showRecoveryView(){recoveryMode=true;setView('recovery');setTimeout(()=>document.getElementById('newPassword')?.focus(),50)}
 
+function cacheProfile(p){
+  try{sessionStorage.setItem(PROFILE_CACHE_KEY,JSON.stringify(p))}catch(_e){}
+}
+function readCachedProfile(){
+  try{
+    const raw=sessionStorage.getItem(PROFILE_CACHE_KEY);
+    if(!raw)return null;
+    const p=JSON.parse(raw);
+    return p&&p.id&&p.activo!==false?p:null;
+  }catch(_e){return null}
+}
+function clearCachedProfile(){try{sessionStorage.removeItem(PROFILE_CACHE_KEY)}catch(_e){}}
+
 async function profileFor(user){const {data,error}=await sb.from('phdu_profiles').select('id,correo,nombre_completo,rol,activo,cargo,firma_nombre,firma_cargo').eq('id',user.id).single();if(error)throw error;if(!data?.activo)throw new Error('El perfil PHDU está inactivo.');return data}
 function moduleLink(href,n,title,sub){return `<a class="module" href="${href}"><span class="n">${n}</span><span class="txt"><strong>${title}</strong><span>${sub}</span></span><span class="arr">→</span></a>`}
-function showRole(p){currentProfile=p;recoveryMode=false;setView('role');document.getElementById('welcome').textContent='Bienvenido/a, '+(p.nombre_completo||p.correo||p.firma_nombre||'');document.getElementById('profile').innerHTML='<strong>Rol:</strong> '+p.rol+(p.cargo?'<br><strong>Cargo:</strong> '+p.cargo:'');const r=String(p.rol||'').toUpperCase();let html='',txt='';if(r==='TECNICO'){txt='Su perfil tiene habilitado el Generador de Informes Técnicos.';html=moduleLink('informes/index.html','1','INFORMES TÉCNICOS','Obra Mayor Definitivo y Anteproyecto de Edificación.');}else if(r==='INGENIERO_CIVIL'){txt='Su perfil tiene habilitado el módulo de Revisiones Estructurales.';html=moduleLink('revisiones_estructurales/index.html','1','REVISIONES ESTRUCTURALES','Revisión estructural de proyectos de Obra Mayor Definitivo.');}else if(r==='ABOGADO'){txt='Su perfil tiene habilitado el módulo de Resoluciones.';html=moduleLink('resoluciones/index.html','1','RESOLUCIONES','Resoluciones de Obra Mayor, Anteproyecto y Desistimiento.');}else if(r==='ADMIN'){txt='Su perfil de Administrador tiene acceso a todos los módulos.';html=moduleLink('informes/index.html','1','INFORMES TÉCNICOS','Generador técnico y numeración oficial.')+moduleLink('revisiones_estructurales/index.html','2','REVISIONES ESTRUCTURALES','Bandeja y elaboración de informes estructurales.')+moduleLink('resoluciones/index.html','3','RESOLUCIONES','Generación jurídica, notificaciones y numeración oficial.')+moduleLink('control/index.html','4','CONTROL','Consulta, respaldo CSV y administración de números registrados.');}else{txt='Este rol todavía no tiene una interfaz asignada en el Portal ALLPA.';}document.getElementById('roleText').textContent=txt;document.getElementById('modules').innerHTML=html}
+function showRole(p,saveCache=true){currentProfile=p;recoveryMode=false;if(saveCache)cacheProfile(p);setView('role');document.getElementById('welcome').textContent='Bienvenido/a, '+(p.nombre_completo||p.correo||p.firma_nombre||'');document.getElementById('profile').innerHTML='<strong>Rol:</strong> '+p.rol+(p.cargo?'<br><strong>Cargo:</strong> '+p.cargo:'');const r=String(p.rol||'').toUpperCase();let html='',txt='';if(r==='TECNICO'){txt='Su perfil tiene habilitado el Generador de Informes Técnicos.';html=moduleLink('informes/index.html','1','INFORMES TÉCNICOS','Obra Mayor Definitivo y Anteproyecto de Edificación.');}else if(r==='INGENIERO_CIVIL'){txt='Su perfil tiene habilitado el módulo de Revisiones Estructurales.';html=moduleLink('revisiones_estructurales/index.html','1','REVISIONES ESTRUCTURALES','Revisión estructural de proyectos de Obra Mayor Definitivo.');}else if(r==='ABOGADO'){txt='Su perfil tiene habilitado el módulo de Resoluciones.';html=moduleLink('resoluciones/index.html','1','RESOLUCIONES','Resoluciones de Obra Mayor, Anteproyecto y Desistimiento.');}else if(r==='ADMIN'){txt='Su perfil de Administrador tiene acceso a todos los módulos.';html=moduleLink('informes/index.html','1','INFORMES TÉCNICOS','Generador técnico y numeración oficial.')+moduleLink('revisiones_estructurales/index.html','2','REVISIONES ESTRUCTURALES','Bandeja y elaboración de informes estructurales.')+moduleLink('resoluciones/index.html','3','RESOLUCIONES','Generación jurídica, notificaciones y numeración oficial.')+moduleLink('control/index.html','4','CONTROL','Consulta, respaldo CSV y administración de números registrados.');}else{txt='Este rol todavía no tiene una interfaz asignada en el Portal ALLPA.';}document.getElementById('roleText').textContent=txt;document.getElementById('modules').innerHTML=html}
 
 async function login(){const email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;if(!email||!password){s('Ingrese correo y contraseña.','error');return}s('Validando cuenta PHDU…');try{const {data,error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;const p=await profileFor(data.user);showRole(p);const r=String(p.rol||'').toUpperCase();if(r==='TECNICO') location.href='informes/index.html';else if(r==='INGENIERO_CIVIL') location.href='revisiones_estructurales/index.html';else if(r==='ABOGADO') location.href='resoluciones/index.html';}catch(e){s('No se pudo iniciar sesión: '+(e.message||e),'error')}}
 
@@ -87,6 +101,7 @@ async function saveNewPassword(){
     rs('Contraseña actualizada correctamente. Cerrando la sesión de recuperación…','ok');
     await new Promise(r=>setTimeout(r,700));
     await sb.auth.signOut();
+    clearCachedProfile();
     recoveryMode=false;
     history.replaceState({},document.title,cleanPortalUrl());
     document.getElementById('newPassword').value='';
@@ -97,7 +112,7 @@ async function saveNewPassword(){
   }catch(e){rs('No se pudo actualizar la contraseña: '+(e.message||e),'error')}
 }
 
-async function logout(){await sb.auth.signOut();currentProfile=null;recoveryMode=false;setView('login');document.getElementById('password').value='';s('Sesión cerrada.');}
+async function logout(){await sb.auth.signOut();currentProfile=null;recoveryMode=false;clearCachedProfile();setView('login');document.getElementById('password').value='';s('Sesión cerrada.');}
 
 // Supabase emite PASSWORD_RECOVERY al procesar un enlace de recuperación válido.
 sb.auth.onAuthStateChange((event,session)=>{
@@ -108,27 +123,59 @@ sb.auth.onAuthStateChange((event,session)=>{
 });
 
 (async()=>{
+  let cachedProfile=null;
   try{
     if(INITIAL_AUTH_ERROR){
+      clearCachedProfile();
       setView('login');
       s('El enlace de recuperación es inválido o expiró: '+decodeURIComponent(INITIAL_AUTH_ERROR.replace(/\+/g,' ')),'error');
       return;
     }
+
     if(INITIAL_RECOVERY_HINT){
       showRecoveryView();
       rs('Validando enlace de recuperación…');
+      // En recuperación sí damos un instante a supabase-js para procesar el enlace.
+      await new Promise(r=>setTimeout(r,150));
+    }else{
+      // Al volver desde un módulo mostramos de inmediato el último perfil ya validado
+      // en esta pestaña. Supabase confirma la sesión y refresca el perfil después.
+      cachedProfile=readCachedProfile();
+      if(cachedProfile)showRole(cachedProfile,false);
     }
-    // Dejamos un instante para que supabase-js procese tokens/código del enlace.
-    await new Promise(r=>setTimeout(r,450));
-    const {data}=await sb.auth.getSession();
+
+    const {data,error}=await sb.auth.getSession();
+    if(error)throw error;
+
     if(recoveryMode||INITIAL_RECOVERY_HINT){
       if(data?.session)rs('Enlace validado. Ingrese y confirme su nueva contraseña.','ok');
       return;
     }
-    if(data?.session?.user){const p=await profileFor(data.session.user);showRole(p)}
+
+    if(!data?.session?.user){
+      currentProfile=null;
+      clearCachedProfile();
+      setView('login');
+      return;
+    }
+
+    const p=await profileFor(data.session.user);
+    showRole(p,true);
   }catch(e){
-    console.warn('ALLPA Portal recuperación:',e);
-    if(recoveryMode||INITIAL_RECOVERY_HINT){showRecoveryView();rs('No se pudo validar el enlace: '+(e.message||e),'error')}
+    console.warn('ALLPA Portal:',e);
+    if(recoveryMode||INITIAL_RECOVERY_HINT){
+      showRecoveryView();
+      rs('No se pudo validar el enlace: '+(e.message||e),'error');
+      return;
+    }
+    // Si ya mostramos un perfil cacheado, evitamos reemplazarlo por el login
+    // debido únicamente a una falla temporal de red. Los módulos conservan sus
+    // propias validaciones de sesión y permisos en Supabase.
+    if(!cachedProfile){
+      clearCachedProfile();
+      setView('login');
+      s('No se pudo comprobar la sesión: '+(e.message||e),'error');
+    }
   }
 })();
 </script>
