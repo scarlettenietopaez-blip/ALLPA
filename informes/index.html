@@ -5207,8 +5207,8 @@ function anteproyectoPanelHtml(){
    html+=`<table class="anteproyecto-table form-report-table"><tbody>
     <tr><th>Documento</th><td><input id="antDocumento" value="${esc(a.documento||'')}" placeholder="MEMORANDO / RESOLUCIÓN"></td><th>EGOB</th><td><input id="antEgob" value="${esc(a.egob||'')}" placeholder="EGOB"></td></tr>
     <tr><th>Técnico revisor</th><td colspan="3"><input id="antTecnico" list="listaTecnicos" value="${esc(a.tecnico||'')}" placeholder="TÉCNICO REVISOR"></td></tr>
-    <tr><th>Criterio técnico</th><td><select id="antCriterio"><option></option><option ${a.criterio==='FAVORABLE'?'selected':''}>FAVORABLE</option><option ${a.criterio==='NO FAVORABLE'?'selected':''}>NO FAVORABLE</option></select></td><th>Proyectista</th><td><input id="antCalculista" value="${esc(a.calculista||'')}" placeholder="PROYECTISTA"></td></tr>
-    <tr><th>Reg. SENESCYT</th><td colspan="3"><input id="antSenescyt" value="${esc(a.senescyt||'')}" placeholder="1041-2026-3296002"></td></tr>
+    <tr><th>Criterio técnico</th><td><select id="antCriterio"><option></option><option ${a.criterio==='FAVORABLE'?'selected':''}>FAVORABLE</option><option ${a.criterio==='NO FAVORABLE'?'selected':''}>NO FAVORABLE</option></select></td><th>Proyectista</th><td><input id="antCalculista" value="${esc(a.calculista||'')}" placeholder="PROYECTISTA" autocomplete="off" spellcheck="false" data-lpignore="true"></td></tr>
+    <tr><th>Reg. SENESCYT</th><td colspan="3"><input id="antSenescyt" value="${esc(a.senescyt||'')}" placeholder="1041-2026-3296002" autocomplete="off" spellcheck="false" data-lpignore="true"></td></tr>
    </tbody></table>`;
  }
  html+='</div>';
@@ -15420,6 +15420,13 @@ window.addEventListener('load',()=>{
 <script>
 /* ==========================================================
    V116 SOBRE V115
+   V7.9.88: Anteproyecto OM — ingreso manual de Proyectista/SENESCYT protegido.
+   - Sin coincidencias parciales.
+   - No autocompleta al perder foco.
+   - SENESCYT manual nunca se sobrescribe.
+   - Se ignoran registros inválidos NA/N/A/S-N.
+
+   
 
    1) Criterio técnico en Anteproyecto y Estructural:
       solo FAVORABLE.
@@ -15443,25 +15450,29 @@ function normV116(v){
     .toUpperCase();
 }
 
+function nombreProfesionalValidoV7988(nombre){
+  const n=normV116(nombre);
+  return !!n && !['NA','N/A','S/N','SN','SIN DATO','SIN DATOS','NO APLICA'].includes(n);
+}
 function profesionalesArquitectosV116(){
-  const list=(DATA.profesionales||[]).filter(p=>{
-    if(!p || !p.nombre) return false;
+  const source=(DATA.profesionales||[]).filter(p=>p && nombreProfesionalValidoV7988(p.nombre));
+  const list=source.filter(p=>{
     if(typeof esArquitectoV39 === 'function') return esArquitectoV39(p);
     const t=normV116(p.titulo || p.Titulo || p.TITULO || '');
     return t.includes('ARQUITECT');
   });
 
-  // Si la base no tiene título cargado, usar todos los profesionales como respaldo.
-  return list.length ? list : (DATA.profesionales||[]).filter(p=>p && p.nombre);
+  // Si la base no tiene título cargado, usar profesionales con nombre válido como respaldo.
+  return list.length ? list : source;
 }
 
 function findArquitectoV116(nombre){
   const n=normV116(nombre);
-  if(!n) return null;
+  if(!nombreProfesionalValidoV7988(n)) return null;
   const lista=profesionalesArquitectosV116();
-  return lista.find(p=>normV116(p.nombre)===n)
-    || lista.find(p=>normV116(p.nombre).includes(n) || n.includes(normV116(p.nombre)))
-    || null;
+  // V7.9.88: solamente coincidencia EXACTA. Se eliminan coincidencias parciales
+  // para que una entrada manual nunca enganche un profesional antiguo.
+  return lista.find(p=>normV116(p.nombre)===n) || null;
 }
 
 function setOnlyFavorableV116(selectId, stateObj, stateKey){
@@ -15512,9 +15523,26 @@ function patchAnteproyectoArquitectosV116(){
 
   input.setAttribute('list','listaArquitectosProyectistasV116');
   input.setAttribute('placeholder','PROYECTISTA ARQUITECTO');
+  input.setAttribute('autocomplete','off');
+  input.setAttribute('spellcheck','false');
+  input.setAttribute('data-lpignore','true');
 
-  if(input.dataset.v116Arquitectos!=='1'){
-    input.dataset.v116Arquitectos='1';
+  const senEl=document.getElementById('antSenescyt');
+  if(senEl){
+    senEl.setAttribute('autocomplete','off');
+    senEl.setAttribute('spellcheck','false');
+    senEl.setAttribute('data-lpignore','true');
+    if(senEl.dataset.v7988ManualTrack!=='1'){
+      senEl.dataset.v7988ManualTrack='1';
+      senEl.addEventListener('input',()=>{
+        // Cualquier edición directa del SENESCYT pasa a ser manual y tiene prioridad.
+        state.aprobatorio.anteproyecto._senescytAutoV7988='';
+      },true);
+    }
+  }
+
+  if(input.dataset.v7988Arquitectos!=='1'){
+    input.dataset.v7988Arquitectos='1';
 
     const fill=()=>{
       const p=findArquitectoV116(input.value);
@@ -15524,18 +15552,24 @@ function patchAnteproyectoArquitectosV116(){
       input.value=p.nombre;
 
       const sen=formatSenescyt(p.registroSenescyt||'');
-      if(sen){
+      const current=String(state.aprobatorio.anteproyecto.senescyt||'').trim();
+      const previousAuto=String(state.aprobatorio.anteproyecto._senescytAutoV7988||'').trim();
+      // Autocompletar SENESCYT solo si está vacío o si todavía contiene el valor
+      // que ALLPA colocó automáticamente antes. Nunca reemplazar una edición manual.
+      if(sen && (!current || current===previousAuto)){
         state.aprobatorio.anteproyecto.senescyt=sen;
-        const senEl=document.getElementById('antSenescyt');
-        if(senEl) senEl.value=sen;
+        state.aprobatorio.anteproyecto._senescytAutoV7988=sen;
+        const liveSen=document.getElementById('antSenescyt');
+        if(liveSen) liveSen.value=sen;
       }
 
       if(typeof renderReport==='function') renderReport();
       if(typeof renderPreview==='function') renderPreview();
     };
 
+    // V7.9.88: no autocompletar al perder foco. Solo procesar una selección/cambio
+    // confirmado y únicamente con coincidencia exacta del profesional.
     input.addEventListener('change',fill);
-    input.addEventListener('blur',fill);
   }
 }
 
