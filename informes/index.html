@@ -21033,8 +21033,8 @@ anteproyectoPanelHtml=function(){
     html+=`<table class="anteproyecto-table form-report-table"><tbody>
       <tr><th>Documento</th><td><input id="antDocumento" value="${esc(a.documento||'')}" placeholder="MEMORANDO / RESOLUCIÓN"></td><th>EGOB</th><td><input id="antEgob" value="${esc(a.egob||'')}" placeholder="EGOB"></td></tr>
       <tr><th>Técnico revisor</th><td colspan="3"><input id="antTecnico" list="listaTecnicos" value="${esc(a.tecnico||'')}" placeholder="TÉCNICO REVISOR"></td></tr>
-      <tr><th>Criterio técnico</th><td><select id="antCriterio"><option></option><option ${a.criterio==='FAVORABLE'?'selected':''}>FAVORABLE</option><option ${a.criterio==='NO FAVORABLE'?'selected':''}>NO FAVORABLE</option></select></td><th>Proyectista</th><td><input id="antCalculista" value="${esc(a.calculista||'')}" placeholder="PROYECTISTA"></td></tr>
-      <tr><th>Reg. SENESCYT</th><td colspan="3"><input id="antSenescyt" value="${esc(a.senescyt||'')}" placeholder="1041-2026-3296002"></td></tr>
+      <tr><th>Criterio técnico</th><td><select id="antCriterio"><option></option><option ${a.criterio==='FAVORABLE'?'selected':''}>FAVORABLE</option><option ${a.criterio==='NO FAVORABLE'?'selected':''}>NO FAVORABLE</option></select></td><th>Proyectista</th><td><input id="antCalculista" list="listaArquitectosProyectistasV7989" value="${esc(a.calculista||'')}" placeholder="PROYECTISTA ARQUITECTO" spellcheck="false"></td></tr>
+      <tr><th>Reg. SENESCYT</th><td colspan="3"><input id="antSenescyt" value="${esc(a.senescyt||'')}" placeholder="1041-2026-3296002" spellcheck="false"></td></tr>
     </tbody></table>`;
     /* Bajo el umbral, la tabla se habilita aquí porque el grupo >2 pisos/400 m² no se muestra. */
     if(!obligatorio){
@@ -28989,6 +28989,7 @@ renderObsSeleccionadas = function(){
     if(loadedExtras.profesionales.length){
       DATA.profesionales=loadedExtras.profesionales.filter(activeV32).map(r=>({
         nombre:String(r.Nombre||r.Profesional||r.Proyectista||'').trim(),
+        titulo:String(r.Titulo||r.TÍTULO||r.TITULO||r['Título']||'').trim(),
         registroMunicipal:String(r["Registro Municipal"]||r["RegistroMunicipal"]||r["Reg. Municipal"]||'').trim(),
         registroSenescyt:String(r["Registro Senescyt"]||r["Registro SENESCYT"]||r.Senescyt||r.SENESCYT||'').trim()
       })).filter(r=>r.nombre);
@@ -44451,5 +44452,127 @@ mountSoon();
 <!-- ALLPA V7.9.77 · feriados externos en data/feriados.csv; 2026-11-02 y 2026-11-03 no laborables -->
 <!-- ALLPA V7.9.80 · Persistencia normalizada de uno o varios apoderados al finalizar Informes -->
 <!-- ALLPA V7.9.82 · Informe de desistimiento persiste Criterio Técnico para Resoluciones -->
+
+<script>
+/* ==========================================================
+   V7.9.89 — Anteproyecto OM: restaurar lista CSV sin sobrescrituras.
+   - Mantiene datalist visible tras cada re-render.
+   - Recarga arquitectos después de cargar profesionales.csv.
+   - Autocompleta SENESCYT solo con coincidencia exacta elegida.
+   - Respeta cualquier SENESCYT escrito manualmente.
+   ========================================================== */
+(function(){
+  const DL_ID='listaArquitectosProyectistasV7989';
+
+  function norm(v){
+    return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,' ').trim().toUpperCase();
+  }
+  function nombreValido(nombre){
+    const n=norm(nombre);
+    return !!n && !['NA','N/A','S/N','SN','SIN DATO','SIN DATOS','NO APLICA'].includes(n);
+  }
+  function arquitectos(){
+    const src=((typeof DATA!=='undefined'&&Array.isArray(DATA.profesionales))?DATA.profesionales:[]).filter(p=>p&&nombreValido(p.nombre));
+    const only=src.filter(p=>{
+      const t=norm(p.titulo||p.Titulo||p.TITULO||'');
+      return t.includes('ARQUITECT');
+    });
+    return only.length?only:src;
+  }
+  function ensureDatalist(){
+    let dl=document.getElementById(DL_ID);
+    if(!dl){
+      dl=document.createElement('datalist');
+      dl.id=DL_ID;
+      document.body.appendChild(dl);
+    }
+    const arr=arquitectos();
+    const html=arr.map(p=>{
+      const sen=String(p.registroSenescyt||'').trim();
+      const title=String(p.titulo||'').trim();
+      return `<option value="${typeof esc==='function'?esc(p.nombre):p.nombre}">${typeof esc==='function'?esc([title,sen].filter(Boolean).join(' · ')):[title,sen].filter(Boolean).join(' · ')}</option>`;
+    }).join('');
+    if(dl.innerHTML!==html) dl.innerHTML=html;
+    return dl;
+  }
+  function exact(nombre){
+    const n=norm(nombre);
+    if(!nombreValido(n)) return null;
+    return arquitectos().find(p=>norm(p.nombre)===n)||null;
+  }
+  function bind(){
+    ensureDatalist();
+    const input=document.getElementById('antCalculista');
+    if(!input) return;
+    input.setAttribute('list',DL_ID);
+    input.setAttribute('placeholder','PROYECTISTA ARQUITECTO');
+    input.removeAttribute('autocomplete');
+    input.setAttribute('spellcheck','false');
+
+    const sen=document.getElementById('antSenescyt');
+    if(sen){
+      sen.removeAttribute('autocomplete');
+      sen.setAttribute('spellcheck','false');
+      if(sen.dataset.v7989Manual!=='1'){
+        sen.dataset.v7989Manual='1';
+        sen.addEventListener('input',()=>{
+          if(typeof state!=='undefined' && state.aprobatorio?.anteproyecto){
+            state.aprobatorio.anteproyecto._senescytManualV7989=true;
+            state.aprobatorio.anteproyecto._senescytAutoV7989='';
+          }
+        },true);
+      }
+    }
+
+    if(input.dataset.v7989List==='1') return;
+    input.dataset.v7989List='1';
+    input.addEventListener('change',()=>{
+      const p=exact(input.value);
+      if(!p || typeof state==='undefined' || !state.aprobatorio?.anteproyecto) return;
+      state.aprobatorio.anteproyecto.calculista=p.nombre;
+      input.value=p.nombre;
+      const senTxt=typeof formatSenescyt==='function'?formatSenescyt(p.registroSenescyt||''):String(p.registroSenescyt||'');
+      const cur=String(state.aprobatorio.anteproyecto.senescyt||'').trim();
+      const prev=String(state.aprobatorio.anteproyecto._senescytAutoV7989||'').trim();
+      const manual=!!state.aprobatorio.anteproyecto._senescytManualV7989;
+      if(senTxt && !manual && (!cur || cur===prev)){
+        state.aprobatorio.anteproyecto.senescyt=senTxt;
+        state.aprobatorio.anteproyecto._senescytAutoV7989=senTxt;
+        const live=document.getElementById('antSenescyt');
+        if(live) live.value=senTxt;
+      }
+      if(typeof renderReport==='function') renderReport();
+      if(typeof renderPreview==='function') renderPreview();
+    });
+  }
+
+  // Reponer la lista después de cargar data/profesionales.csv.
+  if(typeof window.loadExternalCSVsV32==='function' && !window.loadExternalCSVsV32.__v7989){
+    const base=window.loadExternalCSVsV32;
+    const wrapped=async function(){
+      const out=await base.apply(this,arguments);
+      ensureDatalist();
+      setTimeout(bind,0);
+      return out;
+    };
+    wrapped.__v7989=true;
+    window.loadExternalCSVsV32=wrapped;
+  }
+
+  // El formulario se reconstruye varias veces; MutationObserver garantiza que
+  // el input nuevo siempre conserve su datalist.
+  let queued=false;
+  const schedule=()=>{
+    if(queued) return; queued=true;
+    setTimeout(()=>{queued=false;bind();},0);
+  };
+  new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});
+  window.addEventListener('load',()=>{
+    setTimeout(bind,300); setTimeout(bind,1000); setTimeout(bind,2200);
+  });
+  window.refreshArquitectosAnteproyectoV7989=()=>{ensureDatalist();bind();};
+})();
+</script>
 </body>
 </html>
