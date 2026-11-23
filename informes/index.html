@@ -44574,5 +44574,299 @@ mountSoon();
   window.refreshArquitectosAnteproyectoV7989=()=>{ensureDatalist();bind();};
 })();
 </script>
+
+
+<!-- ==========================================================
+     ALLPA V8.3.6 · NOTA RICA CON IMÁGENES EN APROBATORIOS
+     Obra Mayor + Anteproyecto
+     - Texto e imágenes intercaladas en el lugar del cursor.
+     - Pegar imagen con Ctrl+V.
+     - Insertar una o varias imágenes desde archivo.
+     - Compresión automática para persistir en datos_informe.
+     - Compatibilidad con notas antiguas basadas en texto.
+     ========================================================== -->
+<style id="allpa-v836-nota-rich-style">
+  .nota-rich-shell-v836{margin-top:8px}
+  .nota-rich-help-v836{font-size:10px;color:#64748b;line-height:1.35;margin:5px 0 8px}
+  .nota-rich-toolbar-v836{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:7px}
+  .nota-rich-toolbar-v836 button{font-size:10px;padding:6px 10px;border-radius:8px}
+  .nota-rich-toolbar-v836 .danger-note-v836{border-color:#efb0aa;color:#9b231c;background:#fff7f6}
+  .nota-rich-stats-v836{margin-left:auto;font-size:10px;color:#64748b;font-weight:700}
+  .nota-rich-editor-v836{
+    min-height:145px;max-height:430px;overflow:auto;background:#fff;border:1px solid #b7cbe0;
+    border-radius:10px;padding:10px 11px;font-size:12px;line-height:1.45;color:#1f2937;
+    white-space:normal;outline:none
+  }
+  .nota-rich-editor-v836:focus{border-color:#2780b8;box-shadow:0 0 0 2px rgba(39,128,184,.12)}
+  .nota-rich-editor-v836:empty:before{content:attr(data-placeholder);color:#94a3b8;pointer-events:none}
+  .nota-rich-editor-v836 img{display:block;max-width:100%;height:auto;margin:10px auto;border:1px solid #d5dde5;border-radius:4px;cursor:pointer;background:#fff}
+  .nota-rich-editor-v836 img.nota-img-selected-v836{outline:3px solid #1593d1;outline-offset:2px}
+  .nota-rich-file-v836{display:none!important}
+  .nota-rich-report-v836{margin-top:3pt}
+  .nota-rich-report-v836 div,.nota-rich-report-v836 p{margin:0 0 8pt;text-align:justify;line-height:1.15}
+  .nota-rich-report-v836 img{
+    display:block;max-width:100%;height:auto;max-height:230mm;object-fit:contain;margin:8pt auto;
+    break-inside:avoid;page-break-inside:avoid
+  }
+  @media print{
+    .nota-rich-report-v836 img{max-width:100%!important;max-height:230mm!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  }
+</style>
+<script id="allpa-v836-nota-rich-script">
+(function(){
+'use strict';
+const VERSION='8.3.6-nota-rich-imagenes';
+const MAX_IMAGES=8;
+const MAX_TOTAL_BYTES=5*1024*1024;
+const TARGET_IMAGE_CHARS=760000;
+let savedRange=null;
+let selectedImage=null;
+
+function E(v){
+  return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+function ensureNote(){
+  if(!window.state) return {activo:false,texto:'',contenidoHtml:''};
+  if(!state.aprobatorio||typeof state.aprobatorio!=='object') state.aprobatorio={};
+  if(!state.aprobatorio.notaPreConclusiones||typeof state.aprobatorio.notaPreConclusiones!=='object'){
+    state.aprobatorio.notaPreConclusiones={activo:false,texto:'',contenidoHtml:''};
+  }
+  const n=state.aprobatorio.notaPreConclusiones;
+  if(typeof n.activo!=='boolean') n.activo=!!n.activo;
+  if(typeof n.texto!=='string') n.texto=String(n.texto||'');
+  if(typeof n.contenidoHtml!=='string') n.contenidoHtml='';
+  if(!n.contenidoHtml.trim() && n.texto.trim()) n.contenidoHtml=plainToHtml(n.texto);
+  return n;
+}
+function plainToHtml(v){
+  return E(String(v||'')).replace(/\r\n?/g,'\n').replace(/\n/g,'<br>');
+}
+function cleanHtml(raw){
+  const box=document.createElement('div');
+  box.innerHTML=String(raw||'');
+  function clean(node){
+    if(node.nodeType===Node.TEXT_NODE) return document.createTextNode(node.nodeValue||'');
+    if(node.nodeType!==Node.ELEMENT_NODE) return document.createDocumentFragment();
+    const tag=node.tagName.toUpperCase();
+    if(tag==='IMG'){
+      const src=String(node.getAttribute('src')||'');
+      if(!/^data:image\/(?:png|jpe?g|webp|gif);base64,/i.test(src)) return document.createDocumentFragment();
+      const img=document.createElement('img');
+      img.src=src;
+      img.alt='Imagen incorporada en la nota';
+      img.setAttribute('data-nota-img-v836','1');
+      return img;
+    }
+    if(tag==='BR') return document.createElement('br');
+    const holder=(tag==='DIV'||tag==='P')?document.createElement(tag.toLowerCase()):document.createDocumentFragment();
+    [...node.childNodes].forEach(ch=>holder.appendChild(clean(ch)));
+    return holder;
+  }
+  const out=document.createElement('div');
+  [...box.childNodes].forEach(ch=>out.appendChild(clean(ch)));
+  return out.innerHTML;
+}
+function htmlText(raw){
+  const box=document.createElement('div');
+  box.innerHTML=cleanHtml(raw);
+  return String(box.innerText||box.textContent||'').replace(/\u00a0/g,' ').trim();
+}
+function countImages(raw){
+  const box=document.createElement('div');box.innerHTML=cleanHtml(raw);return box.querySelectorAll('img').length;
+}
+function imageBytes(raw){
+  const box=document.createElement('div');box.innerHTML=cleanHtml(raw);
+  let total=0;
+  box.querySelectorAll('img').forEach(img=>{
+    const s=String(img.src||''); const comma=s.indexOf(',');
+    if(comma>=0) total+=Math.floor((s.length-comma-1)*0.75);
+  });
+  return total;
+}
+function humanBytes(n){
+  if(n<1024)return n+' B'; if(n<1024*1024)return (n/1024).toFixed(0)+' KB'; return (n/1024/1024).toFixed(1)+' MB';
+}
+function currentEditor(){return document.getElementById('notaAprobatorioRichV836')}
+function sync(editor,rerender=true){
+  const n=ensureNote();
+  const html=cleanHtml(editor?editor.innerHTML:n.contenidoHtml);
+  n.contenidoHtml=html;
+  n.texto=htmlText(html);
+  updateStats();
+  if(rerender){
+    try{if(typeof renderReport==='function')renderReport()}catch(_e){}
+    try{if(typeof renderPreview==='function')renderPreview()}catch(_e){}
+  }
+}
+function updateStats(){
+  const n=ensureNote(), el=document.getElementById('notaAprobatorioStatsV836');
+  if(!el)return;
+  const c=countImages(n.contenidoHtml), b=imageBytes(n.contenidoHtml);
+  el.textContent=c?`${c} imagen(es) · ${humanBytes(b)}`:'Sin imágenes';
+}
+function rangeInsideEditor(range,editor){
+  if(!range||!editor)return false;
+  const c=range.commonAncestorContainer;
+  return c===editor||editor.contains(c.nodeType===Node.ELEMENT_NODE?c:c.parentNode);
+}
+function rememberRange(){
+  const ed=currentEditor(); if(!ed)return;
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount){const r=sel.getRangeAt(0);if(rangeInsideEditor(r,ed))savedRange=r.cloneRange();}
+}
+function placeRange(editor){
+  editor.focus();
+  const sel=window.getSelection(); sel.removeAllRanges();
+  let r=savedRange&&rangeInsideEditor(savedRange,editor)?savedRange.cloneRange():null;
+  if(!r){r=document.createRange();r.selectNodeContents(editor);r.collapse(false)}
+  sel.addRange(r); return r;
+}
+function insertFragment(fragment){
+  const ed=currentEditor(); if(!ed)return;
+  const r=placeRange(ed); r.deleteContents(); r.insertNode(fragment);
+  const sel=window.getSelection(); const nr=document.createRange(); nr.selectNodeContents(ed); nr.collapse(false);
+  try{
+    const last=ed.lastChild;
+    if(last){nr.setStartAfter(last);nr.collapse(true)}
+  }catch(_e){}
+  sel.removeAllRanges();sel.addRange(nr);savedRange=nr.cloneRange();
+  sync(ed,true);
+}
+function insertText(text){
+  const frag=document.createDocumentFragment();
+  String(text||'').replace(/\r\n?/g,'\n').split('\n').forEach((line,i)=>{
+    if(i)frag.appendChild(document.createElement('br'));
+    if(line)frag.appendChild(document.createTextNode(line));
+  });
+  insertFragment(frag);
+}
+function fileToImage(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onerror=()=>reject(new Error('No se pudo leer la imagen.'));
+    r.onload=()=>{const im=new Image();im.onerror=()=>reject(new Error('La imagen no tiene un formato compatible.'));im.onload=()=>resolve(im);im.src=r.result};
+    r.readAsDataURL(file);
+  });
+}
+async function compress(file){
+  if(!file||!String(file.type||'').startsWith('image/'))throw new Error('Seleccione un archivo de imagen.');
+  const im=await fileToImage(file);
+  let maxDim=1600,quality=.86,data='';
+  for(let attempt=0;attempt<7;attempt++){
+    const scale=Math.min(1,maxDim/Math.max(im.naturalWidth||im.width,im.naturalHeight||im.height));
+    const w=Math.max(1,Math.round((im.naturalWidth||im.width)*scale));
+    const h=Math.max(1,Math.round((im.naturalHeight||im.height)*scale));
+    const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(im,0,0,w,h);
+    data=canvas.toDataURL('image/webp',quality);
+    if(data.length<=TARGET_IMAGE_CHARS)break;
+    maxDim=Math.max(720,Math.floor(maxDim*.84)); quality=Math.max(.68,quality-.035);
+  }
+  return data;
+}
+function imageFragment(data){
+  const frag=document.createDocumentFragment();
+  const pre=document.createElement('br'); const img=document.createElement('img'); const post=document.createElement('br');
+  img.src=data;img.alt='Imagen incorporada en la nota';img.setAttribute('data-nota-img-v836','1');
+  frag.append(pre,img,post); return frag;
+}
+async function addFiles(files){
+  const list=[...(files||[])].filter(f=>String(f.type||'').startsWith('image/'));
+  if(!list.length){if(typeof msg==='function')msg('Seleccione una imagen.');return}
+  const n=ensureNote(); let existing=countImages(n.contenidoHtml);
+  if(existing>=MAX_IMAGES){if(typeof msg==='function')msg(`La nota admite hasta ${MAX_IMAGES} imágenes.`);return}
+  for(const file of list.slice(0,MAX_IMAGES-existing)){
+    try{
+      const data=await compress(file);
+      const current=ensureNote();
+      const projected=imageBytes(current.contenidoHtml)+Math.floor(data.length*.75);
+      if(projected>MAX_TOTAL_BYTES){if(typeof msg==='function')msg('No se agregó la imagen porque la nota superaría 5 MB de imágenes.');break}
+      insertFragment(imageFragment(data)); existing++;
+    }catch(err){console.warn('ALLPA V8.3.6 imagen nota:',err);if(typeof msg==='function')msg(err.message||'No se pudo insertar la imagen.')}
+  }
+  if(typeof msg==='function')msg('Imagen agregada en la posición del cursor.',true);
+}
+function paste(ev){
+  const items=[...(ev.clipboardData?.items||[])];
+  const imgs=items.filter(i=>i.kind==='file'&&String(i.type||'').startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);
+  if(imgs.length){ev.preventDefault();rememberRange();addFiles(imgs);return false}
+  const text=ev.clipboardData?.getData('text/plain');
+  if(typeof text==='string'){ev.preventDefault();insertText(text);return false}
+}
+function drop(ev){
+  const files=[...(ev.dataTransfer?.files||[])].filter(f=>String(f.type||'').startsWith('image/'));
+  if(!files.length)return;
+  ev.preventDefault(); rememberRange(); addFiles(files);
+}
+function clickEditor(ev){
+  const ed=currentEditor();if(!ed)return;
+  ed.querySelectorAll('img').forEach(x=>x.classList.remove('nota-img-selected-v836'));
+  selectedImage=null;
+  if(ev.target?.tagName==='IMG'){selectedImage=ev.target;selectedImage.classList.add('nota-img-selected-v836')}
+  else rememberRange();
+}
+function removeSelected(){
+  if(!selectedImage||!selectedImage.isConnected){if(typeof msg==='function')msg('Primero seleccione una imagen dentro de la nota.');return}
+  const ed=currentEditor();selectedImage.remove();selectedImage=null;sync(ed,true);
+}
+function keydown(ev){
+  if((ev.key==='Delete'||ev.key==='Backspace')&&selectedImage&&selectedImage.isConnected){ev.preventDefault();removeSelected();return false}
+}
+function input(editor){selectedImage=null;rememberRange();sync(editor,true)}
+
+window.notaRichInputV836=input;
+window.notaRichPasteV836=paste;
+window.notaRichDropV836=drop;
+window.notaRichClickV836=clickEditor;
+window.notaRichKeydownV836=keydown;
+window.notaRichRememberRangeV836=rememberRange;
+window.notaRichFilesV836=addFiles;
+window.notaRichRemoveSelectedV836=removeSelected;
+
+/* Reemplaza únicamente el editor de la Nota del Informe Técnico Aprobatorio. */
+window.renderAprobatorioNotaV56=renderAprobatorioNotaV56=function(){
+  const n=ensureNote();
+  const safe=cleanHtml(n.contenidoHtml||plainToHtml(n.texto));
+  n.contenidoHtml=safe;
+  return `<div class="apr-note-v56 nota-rich-shell-v836">
+    <label class="check-line"><input type="checkbox" id="toggleNotaAprobatorioV56" ${n.activo?'checked':''}> Incluir nota después de conclusiones</label>
+    <div class="mini">Si se activa, la nota aparecerá después de la sección Conclusión técnica del informe aprobatorio.</div>
+    ${n.activo?`<div class="nota-rich-help-v836">Escriba el texto normalmente. Para insertar una imagen en un punto específico, ubique allí el cursor y use <strong>Ctrl+V</strong> o <strong>Agregar imagen</strong>. Puede continuar escribiendo debajo de cada imagen.</div>
+      <div class="nota-rich-toolbar-v836">
+        <button type="button" class="secondary" onmousedown="notaRichRememberRangeV836()" onclick="document.getElementById('notaAprobatorioFileV836').click()">Agregar imagen</button>
+        <button type="button" class="secondary danger-note-v836" onclick="notaRichRemoveSelectedV836()">Eliminar imagen</button>
+        <span id="notaAprobatorioStatsV836" class="nota-rich-stats-v836"></span>
+        <input class="nota-rich-file-v836" id="notaAprobatorioFileV836" type="file" accept="image/*" multiple onchange="notaRichFilesV836(this.files);this.value=''">
+      </div>
+      <div id="notaAprobatorioRichV836" class="nota-rich-editor-v836" contenteditable="true" spellcheck="true"
+        data-placeholder="Escriba la nota para el informe aprobatorio..."
+        onfocus="notaRichRememberRangeV836()" onkeyup="notaRichRememberRangeV836()" onmouseup="notaRichRememberRangeV836()"
+        oninput="notaRichInputV836(this)" onpaste="return notaRichPasteV836(event,this)" ondrop="notaRichDropV836(event,this)"
+        onclick="notaRichClickV836(event)" onkeydown="return notaRichKeydownV836(event)">${safe}</div>
+      <textarea id="notaAprobatorioTextoV56" hidden>${E(n.texto||'')}</textarea>`:''}
+  </div>`;
+};
+
+/* Render final de la Nota: conserva exactamente el orden texto/imagen/texto. */
+window.notaAprobatorioReportV66=notaAprobatorioReportV66=function(){
+  const n=ensureNote();
+  if(!n.activo)return '';
+  const html=cleanHtml(n.contenidoHtml||plainToHtml(n.texto));
+  if(!htmlText(html)&&countImages(html)===0)return '';
+  return `<h2>Nota</h2><div class="nota-rich-report-v836">${html}</div>`;
+};
+
+function refresh(){
+  try{if(typeof renderAprobatorioForm==='function')renderAprobatorioForm()}catch(_e){}
+  setTimeout(updateStats,0);
+  try{if(typeof renderReport==='function')renderReport()}catch(_e){}
+  try{if(typeof renderPreview==='function')renderPreview()}catch(_e){}
+}
+window.addEventListener('load',()=>{setTimeout(refresh,400);setTimeout(refresh,1800);});
+
+window.AllpaNotaRichV836=Object.freeze({version:VERSION,ensureNote,cleanHtml,countImages,imageBytes});
+})();
+</script>
+
 </body>
 </html>
