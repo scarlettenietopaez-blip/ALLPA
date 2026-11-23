@@ -44615,7 +44615,7 @@ mountSoon();
 <script id="allpa-v836-nota-rich-script">
 (function(){
 'use strict';
-const VERSION='8.3.6-nota-rich-imagenes';
+const VERSION='8.3.9-nota-rich-imagenes';
 const MAX_IMAGES=8;
 const MAX_TOTAL_BYTES=5*1024*1024;
 const TARGET_IMAGE_CHARS=760000;
@@ -44626,7 +44626,7 @@ function E(v){
   return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 }
 function ensureNote(){
-  if(!window.state) return {activo:false,texto:'',contenidoHtml:''};
+  if(typeof state==='undefined' || !state) return {activo:false,texto:'',contenidoHtml:''};
   if(!state.aprobatorio||typeof state.aprobatorio!=='object') state.aprobatorio={};
   if(!state.aprobatorio.notaPreConclusiones||typeof state.aprobatorio.notaPreConclusiones!=='object'){
     state.aprobatorio.notaPreConclusiones={activo:false,texto:'',contenidoHtml:''};
@@ -44872,8 +44872,8 @@ window.AllpaNotaRichV836=Object.freeze({version:VERSION,ensureNote,cleanHtml,cou
 
 
 <!-- ==========================================================
-     ALLPA V8.3.8 · NOTA RICA APROBATORIOS
-     FIX DEFINITIVO DEL CONTROL DE ACTIVACIÓN
+     ALLPA V8.3.9 · NOTA RICA APROBATORIOS
+     FIX ESTADO GLOBAL REAL DEL CONTROL DE ACTIVACIÓN
      - ID exclusivo: evita listeners históricos V56.
      - Estado único: state.aprobatorio.notaPreConclusiones.
      - Render local del editor, sin reconstruir toda la pestaña.
@@ -44891,7 +44891,7 @@ window.AllpaNotaRichV836=Object.freeze({version:VERSION,ensureNote,cleanHtml,cou
         return window.AllpaNotaRichV836.ensureNote();
       }
     }catch(_e){}
-    if(!window.state) return null;
+    if(typeof state==='undefined' || !state) return null;
     if(!state.aprobatorio || typeof state.aprobatorio!=='object') state.aprobatorio={};
     if(!state.aprobatorio.notaPreConclusiones || typeof state.aprobatorio.notaPreConclusiones!=='object'){
       state.aprobatorio.notaPreConclusiones={activo:false,texto:'',contenidoHtml:''};
