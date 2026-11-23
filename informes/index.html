@@ -44868,5 +44868,80 @@ window.AllpaNotaRichV836=Object.freeze({version:VERSION,ensureNote,cleanHtml,cou
 })();
 </script>
 
+
+<!-- ==========================================================
+     ALLPA V8.3.7 · FIX CHECKBOX NOTA RICA APROBATORIOS
+     ========================================================== -->
+<script id="allpa-v837-fix-toggle-nota-rich">
+(function(){
+  'use strict';
+  if(window.__ALLPA_V837_NOTA_TOGGLE__) return;
+  window.__ALLPA_V837_NOTA_TOGGLE__=true;
+
+  function noteStateV837(){
+    try{
+      if(window.AllpaNotaRichV836 && typeof window.AllpaNotaRichV836.ensureNote==='function'){
+        return window.AllpaNotaRichV836.ensureNote();
+      }
+    }catch(_e){}
+    if(!window.state) return null;
+    if(!state.aprobatorio || typeof state.aprobatorio!=='object') state.aprobatorio={};
+    if(!state.aprobatorio.notaPreConclusiones || typeof state.aprobatorio.notaPreConclusiones!=='object'){
+      state.aprobatorio.notaPreConclusiones={activo:false,texto:'',contenidoHtml:''};
+    }
+    return state.aprobatorio.notaPreConclusiones;
+  }
+
+  function redrawNoteV837(checked){
+    const n=noteStateV837();
+    if(!n) return;
+    n.activo=!!checked;
+
+    const box=document.getElementById('notaAprobatorioBoxV56');
+    if(box && typeof window.renderAprobatorioNotaV56==='function'){
+      box.innerHTML=window.renderAprobatorioNotaV56();
+    }
+
+    try{
+      if(typeof window.renderReport==='function') window.renderReport();
+      else if(typeof renderReport==='function') renderReport();
+    }catch(_e){}
+
+    try{
+      if(typeof window.renderPreview==='function') window.renderPreview();
+      else if(typeof renderPreview==='function') renderPreview();
+    }catch(_e){}
+
+    if(n.activo){
+      setTimeout(()=>{
+        const ed=document.getElementById('notaAprobatorioRichV836');
+        if(ed) try{ed.focus();}catch(_e){}
+      },0);
+    }
+  }
+
+  document.addEventListener('change',function(ev){
+    const t=ev.target;
+    if(!t || t.id!=='toggleNotaAprobatorioV56') return;
+    ev.stopPropagation();
+    redrawNoteV837(t.checked);
+  },true);
+
+  document.addEventListener('click',function(ev){
+    const t=ev.target;
+    if(!t || t.id!=='toggleNotaAprobatorioV56') return;
+    setTimeout(()=>{
+      const live=document.getElementById('toggleNotaAprobatorioV56');
+      const n=noteStateV837();
+      if(live && n && !!live.checked!==!!n.activo){
+        redrawNoteV837(live.checked);
+      }
+    },0);
+  },true);
+
+  window.AllpaNotaToggleV837={redraw:redrawNoteV837};
+})();
+</script>
+
 </body>
 </html>
