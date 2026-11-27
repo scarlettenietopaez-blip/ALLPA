@@ -90,7 +90,82 @@ function extraAnnulReason(r){if(String(r?.motivo_anulacion||'').trim())return St
 function normalizeExtraControl(r){const st=norm(r?.estado_documento||r?.registro_estado),q=norm(r?.estado_qgis);let puede=r?.puede_liberar,motivo=r?.motivo_bloqueo||null;if(r?.categoria==='RESOLUCION_OBRA_MAYOR'){puede=st==='FINALIZADA'&&nval(r?.numero)!==null&&!['REGISTRADO','PROCESANDO'].includes(q);motivo=st==='ANULADA'?'La Resolución ya está anulada.':st!=='FINALIZADA'?'Solo se puede anular una Resolución FINALIZADA.':nval(r?.numero)===null?'La Resolución no tiene número oficial para liberar.':['REGISTRADO','PROCESANDO'].includes(q)?'La Resolución ya fue enviada o registrada en QGIS.':null}else if(r?.categoria==='NOTIFICACION_ANTEPROYECTO'){puede=st==='FINALIZADA'&&q!=='SINCRONIZADA';motivo=st==='ANULADA'?'La Notificación ya está anulada.':st!=='FINALIZADA'?'Solo se puede anular una Notificación FINALIZADA.':q==='SINCRONIZADA'?'La Notificación ya está sincronizada en QGIS.':null}else if(r?.categoria==='RESOLUCION_DESISTIMIENTO'){puede=st==='FINALIZADA'&&nval(r?.numero)!==null&&q!=='SINCRONIZADA';motivo=st==='ANULADA'?'La Resolución de Desistimiento ya está anulada.':st!=='FINALIZADA'?'Solo se puede anular una Resolución de Desistimiento FINALIZADA.':nval(r?.numero)===null?'La Resolución no tiene número oficial para liberar.':q==='SINCRONIZADA'?'La Resolución ya está sincronizada en QGIS.':null}return {...r,puede_liberar:puede,motivo_bloqueo:motivo,motivo_anulacion:extraAnnulReason(r)||r?.motivo_anulacion||''}}
 function rowReleasesNumber(r){return r?.categoria!=='NOTIFICACION_ANTEPROYECTO'}
 function dedupeRows(rows){const operational=new Set(rows.filter(r=>r.origen!=='MATRIZ_HISTORICA'&&rowNumber(r)!==null).map(r=>`${r.categoria}|${r.anio}|${rowNumber(r)}`));const seen=new Set();return rows.filter(r=>{const key=`${r.categoria}|${r.anio}|${rowNumber(r)}`;if(r.origen==='MATRIZ_HISTORICA'&&operational.has(key))return false;const unique=[r.origen,r.tabla_fuente,r.registro_id||r.informe_id||'',r.categoria,r.anio,r.numero,r.numero_formateado,r.egob].join('|');if(seen.has(unique))return false;seen.add(unique);return true})}
-async function load(){setStatus('Consultando CONTROL documental en Supabase…');const [approvedRes,extraRes,desistRes]=await Promise.all([sb.rpc('phdu_listar_control_informes'),sb.rpc('phdu_listar_control_documentos_adicionales'),sb.rpc('phdu_listar_control_desistimientos_liberacion')]);if(approvedRes.error){setStatus('No se pudo cargar los Informes Aprobatorios: '+approvedRes.error.message,true);return}const approved=(Array.isArray(approvedRes.data)?approvedRes.data:[]).map(normalizeApproved);if(extraRes.error){allRows=approved;populateYears();updateTabCounts();render();setStatus('CONTROL parcial: no se pudieron cargar matriz histórica y documentos adicionales. Detalle: '+extraRes.error.message,true);return}const desistMap=new Map((Array.isArray(desistRes.data)?desistRes.data:[]).map(x=>[String(x.informe_id||''),x]));const extra=(Array.isArray(extraRes.data)?extraRes.data:[]).map(r=>{if(r.categoria==='DESISTIMIENTO_OBRA_MAYOR'||r.categoria==='DESISTIMIENTO_ANTEPROYECTO'){const d=desistMap.get(String(r.informe_id||r.registro_id||''));if(d)r={...r,registro_estado:d.registro_estado,estado_documento:d.registro_estado,estado_numero:d.estado_numero,puede_liberar:d.puede_liberar,motivo_bloqueo:d.motivo_bloqueo,motivo_anulacion:d.motivo_anulacion};}return normalizeExtraControl(r)});allRows=dedupeRows([...approved,...extra]);populateYears();updateTabCounts();render();if(desistRes.error)setStatus('CONTROL actualizado, pero no se pudo validar la liberación de Desistimientos: '+desistRes.error.message,true);else setStatus('CONTROL actualizado. Registros visibles en las 7 categorías: '+allRows.length+'.')}
+
+function applyResolutionCorrectionsV8436(row,corr){
+  if(!row||!corr||typeof corr!=='object'||Array.isArray(corr))return row;
+  const r={...row,_correcciones_resolucion:corr};
+  const has=k=>Object.prototype.hasOwnProperty.call(corr,k);
+  const val=k=>corr[k];
+
+  if(has('numero_informe_formateado'))r.numero_formateado=val('numero_informe_formateado');
+  if(has('egob'))r.egob=val('egob');
+  if(has('fecha_informe')){r.fecha_informe=val('fecha_informe');r.fecha_documento=val('fecha_informe');}
+  if(has('fecha_ingreso_tramite'))r.fecha_ingreso_tramite=val('fecha_ingreso_tramite');
+  if(has('propietarios_texto')){r.propietarios_texto=val('propietarios_texto');r.solicitante=val('propietarios_texto');}
+  if(has('proyecto.nombre'))r.nombre_proyecto=val('proyecto.nombre');
+  if(has('proyecto.uso'))r.uso_proyecto=val('proyecto.uso');
+  if(has('proyecto.tipo_obra'))r.tipo_obra=val('proyecto.tipo_obra');
+  if(has('proyecto.pisos'))r.pisos=val('proyecto.pisos');
+  if(has('ubicacion.parroquia'))r.parroquia=val('ubicacion.parroquia');
+  if(has('ubicacion.barrio_sector'))r.barrio_sector=val('ubicacion.barrio_sector');
+  if(has('ubicacion.direccion'))r.direccion=val('ubicacion.direccion');
+  if(has('ubicacion.codigo_pit'))r.codigo_pit=val('ubicacion.codigo_pit');
+  if(has('ubicacion.clave_catastral'))r.clave_catastral=String(val('ubicacion.clave_catastral')??'').replace(/\D/g,'');
+  if(has('areas.construccion'))r.area_construccion=val('areas.construccion');
+  if(has('proyectista.nombre'))r.proyectista=val('proyectista.nombre');
+  if(has('proyectista.senescyt'))r.proyectista_senescyt=val('proyectista.senescyt');
+  if(has('proyectista.registro_municipal'))r.proyectista_registro_municipal=val('proyectista.registro_municipal');
+  if(has('tecnico.nombre')){r.tecnico_nombre=val('tecnico.nombre');r.responsable=val('tecnico.nombre');}
+  return r;
+}
+async function load(){
+  setStatus('Consultando CONTROL documental en Supabase…');
+  const [approvedRes,extraRes,desistRes,corrRes]=await Promise.all([
+    sb.rpc('phdu_listar_control_informes'),
+    sb.rpc('phdu_listar_control_documentos_adicionales'),
+    sb.rpc('phdu_listar_control_desistimientos_liberacion'),
+    sb.rpc('phdu_listar_correcciones_resolucion_vigentes')
+  ]);
+
+  if(approvedRes.error){
+    setStatus('No se pudo cargar los Informes Aprobatorios: '+approvedRes.error.message,true);
+    return;
+  }
+
+  const corrMap=new Map(
+    (Array.isArray(corrRes.data)?corrRes.data:[])
+      .map(x=>[String(x.informe_id||''),x.correcciones||{}])
+  );
+
+  const approved=(Array.isArray(approvedRes.data)?approvedRes.data:[])
+    .map(normalizeApproved)
+    .map(r=>applyResolutionCorrectionsV8436(r,corrMap.get(String(r.informe_id||''))));
+
+  if(extraRes.error){
+    allRows=approved;
+    populateYears();updateTabCounts();render();
+    setStatus('CONTROL parcial: no se pudieron cargar matriz histórica y documentos adicionales. Detalle: '+extraRes.error.message,true);
+    return;
+  }
+
+  const desistMap=new Map((Array.isArray(desistRes.data)?desistRes.data:[]).map(x=>[String(x.informe_id||''),x]));
+  const extra=(Array.isArray(extraRes.data)?extraRes.data:[]).map(r=>{
+    if(r.categoria==='DESISTIMIENTO_OBRA_MAYOR'||r.categoria==='DESISTIMIENTO_ANTEPROYECTO'){
+      const d=desistMap.get(String(r.informe_id||r.registro_id||''));
+      if(d)r={...r,registro_estado:d.registro_estado,estado_documento:d.registro_estado,estado_numero:d.estado_numero,puede_liberar:d.puede_liberar,motivo_bloqueo:d.motivo_bloqueo,motivo_anulacion:d.motivo_anulacion};
+    }
+    return normalizeExtraControl(r);
+  });
+
+  allRows=dedupeRows([...approved,...extra]);
+  populateYears();updateTabCounts();render();
+
+  const warnings=[];
+  if(desistRes.error)warnings.push('no se pudo validar la liberación de Desistimientos: '+desistRes.error.message);
+  if(corrRes.error)warnings.push('no se pudieron cargar las correcciones vigentes de Resoluciones: '+corrRes.error.message);
+  if(warnings.length)setStatus('CONTROL actualizado con advertencias: '+warnings.join(' · '),true);
+  else setStatus('CONTROL actualizado. Registros visibles en las 7 categorías: '+allRows.length+'.');
+}
 function updateTabCounts(){document.querySelectorAll('[data-count]').forEach(el=>{const cat=el.dataset.count;el.textContent=allRows.filter(r=>r.categoria===cat).length})}
 function populateYears(){const current=$('anio').value;const years=[...new Set(allRows.map(r=>String(r.anio||'')).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));$('anio').innerHTML='<option value="TODOS">Todos</option>'+years.map(y=>`<option value="${esc(y)}">${esc(y)}</option>`).join('');if(years.includes(current))$('anio').value=current}
 function baseTabRows(){return allRows.filter(r=>r.categoria===currentCat)}
